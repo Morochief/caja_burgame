@@ -1,0 +1,111 @@
+/* ==========================================================================
+   CUSTOMER SELF-ORDERING STYLES (CLIENTE PORTAL & KIOSK)
+   ========================================================================== */
+
+.cliente-body {
+    background: #08090D;
+    min-height: 100vh;
+}
+
+.cliente-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 1rem;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.cliente-header-banner {
+    text-align: center;
+    padding: 1rem 0;
+}
+
+.cliente-banner-img {
+    max-height: 110px;
+    width: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 0 15px var(--color-primary-glow));
+}
+
+.service-type-selector {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.8rem;
+    margin-bottom: 1.2rem;
+}
+
+.btn-service-type {
+    background: var(--bg-card);
+    border: 2px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    color: var(--text-muted);
+    font-weight: 700;
+    font-size: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    transition: all var(--transition-bounce);
+}
+
+.btn-service-type i {
+    font-size: 1.6rem;
+}
+
+.btn-service-type.active {
+    background: rgba(255, 215, 0, 0.1);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    box-shadow: 0 0 20px var(--color-primary-glow);
+}
+
+/* Live Order Tracker */
+.order-tracker-card {
+    background: #0E1017;
+    border: 2px solid var(--color-primary);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 0 30px var(--color-primary-glow);
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+}
+
+.tracker-title {
+    font-family: var(--font-title);
+    font-size: 1.1rem;
+    color: var(--color-primary);
+}
+
+.tracker-health-bar {
+    height: 16px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    position: relative;
+    border: 1px solid var(--border-subtle);
+}
+
+.tracker-health-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-primary) 0%, #00E676 100%);
+    box-shadow: 0 0 15px var(--color-primary-glow);
+    transition: width 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.tracker-steps {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.tracker-step.active {
+    color: var(--color-primary);
+    text-shadow: 0 0 8px var(--color-primary-glow);
+}

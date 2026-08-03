@@ -11,7 +11,12 @@ const routes = {
     '#/caja': () => import('./pages/caja.js').then(m => m.renderCajaPage()),
     '#/gastos': () => import('./pages/gastos.js').then(m => m.renderGastosPage()),
     '#/reportes': () => import('./pages/reportes.js').then(m => m.renderReportesPage()),
-    '#/ajustes': () => import('./pages/ajustes.js').then(m => m.renderAjustesPage())
+    '#/ajustes': () => import('./pages/ajustes.js').then(m => m.renderAjustesPage()),
+    '#/cliente': () => {
+        window.location.href = 'cliente.html';
+        const dummy = document.createElement('div');
+        return dummy;
+    }
 };
 
 export async function navigate(path) {
