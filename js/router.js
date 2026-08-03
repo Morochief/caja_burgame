@@ -34,6 +34,17 @@ export async function navigate(path) {
     
     currentRoute = path;
     window.location.hash = path;
+
+    // Ocultar Sidebar y Header Móvil en la pantalla de Login
+    const sidebar = document.getElementById('sidebar');
+    const mobileHeader = document.querySelector('.mobile-header');
+    if (path === '#/login') {
+        if (sidebar) sidebar.style.display = 'none';
+        if (mobileHeader) mobileHeader.style.display = 'none';
+    } else {
+        if (sidebar) sidebar.style.display = '';
+        if (mobileHeader) mobileHeader.style.display = '';
+    }
     
     const pageContainer = document.getElementById('page-container');
     if (pageContainer) {
