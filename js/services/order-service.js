@@ -42,14 +42,20 @@ export async function createOrder({ items, notes, customerName, cashRegisterId }
         order = resFallback.data;
     }
 
-    const orderItems = items.map(item => ({
-        order_id: order.id,
-        product_id: item.productId,
-        product_name: item.productName,
-        price: item.price,
-        quantity: item.quantity,
-        is_combo: item.isCombo || false
-    }));
+    const orderItems = items.map(item => {
+        let pName = item.productName;
+        if (item.customNotes && item.customNotes.trim()) {
+            pName = `${pName} (${item.customNotes.trim()})`;
+        }
+        return {
+            order_id: order.id,
+            product_id: item.productId,
+            product_name: pName,
+            price: item.price,
+            quantity: item.quantity,
+            is_combo: item.isCombo || false
+        };
+    });
 
     const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
     if (itemsError) throw itemsError;

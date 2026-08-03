@@ -157,6 +157,12 @@ function renderCartItems() {
                 </div>
                 <span class="cart-item__subtotal" style="font-size: 0.9rem;">${formatGs(item.price * item.quantity)}</span>
             </div>
+            
+            <!-- Aclaración individual por producto -->
+            <div style="margin-top: 0.4rem;">
+                <input type="text" class="input-item-note-cliente" data-idx="${idx}" placeholder="✏️ Aclaración (ej: Sin cebolla, bien cocida...)" value="${item.customNotes || ''}" style="width: 100%; font-size: 0.78rem; padding: 0.35rem 0.6rem; background: #0E1017; border: 1px solid var(--border-subtle); border-radius: 4px; color: var(--color-primary);">
+            </div>
+
             <div class="cart-item__controls" style="margin-top: 0.4rem;">
                 <button class="btn-qty" data-action="dec" data-idx="${idx}">-</button>
                 <span class="cart-item__qty">${item.quantity}</span>
@@ -200,6 +206,16 @@ function setupEvents(appEl) {
             e.stopPropagation();
             addToCart(btn.dataset.id, true);
             renderView(appEl);
+        });
+    });
+
+    // Aclaraciones individuales cliente
+    appEl.querySelectorAll('.input-item-note-cliente').forEach(input => {
+        input.addEventListener('input', (e) => {
+            const idx = parseInt(input.dataset.idx, 10);
+            if (cartItems[idx]) {
+                cartItems[idx].customNotes = e.target.value;
+            }
         });
     });
 

@@ -181,7 +181,13 @@ function renderCartItems() {
                 </div>
                 <div class="cart-item__subtotal">${formatGs(item.price * item.quantity)}</div>
             </div>
-            <div class="cart-item__controls">
+            
+            <!-- Nota individual por producto -->
+            <div style="margin-top: 0.4rem;">
+                <input type="text" class="input-item-note" data-idx="${idx}" placeholder="✏️ Aclaración (ej: Sin cebolla...)" value="${item.customNotes || ''}" style="width: 100%; font-size: 0.78rem; padding: 0.35rem 0.6rem; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 4px; color: var(--color-primary);">
+            </div>
+
+            <div class="cart-item__controls" style="margin-top: 0.5rem;">
                 <button class="btn-qty" data-action="dec" data-idx="${idx}">-</button>
                 <span class="cart-item__qty">${item.quantity}</span>
                 <button class="btn-qty" data-action="inc" data-idx="${idx}">+</button>
@@ -336,6 +342,16 @@ function updateTicketUI(container) {
             }
 
             updateTicketUI(container);
+        });
+    });
+
+    // Guardar aclaraciones individuales de cada ítem
+    container.querySelectorAll('.input-item-note').forEach(input => {
+        input.addEventListener('input', (e) => {
+            const idx = parseInt(input.dataset.idx, 10);
+            if (cartItems[idx]) {
+                cartItems[idx].customNotes = e.target.value;
+            }
         });
     });
 
