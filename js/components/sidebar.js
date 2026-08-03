@@ -32,6 +32,15 @@ export function renderSidebar(containerId, currentRoute, cashRegisterStatus) {
                 `;
             }).join('')}
         </ul>
+
+        <footer class="sidebar-footer">
+            <button id="btn-open-kitchen" class="btn btn--secondary btn--block" style="margin-bottom: 0.5rem;">
+                👨‍🍳 Pantalla Cocina
+            </button>
+            <button id="btn-logout" class="btn btn--ghost btn--block" style="color: var(--color-danger); font-size: 0.8rem;">
+                🚪 Cerrar Sesión
+            </button>
+        </footer>
     `;
 
     if (window.lucide) window.lucide.createIcons();

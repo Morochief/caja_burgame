@@ -1,6 +1,9 @@
+import { authService } from './services/auth-service.js';
+
 export let currentRoute = '';
 
 const routes = {
+    '#/login': () => import('./pages/login.js').then(m => m.renderLoginPage()),
     '#/dashboard': () => import('./pages/dashboard.js').then(m => m.renderDashboardPage()),
     '#/ventas': () => import('./pages/ventas.js').then(m => m.renderVentasPage()),
     '#/ordenes': () => import('./pages/ordenes.js').then(m => m.renderOrdenesPage()),
@@ -12,6 +15,19 @@ const routes = {
 };
 
 export async function navigate(path) {
+    const session = authService.getSession();
+
+    // Redirigir a login si no hay sesión iniciada
+    if (!session && path !== '#/login') {
+        path = '#/login';
+    } else if (session && session.role === 'kitchen' && path !== '#/login') {
+        // Redirigir al cocinero a la pantalla de cocina
+        window.location.href = 'cocina.html';
+        return;
+    } else if (session && path === '#/login') {
+        path = '#/ventas';
+    }
+
     if (!routes[path]) {
         path = '#/ventas';
     }

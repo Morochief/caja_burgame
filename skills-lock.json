@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "login-flow": {
+      "source": "nexu-io/open-design",
+      "sourceType": "github",
+      "skillPath": "skills/login-flow/SKILL.md",
+      "computedHash": "cec5399259ac5c2fb770da15cbce231080da1b9ca7dae38197dd0770d1a98d88"
+    }
+  }
+}

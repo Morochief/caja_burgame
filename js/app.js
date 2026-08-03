@@ -30,9 +30,14 @@ async function init() {
         updateSidebar(startRoute);
         await navigate(startRoute);
 
-        // Setup kitchen button listener
+        // Setup kitchen and logout button listeners
         document.getElementById('btn-open-kitchen')?.addEventListener('click', () => {
             window.open('cocina.html', '_blank');
+        });
+
+        document.getElementById('btn-logout')?.addEventListener('click', () => {
+            const { logout } = await import('./services/auth-service.js');
+            logout();
         });
 
     } catch (error) {
