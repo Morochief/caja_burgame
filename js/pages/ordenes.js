@@ -38,6 +38,13 @@ export async function renderOrdenesPage() {
     `;
 
     setupEvents(container);
+
+    // Suscripción Realtime para actualizar la vista de Órdenes en tiempo real
+    const subscription = orderService.subscribeToOrders(async () => {
+        await loadData();
+        updateView(container);
+    });
+
     return container;
 }
 
