@@ -1,0 +1,59 @@
+/* animations.css */
+@keyframes glowPulse {
+  0% { box-shadow: 0 0 5px var(--color-primary-glow); }
+  50% { box-shadow: 0 0 20px var(--color-primary-glow), 0 0 30px var(--color-primary-glow); }
+  100% { box-shadow: 0 0 5px var(--color-primary-glow); }
+}
+
+@keyframes pixelFadeIn {
+  0% { opacity: 0; transform: scale(0.95); filter: contrast(200%) brightness(50%); }
+  100% { opacity: 1; transform: scale(1); filter: contrast(100%) brightness(100%); }
+}
+
+@keyframes slideInRight {
+  0% { transform: translateX(100%); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOutRight {
+  0% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(100%); opacity: 0; }
+}
+
+@keyframes cardLift {
+  0% { transform: translateY(0); box-shadow: var(--shadow-md); }
+  100% { transform: translateY(-4px); box-shadow: var(--shadow-lg), var(--glow-primary); border-color: var(--color-primary); }
+}
+
+@keyframes scoreCounter {
+  0% { transform: scale(1); color: var(--color-text-primary); }
+  50% { transform: scale(1.2); color: var(--color-primary); text-shadow: var(--glow-primary); }
+  100% { transform: scale(1); color: var(--color-text-primary); }
+}
+
+@keyframes spinPixel {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(90deg); }
+  50% { transform: rotate(180deg); }
+  75% { transform: rotate(270deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.anim-pixel-fade {
+  animation: pixelFadeIn 0.3s steps(5, end) forwards;
+}
+
+.anim-glow-pulse {
+  animation: glowPulse 2s infinite;
+}
+
+.anim-score {
+  animation: scoreCounter 0.3s ease-out;
+}
+
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 4px dashed var(--color-primary);
+  animation: spinPixel 1s steps(4, end) infinite;
+}

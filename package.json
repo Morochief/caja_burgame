@@ -1,0 +1,9 @@
+{
+  "name": "sistema-burgame",
+  "version": "1.0.0",
+  "description": "Sistema de gestión para Burgame - Hamburguesería gamer",
+  "private": true,
+  "scripts": {
+    "dev": "npx -y live-server --port=3000 --open=index.html --wait=100"
+  }
+}

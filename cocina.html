@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Burgame - Kitchen Display System</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/cocina.css">
+</head>
+<body class="cocina-body">
+    <header class="cocina-header">
+        <div class="cocina-header__left">
+            <div class="cocina-header__badge">🎮</div>
+            <h1 class="cocina-header__title">BURGAME KITCHEN</h1>
+        </div>
+
+        <div class="cocina-header__right">
+            <div class="cocina-header__stats">
+                <div class="cocina-stat">
+                    <span class="cocina-stat__number" id="active-count">0</span>
+                    <span class="cocina-stat__label">En Marcha</span>
+                </div>
+                <div class="cocina-stat">
+                    <span class="cocina-stat__number" id="ready-count" style="color: var(--color-success);">0</span>
+                    <span class="cocina-stat__label">En Barra</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="cocina-grid" id="cocina-grid">
+        <!-- Renderizado dinámico desde cocina-app.js -->
+    </main>
+
+    <script type="module" src="js/cocina-app.js"></script>
+</body>
+</html>

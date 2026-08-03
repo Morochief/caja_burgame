@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <rect width="200" height="200" rx="16" fill="#2D2D2D"/>
+  <rect x="40" y="60" width="120" height="20" rx="4" fill="#FFD700"/>
+  <rect x="30" y="85" width="140" height="10" rx="4" fill="#8B6914"/>
+  <circle cx="60" cy="100" r="5" fill="#00E676"/>
+  <circle cx="90" cy="100" r="5" fill="#FF5252"/>
+  <circle cx="120" cy="100" r="5" fill="#FFD700"/>
+  <rect x="30" y="110" width="140" height="15" rx="4" fill="#A0522D"/>
+  <rect x="35" y="130" width="130" height="20" rx="10" fill="#DAA520"/>
+  <text x="100" y="175" text-anchor="middle" font-family="monospace" font-size="12" fill="#888">🍔 BURGER</text>
+</svg>

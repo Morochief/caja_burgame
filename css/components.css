@@ -1,0 +1,199 @@
+/* ==========================================================================
+   SUPER SAIYAN COMPONENTS (BUTTONS, CARDS, BADGES, INPUTS, TOASTS)
+   ========================================================================== */
+
+/* Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    padding: 0.75rem 1.4rem;
+    font-weight: 600;
+    border-radius: var(--radius-md);
+    transition: all var(--transition-bounce);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn:active {
+    transform: scale(0.97) translateY(1px);
+}
+
+.btn--primary {
+    background: linear-gradient(135deg, var(--color-primary) 0%, #E6C200 100%);
+    color: var(--text-inverse);
+    font-weight: 700;
+    box-shadow: 0 4px 15px var(--color-primary-glow);
+    border: 1px solid var(--color-primary-hover);
+}
+
+.btn--primary:hover {
+    background: linear-gradient(135deg, var(--color-primary-hover) 0%, var(--color-primary) 100%);
+    box-shadow: var(--shadow-glow-bright), 0 6px 20px rgba(255, 215, 0, 0.4);
+    transform: translateY(-2px);
+}
+
+.btn--secondary {
+    background: var(--bg-elevated);
+    color: var(--text-main);
+    border: 1px solid var(--border-subtle);
+}
+
+.btn--secondary:hover {
+    border-color: var(--border-gold);
+    color: var(--color-primary);
+    transform: translateY(-2px);
+}
+
+.btn--danger {
+    background: linear-gradient(135deg, var(--color-danger) 0%, #D62853 100%);
+    color: #FFF;
+    box-shadow: 0 4px 15px var(--color-danger-glow);
+}
+
+.btn--danger:hover {
+    box-shadow: 0 6px 20px var(--color-danger-glow);
+    transform: translateY(-2px);
+}
+
+.btn--ghost {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid transparent;
+}
+
+.btn--ghost:hover {
+    color: var(--color-danger);
+    background: rgba(255, 61, 113, 0.1);
+}
+
+.btn--block {
+    width: 100%;
+}
+
+/* Badges */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-radius: var(--radius-full);
+}
+
+.badge--yellow {
+    background: var(--color-primary-dim);
+    color: var(--color-primary);
+    border: 1px solid var(--border-gold);
+}
+
+.badge--green {
+    background: rgba(0, 230, 118, 0.12);
+    color: var(--color-success);
+    border: 1px solid rgba(0, 230, 118, 0.3);
+}
+
+.badge--orange {
+    background: rgba(255, 145, 0, 0.12);
+    color: var(--color-warning);
+    border: 1px solid rgba(255, 145, 0, 0.3);
+}
+
+.badge--red {
+    background: rgba(255, 61, 113, 0.12);
+    color: var(--color-danger);
+    border: 1px solid rgba(255, 61, 113, 0.3);
+}
+
+.badge--combo {
+    background: linear-gradient(135deg, rgba(255,215,0,0.2) 0%, rgba(255,145,0,0.2) 100%);
+    color: var(--color-primary);
+    border: 1px solid var(--border-gold-bright);
+    font-size: 0.7rem;
+}
+
+/* Inputs & Form Controls */
+input[type="text"],
+input[type="number"],
+input[type="password"],
+select,
+textarea {
+    width: 100%;
+    padding: 0.8rem 1.1rem;
+    background: var(--bg-darker);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--text-main);
+    transition: all var(--transition-normal);
+    outline: none;
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 14px var(--color-primary-glow);
+    background: rgba(15, 17, 23, 0.95);
+}
+
+/* Glass Cards */
+.card {
+    background: var(--bg-card);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-card);
+    transition: all var(--transition-normal);
+}
+
+.card:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Achievement Unlocked Toast */
+.toast-container {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.toast {
+    background: #141722;
+    border: 1px solid var(--border-gold-bright);
+    border-radius: var(--radius-md);
+    padding: 1rem 1.4rem;
+    min-width: 320px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), var(--shadow-glow);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    animation: toastSlideIn 350ms var(--transition-bounce);
+}
+
+.toast--success {
+    border-color: var(--color-primary);
+}
+
+.toast--error {
+    border-color: var(--color-danger);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 20px var(--color-danger-glow);
+}
+
+@keyframes toastSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(100px) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}

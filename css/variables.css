@@ -1,0 +1,62 @@
+/* ==========================================================================
+   BURGAME DESIGN SYSTEM - DESIGN TOKENS (SUPER SAIYAN & UI AESTHETICS)
+   ========================================================================== */
+
+:root {
+    /* Color Palette - Cyber Arcade Dark */
+    --bg-darker: #0A0B0E;
+    --bg-main: #0F1117;
+    --bg-card: rgba(22, 25, 35, 0.75);
+    --bg-card-hover: rgba(30, 34, 48, 0.85);
+    --bg-elevated: #181B26;
+    --bg-ticket: #12141D;
+
+    /* Brand Primary - Electric Yellow / Cyber Gold */
+    --color-primary: #FFD700;
+    --color-primary-hover: #FFE44D;
+    --color-primary-glow: rgba(255, 215, 0, 0.35);
+    --color-primary-dim: rgba(255, 215, 0, 0.12);
+
+    /* Accents & Statuses */
+    --color-success: #00E676;
+    --color-success-glow: rgba(0, 230, 118, 0.3);
+    --color-warning: #FF9100;
+    --color-danger: #FF3D71;
+    --color-danger-glow: rgba(255, 61, 113, 0.35);
+    --color-info: #00E5FF;
+    --color-purple: #B388FF;
+
+    /* Text & Typography */
+    --text-main: #F0F3F8;
+    --text-muted: #8E9BAE;
+    --text-dim: #5C6779;
+    --text-inverse: #0A0B0E;
+
+    /* Borders & Glassmorphism */
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --border-gold: rgba(255, 215, 0, 0.3);
+    --border-gold-bright: rgba(255, 215, 0, 0.7);
+    --glass-blur: blur(16px);
+
+    /* Fonts */
+    --font-title: 'Press Start 2P', cursive, monospace;
+    --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+
+    /* Shadows & Glows */
+    --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    --shadow-glow: 0 0 20px var(--color-primary-glow);
+    --shadow-glow-bright: 0 0 30px var(--color-primary-glow);
+
+    /* Radius */
+    --radius-sm: 6px;
+    --radius-md: 12px;
+    --radius-lg: 18px;
+    --radius-full: 9999px;
+
+    /* Transitions (Super Saiyan Timing) */
+    --transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-normal: 220ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}

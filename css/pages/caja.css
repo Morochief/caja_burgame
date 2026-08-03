@@ -1,0 +1,116 @@
+/* ==========================================================================
+   CAJA PAGE STYLES (SUPER SAIYAN UI)
+   ========================================================================== */
+
+.caja-page {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.caja-open-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 65vh;
+}
+
+.caja-card {
+    background: var(--bg-ticket);
+    border: 1px solid var(--border-gold-bright);
+    border-radius: var(--radius-lg);
+    padding: 3rem 2.5rem;
+    width: 100%;
+    max-width: 480px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), var(--shadow-glow-bright);
+    text-align: center;
+}
+
+.caja-icon {
+    font-size: 3.5rem;
+    margin-bottom: 1rem;
+}
+
+.caja-card__header h1 {
+    font-family: var(--font-title);
+    font-size: 1.1rem;
+    color: var(--color-primary);
+    margin-bottom: 0.5rem;
+}
+
+.caja-card__header p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 2rem;
+}
+
+.caja-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    text-align: left;
+}
+
+/* Caja Grid Abierta */
+.caja-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+}
+
+.caja-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.25rem;
+}
+
+.caja-breakdown-card, .caja-close-card {
+    background: var(--bg-card);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: 1.8rem;
+    box-shadow: var(--shadow-card);
+}
+
+.caja-breakdown-card h3, .caja-close-card h3 {
+    font-family: var(--font-title);
+    font-size: 0.95rem;
+    color: var(--color-primary);
+    margin-bottom: 1.2rem;
+}
+
+.breakdown-list {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.breakdown-list li {
+    background: var(--bg-elevated);
+    padding: 1rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-subtle);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.breakdown-list strong {
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    color: var(--color-primary);
+}
+
+.caja-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.caja-actions .btn {
+    flex: 1;
+    min-width: 200px;
+}

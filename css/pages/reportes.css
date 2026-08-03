@@ -1,0 +1,72 @@
+/* pages/reportes.css */
+.reportes-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-4);
+  background-color: var(--color-bg-surface-elevated);
+  padding: var(--spacing-4);
+  border-radius: var(--border-radius-md);
+  margin-bottom: var(--spacing-6);
+  border: 1px solid #333;
+}
+
+.reportes-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-6);
+  margin-bottom: var(--spacing-6);
+}
+
+.report-panel {
+  background-color: var(--color-bg-surface);
+  border: 2px solid #333;
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-5);
+}
+
+.report-panel-title {
+  font-family: var(--font-family-game);
+  font-size: 0.7rem;
+  color: var(--color-primary);
+  margin-bottom: var(--spacing-5);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.chart-wrapper {
+  height: 300px;
+  width: 100%;
+  position: relative;
+}
+
+.top-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.top-item {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-3);
+  background-color: rgba(255,255,255,0.02);
+  border-radius: var(--border-radius-sm);
+  border-left: 3px solid var(--color-primary);
+}
+
+.top-item-rank {
+  font-family: var(--font-family-game);
+  color: var(--color-text-secondary);
+  width: 30px;
+}
+
+.top-item-name {
+  flex: 1;
+  font-weight: bold;
+}
+
+.top-item-val {
+  font-family: var(--font-family-mono);
+  color: var(--color-primary);
+}

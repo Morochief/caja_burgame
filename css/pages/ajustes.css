@@ -1,0 +1,110 @@
+/* pages/ajustes.css */
+.ajustes-layout {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  gap: var(--spacing-6);
+}
+
+.ajustes-menu {
+  background-color: var(--color-bg-surface-elevated);
+  border-radius: var(--border-radius-md);
+  border: 1px solid #333;
+  overflow: hidden;
+}
+
+.ajustes-menu-item {
+  display: block;
+  padding: var(--spacing-4);
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid #222;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.ajustes-menu-item:hover {
+  background-color: rgba(255,255,255,0.02);
+  color: #fff;
+}
+
+.ajustes-menu-item.active {
+  background-color: rgba(255,215,0,0.1);
+  color: var(--color-primary);
+  border-left: 3px solid var(--color-primary);
+}
+
+.ajustes-content {
+  background-color: var(--color-bg-surface);
+  border: 2px solid #333;
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-6);
+}
+
+.ajustes-section-title {
+  font-family: var(--font-family-game);
+  font-size: 0.8rem;
+  color: var(--color-primary);
+  margin-bottom: var(--spacing-6);
+  padding-bottom: var(--spacing-3);
+  border-bottom: 1px dashed #444;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-6);
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #333;
+  transition: .4s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: var(--color-primary);
+  box-shadow: 0 0 10px var(--color-primary-glow);
+}
+
+input:checked + .slider:before {
+  transform: translateX(26px);
+  background-color: #000;
+}
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-3) 0;
+  border-bottom: 1px solid #222;
+}

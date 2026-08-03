@@ -1,0 +1,47 @@
+/* ==========================================================================
+   GASTOS PAGE STYLES (SUPER SAIYAN UI)
+   ========================================================================== */
+
+.gastos-layout {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 1.8rem;
+}
+
+.gastos-layout .form-card h3,
+.gastos-layout .table-card h3 {
+    font-family: var(--font-title);
+    font-size: 0.95rem;
+    color: var(--color-primary);
+    margin-bottom: 1.2rem;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.table th {
+    background: var(--bg-elevated);
+    color: var(--color-primary);
+    font-family: var(--font-title);
+    font-size: 0.75rem;
+    padding: 1rem;
+    border-bottom: 2px solid var(--border-subtle);
+}
+
+.table td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: 0.95rem;
+}
+
+.table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.text-red {
+    color: var(--color-danger);
+    font-family: var(--font-mono);
+}
