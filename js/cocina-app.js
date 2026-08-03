@@ -11,6 +11,12 @@ async function initCocina() {
     const grid = document.getElementById('cocina-grid');
     if (!grid) return;
 
+    // Listener de Cerrar Sesión
+    document.getElementById('btn-kitchen-logout')?.addEventListener('click', async () => {
+        const { logout } = await import('./services/auth-service.js');
+        logout();
+    });
+
     await loadActiveOrders();
     renderCocinaView();
     setupRealtimeSubscription();
