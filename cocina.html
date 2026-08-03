@@ -25,6 +25,15 @@
         </div>
 
         <div class="cocina-header__right">
+            <div class="cocina-tabs" style="display: flex; gap: 0.5rem; margin-right: 1rem;">
+                <button id="tab-cocina-active" class="btn btn--sm btn--primary active" style="font-family: var(--font-title); font-size: 0.72rem; padding: 0.5rem 0.8rem;">
+                    🔥 ACTIVAS (<span id="active-tab-count">0</span>)
+                </button>
+                <button id="tab-cocina-history" class="btn btn--sm btn--secondary" style="font-family: var(--font-title); font-size: 0.72rem; padding: 0.5rem 0.8rem; border-color: var(--border-subtle); color: var(--text-muted);">
+                    📜 ENTREGADOS HOY (<span id="history-tab-count">0</span>)
+                </button>
+            </div>
+
             <div class="cocina-header__stats">
                 <div class="cocina-stat">
                     <span class="cocina-stat__number" id="active-count">0</span>
