@@ -39,8 +39,22 @@
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="BurgameLogoTrazoAmarillo.png">
 </head>
-<body>
-    <div id="app" class="app-layout">
+<body class="bg-dark text-main">
+    <div class="app-layout">
+        <!-- Mobile Top Navbar -->
+        <header class="mobile-header">
+            <button id="btn-toggle-sidebar" class="mobile-header__btn" aria-label="Abrir menú">
+                <i data-lucide="menu"></i>
+            </button>
+            <div class="mobile-header__logo">
+                <img src="BurgameLogoTrazoAmarillo.png" alt="Burgame" class="mobile-header__logo-img">
+                <span class="mobile-header__title">BURGAME</span>
+            </div>
+            <a href="cocina.html" target="_blank" class="mobile-header__kitchen-btn" title="Pantalla Cocina">
+                👨‍🍳
+            </a>
+        </header>
+
         <!-- Sidebar -->
         <aside id="sidebar" class="sidebar">
             <div class="sidebar__logo">

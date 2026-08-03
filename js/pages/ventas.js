@@ -58,11 +58,11 @@ export async function renderVentasPage() {
                 </div>
             </section>
 
-            <!-- Sidebar Lateral: Ticket del Pedido Actual -->
-            <aside class="ticket-panel">
+            <!-- Sidebar Lateral / Drawer Móvil: Ticket del Pedido Actual -->
+            <aside class="ticket-panel" id="ticket-panel">
                 <div class="ticket-header">
                     <h2><i data-lucide="shopping-bag"></i> PEDIDO ACTUAL</h2>
-                    <span class="ticket-status badge badge--yellow">EN PREPARACIÓN</span>
+                    <button id="btn-close-ticket-drawer" class="btn-close mobile-only">&times;</button>
                 </div>
 
                 <div class="ticket-items" id="ticket-items">
@@ -85,11 +85,17 @@ export async function renderVentasPage() {
                             <i data-lucide="trash-2"></i> Limpiar
                         </button>
                         <button id="btn-send-order" class="btn btn--primary btn--block">
-                            ⌨️ Presiona "O" para ORDENAR
+                            ⌨️ ORDENAR PEDIDO
                         </button>
                     </div>
                 </div>
             </aside>
+
+            <!-- Botón Flotante para Celulares -->
+            <button id="btn-floating-cart" class="mobile-cart-floating-btn">
+                <span>🛒 VER PEDIDO (${cartItems.length})</span>
+                <span id="floating-cart-total">${formatGs(calculateTotal())}</span>
+            </button>
         </div>
     `;
 
@@ -205,6 +211,19 @@ function setupEvents(container) {
         sendOrderToKitchen(container);
     });
 
+    // Toggle Drawer móvil del carrito
+    const ticketPanel = container.querySelector('#ticket-panel');
+    const floatBtn = container.querySelector('#btn-floating-cart');
+    const closeDrawerBtn = container.querySelector('#btn-close-ticket-drawer');
+
+    floatBtn?.addEventListener('click', () => {
+        ticketPanel?.classList.toggle('open');
+    });
+
+    closeDrawerBtn?.addEventListener('click', () => {
+        ticketPanel?.classList.remove('open');
+    });
+
     attachProductClickEvents(container);
     setupKeyboardShortcuts(container);
 }
@@ -243,10 +262,18 @@ function updateTicketUI(container) {
         if (window.lucide) window.lucide.createIcons();
     }
 
+    const totalGs = formatGs(calculateTotal());
+
     const totalEl = container.querySelector('#ticket-total');
-    if (totalEl) {
-        totalEl.textContent = formatGs(calculateTotal());
+    if (totalEl) totalEl.textContent = totalGs;
+
+    // Actualizar botón flotante de celular
+    const floatBtn = container.querySelector('#btn-floating-cart');
+    const floatTotal = container.querySelector('#floating-cart-total');
+    if (floatBtn) {
+        floatBtn.querySelector('span:first-child').textContent = `🛒 VER PEDIDO (${cartItems.reduce((a, b) => a + b.quantity, 0)})`;
     }
+    if (floatTotal) floatTotal.textContent = totalGs;
 
     // Attach qty controls
     container.querySelectorAll('.btn-qty, .btn-remove').forEach(btn => {

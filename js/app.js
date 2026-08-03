@@ -20,6 +20,9 @@ async function init() {
 
         initRouter((route) => {
             updateSidebar(route);
+            // Cerrar sidebar móvil al cambiar de ruta
+            document.getElementById('sidebar')?.classList.remove('open');
+            document.getElementById('sidebar-backdrop')?.classList.remove('active');
         });
         
         let startRoute = window.location.hash;
@@ -29,6 +32,28 @@ async function init() {
         
         updateSidebar(startRoute);
         await navigate(startRoute);
+
+        // Mobile Sidebar Drawer Toggle
+        const sidebar = document.getElementById('sidebar');
+        const toggleBtn = document.getElementById('btn-toggle-sidebar');
+        let backdrop = document.getElementById('sidebar-backdrop');
+
+        if (!backdrop) {
+            backdrop = document.createElement('div');
+            backdrop.id = 'sidebar-backdrop';
+            backdrop.className = 'sidebar-backdrop';
+            document.body.appendChild(backdrop);
+        }
+
+        toggleBtn?.addEventListener('click', () => {
+            sidebar?.classList.toggle('open');
+            backdrop?.classList.toggle('active');
+        });
+
+        backdrop?.addEventListener('click', () => {
+            sidebar?.classList.remove('open');
+            backdrop?.classList.remove('active');
+        });
 
         // Initialized router and sidebar
     } catch (error) {
