@@ -79,7 +79,7 @@ export async function renderDashboardPage() {
 
     // Cargar y calcular productos vendidos en el día
     try {
-        const todayOrders = await orderService.getTodayOrders();
+        const todayOrders = await orderService.getTodaysOrders();
         const counts = {};
         (todayOrders || []).forEach(o => {
             (o.order_items || []).forEach(item => {

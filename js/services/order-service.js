@@ -109,6 +109,7 @@ export const orderService = {
     getActiveOrders,
     getPendingPayment,
     getTodaysOrders,
+    getTodayOrders: getTodaysOrders,
     getOrderItems,
     getOrdersByDateRange,
     cancelOrder,

@@ -39,12 +39,13 @@ async function loadActiveOrders() {
     try {
         const [active, today] = await Promise.all([
             orderService.getActiveOrders(),
-            orderService.getTodayOrders()
+            orderService.getTodaysOrders()
         ]);
         activeOrders = active || [];
         allTodayOrders = today || [];
     } catch (err) {
-        showToast({ message: 'Error cargando comandas de cocina', type: 'error' });
+        console.error('Error cargando comandas:', err);
+        showToast({ message: 'Error cargando comandas de cocina: ' + err.message, type: 'error' });
     }
 }
 
