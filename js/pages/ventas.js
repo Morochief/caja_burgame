@@ -135,6 +135,8 @@ function renderProductsGrid() {
 
     return filtered.map(product => {
         const imageSrc = product.image_url || 'assets/placeholders/burger-placeholder.svg';
+        const comboPrice = product.combo_price || (product.price + 10000);
+
         return `
             <div class="product-card" data-id="${product.id}">
                 <div class="product-card__image">
@@ -143,9 +145,14 @@ function renderProductsGrid() {
                 <div class="product-card__content">
                     <h3 class="product-card__title">${product.name}</h3>
                     <p class="product-card__ingredients">${(product.ingredients || []).join(', ')}</p>
-                    <div class="product-card__footer">
-                        <span class="product-card__price">${formatGs(product.price)}</span>
-                        ${product.combo_price ? `<span class="badge badge--combo">Combo ${formatGs(product.combo_price)}</span>` : ''}
+                    
+                    <div class="product-card__actions" style="margin-top: 0.6rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem;">
+                        <button class="btn btn--sm btn--secondary btn-add-single" data-id="${product.id}" title="Agregar hamburguesa sola">
+                            🍔 ${formatGs(product.price)}
+                        </button>
+                        <button class="btn btn--sm btn--primary btn-add-combo" data-id="${product.id}" title="Agregar combo con papas y bebida">
+                            🍟 COMBO ${formatGs(comboPrice)}
+                        </button>
                     </div>
                 </div>
             </div>
@@ -164,9 +171,14 @@ function renderCartItems() {
     }
 
     return cartItems.map((item, idx) => `
-        <div class="cart-item">
+        <div class="cart-item" style="border-left: 3px solid ${item.isCombo ? 'var(--color-primary)' : 'var(--border-subtle)'};">
             <div class="cart-item__info">
-                <div class="cart-item__title">${item.productName} ${item.isCombo ? '(COMBO)' : ''}</div>
+                <div>
+                    <div class="cart-item__title" style="font-weight: 700;">${item.productName}</div>
+                    <button class="btn-toggle-combo" data-idx="${idx}" style="background: transparent; border: none; padding: 0; font-size: 0.75rem; cursor: pointer; color: ${item.isCombo ? 'var(--color-primary)' : 'var(--text-muted)'}; margin-top: 0.2rem; font-weight: 700;">
+                        ${item.isCombo ? '🍟 COMBO (Papas + Bebida)' : '🍔 Solo Hamburguesa (Cambiar a Combo)'}
+                    </button>
+                </div>
                 <div class="cart-item__subtotal">${formatGs(item.price * item.quantity)}</div>
             </div>
             <div class="cart-item__controls">
@@ -238,30 +250,55 @@ function setupEvents(container) {
 }
 
 function attachProductClickEvents(container) {
-    container.querySelectorAll('.product-card').forEach(card => {
-        card.addEventListener('click', () => {
-            const id = card.dataset.id;
-            const product = products.find(p => p.id === id);
-            if (!product) return;
-
-            // Si tiene combo_price, agregar estándar por defecto
-            const existingIdx = cartItems.findIndex(ci => ci.productId === product.id && !ci.isCombo);
-            if (existingIdx >= 0) {
-                cartItems[existingIdx].quantity++;
-            } else {
-                cartItems.push({
-                    productId: product.id,
-                    productName: product.name,
-                    price: product.price,
-                    quantity: 1,
-                    isCombo: false,
-                    aggregates: []
-                });
-            }
-
+    // Botón Individual
+    container.querySelectorAll('.btn-add-single').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+            addProductToCart(id, false);
             updateTicketUI(container);
         });
     });
+
+    // Botón Combo
+    container.querySelectorAll('.btn-add-combo').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+            addProductToCart(id, true);
+            updateTicketUI(container);
+        });
+    });
+
+    // Clic general en la tarjeta (agrega Individual por defecto)
+    container.querySelectorAll('.product-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const id = card.dataset.id;
+            addProductToCart(id, false);
+            updateTicketUI(container);
+        });
+    });
+}
+
+function addProductToCart(productId, isCombo) {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    const price = isCombo ? (product.combo_price || (product.price + 10000)) : product.price;
+
+    const existingIdx = cartItems.findIndex(ci => ci.productId === product.id && ci.isCombo === isCombo);
+    if (existingIdx >= 0) {
+        cartItems[existingIdx].quantity++;
+    } else {
+        cartItems.push({
+            productId: product.id,
+            productName: product.name,
+            price: price,
+            quantity: 1,
+            isCombo: isCombo,
+            aggregates: []
+        });
+    }
 }
 
 function updateTicketUI(container) {
@@ -283,6 +320,24 @@ function updateTicketUI(container) {
         floatBtn.querySelector('span:first-child').textContent = `🛒 VER PEDIDO (${cartItems.reduce((a, b) => a + b.quantity, 0)})`;
     }
     if (floatTotal) floatTotal.textContent = totalGs;
+
+    // Toggle Combo switch in cart item
+    container.querySelectorAll('.btn-toggle-combo').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const idx = parseInt(btn.dataset.idx, 10);
+            const item = cartItems[idx];
+            if (!item) return;
+
+            const product = products.find(p => p.id === item.productId);
+            item.isCombo = !item.isCombo;
+            if (product) {
+                item.price = item.isCombo ? (product.combo_price || (product.price + 10000)) : product.price;
+            }
+
+            updateTicketUI(container);
+        });
+    });
 
     // Attach qty controls
     container.querySelectorAll('.btn-qty, .btn-remove').forEach(btn => {
