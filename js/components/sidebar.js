@@ -35,12 +35,24 @@ export function renderSidebar(containerId, currentRoute, cashRegisterStatus) {
             }).join('')}
         </ul>
 
-        <footer class="sidebar-footer" style="padding-top: 1rem; border-top: 1px solid var(--border-subtle); margin-top: auto;">
-            <button id="btn-open-kitchen" class="btn btn--secondary btn--block" style="margin-bottom: 0.5rem; font-size: 0.85rem;">
-                👨‍🍳 Pantalla Cocina
+        <footer class="sidebar-footer" style="padding-top: 1rem; border-top: 1px solid var(--border-subtle); margin-top: auto; display: flex; flex-direction: column; gap: 0.75rem;">
+            <!-- Badge Perfil Pixel Art BurgAdmin -->
+            <div class="sidebar-user-card" style="background: rgba(255, 215, 0, 0.06); border: 1px solid var(--border-gold); border-radius: var(--radius-md); padding: 0.75rem 0.9rem; display: flex; align-items: center; gap: 0.75rem; box-shadow: 0 0 12px rgba(255, 215, 0, 0.15);">
+                <div style="width: 36px; height: 36px; background: var(--color-primary); color: #0A0B0E; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 900; box-shadow: 0 0 10px var(--color-primary-glow);">
+                    👑
+                </div>
+                <div style="display: flex; flex-direction: column;">
+                    <span style="font-family: var(--font-title); font-size: 0.75rem; color: var(--color-primary); letter-spacing: 0.5px;">BURGADMIN</span>
+                    <span style="font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono); font-weight: 600;">LEVEL MAX • P1</span>
+                </div>
+            </div>
+
+            <button id="btn-open-kitchen" class="btn btn--secondary btn--block" style="font-size: 0.85rem; padding: 0.6rem; border-color: var(--border-gold); color: var(--color-primary);">
+                👨‍🍳 PANTALLA COCINA
             </button>
-            <button id="btn-logout" class="btn btn--ghost btn--block" style="color: var(--color-danger); font-size: 0.85rem; font-weight: 700;">
-                🚪 Cerrar Sesión
+            
+            <button id="btn-logout" class="btn btn--ghost btn--block" style="color: var(--color-danger); font-size: 0.85rem; font-weight: 700; padding: 0.5rem;">
+                🚪 CERRAR SESIÓN
             </button>
         </footer>
     `;
