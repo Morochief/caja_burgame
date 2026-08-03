@@ -1,3 +1,5 @@
+import { logout } from '../services/auth-service.js';
+
 export function renderSidebar(containerId, currentRoute, cashRegisterStatus) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -33,15 +35,24 @@ export function renderSidebar(containerId, currentRoute, cashRegisterStatus) {
             }).join('')}
         </ul>
 
-        <footer class="sidebar-footer">
-            <button id="btn-open-kitchen" class="btn btn--secondary btn--block" style="margin-bottom: 0.5rem;">
+        <footer class="sidebar-footer" style="padding-top: 1rem; border-top: 1px solid var(--border-subtle); margin-top: auto;">
+            <button id="btn-open-kitchen" class="btn btn--secondary btn--block" style="margin-bottom: 0.5rem; font-size: 0.85rem;">
                 👨‍🍳 Pantalla Cocina
             </button>
-            <button id="btn-logout" class="btn btn--ghost btn--block" style="color: var(--color-danger); font-size: 0.8rem;">
+            <button id="btn-logout" class="btn btn--ghost btn--block" style="color: var(--color-danger); font-size: 0.85rem; font-weight: 700;">
                 🚪 Cerrar Sesión
             </button>
         </footer>
     `;
 
     if (window.lucide) window.lucide.createIcons();
+
+    // Adjuntar eventos de forma garantizada cada vez que se renderiza el sidebar
+    container.querySelector('#btn-open-kitchen')?.addEventListener('click', () => {
+        window.open('cocina.html', '_blank');
+    });
+
+    container.querySelector('#btn-logout')?.addEventListener('click', () => {
+        logout();
+    });
 }

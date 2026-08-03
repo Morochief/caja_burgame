@@ -30,16 +30,7 @@ async function init() {
         updateSidebar(startRoute);
         await navigate(startRoute);
 
-        // Setup kitchen and logout button listeners
-        document.getElementById('btn-open-kitchen')?.addEventListener('click', () => {
-            window.open('cocina.html', '_blank');
-        });
-
-        document.getElementById('btn-logout')?.addEventListener('click', async () => {
-            const { logout } = await import('./services/auth-service.js');
-            logout();
-        });
-
+        // Initialized router and sidebar
     } catch (error) {
         console.error('App init error:', error);
         showToast({ message: 'Error al inicializar la aplicación', type: 'error' });
