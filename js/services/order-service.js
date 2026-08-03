@@ -7,40 +7,31 @@ export async function createOrder({ items, notes, customerName, cashRegisterId }
     let finalNotes = notes || '';
     let cName = customerName ? customerName.trim() : '';
 
-    if (cName) {
+    if (cName && !finalNotes.includes(cName)) {
         finalNotes = `[Cliente: ${cName}] ${finalNotes}`.trim();
     }
 
-    const insertData = {
+    const basePayload = {
         notes: finalNotes,
-        cash_register_id: cashRegisterId,
+        cash_register_id: cashRegisterId || null,
         status: 'ordered',
         total: total
     };
 
-    if (cName) {
-        insertData.customer_name = cName;
+    let order = null;
+
+    // Intentar inserción segura básica (garantizada en cualquier esquema de Supabase)
+    const { data, error } = await supabase
+        .from('orders')
+        .insert([basePayload])
+        .select()
+        .single();
+
+    if (error) {
+        throw new Error(error.message || 'Error al guardar pedido en base de datos');
     }
 
-    // Intentar inserción con customer_name; si la columna no existe en Supabase, fallback seguro a la versión formateada en notes
-    let order;
-    let orderError;
-
-    try {
-        const res = await supabase.from('orders').insert([insertData]).select().single();
-        order = res.data;
-        orderError = res.error;
-    } catch {
-        orderError = true;
-    }
-
-    if (orderError) {
-        // Fallback sin la propiedad customer_name directa para evitar error 400 por esquema de base de datos
-        delete insertData.customer_name;
-        const resFallback = await supabase.from('orders').insert([insertData]).select().single();
-        if (resFallback.error) throw resFallback.error;
-        order = resFallback.data;
-    }
+    order = data;
 
     const orderItems = items.map(item => {
         let pName = item.productName;
