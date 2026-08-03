@@ -244,12 +244,15 @@ function attachEvents() {
             } catch (err) {
                 showToast({ message: 'Error actualizando comanda: ' + err.message, type: 'error' });
             }
+        });
+    });
+
     // Botón eliminar comanda entregada del historial
     document.querySelectorAll('.btn-hide-delivered').forEach(btn => {
         btn.addEventListener('click', () => {
             const orderId = btn.dataset.id;
             hiddenDeliveredIds.add(orderId);
-            showToast({ message: 'Comanda remivida de la pantalla', type: 'info' });
+            showToast({ message: 'Comanda removida de la pantalla', type: 'info' });
             renderCocinaView();
         });
     });
