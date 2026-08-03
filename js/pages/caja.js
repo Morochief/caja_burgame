@@ -158,7 +158,14 @@ function setupCloseEvents(container, register, summary) {
         try {
             await cashService.closeRegister(register.id, counted, notes);
             showToast({ message: 'Caja cerrada exitosamente. ¡Hasta mañana!', type: 'success' });
-            window.location.hash = '#/caja';
+            
+            // Re-renderizar la página de caja para mostrar la pantalla de APERTURA
+            const newContent = await renderCajaPage();
+            const pageContainer = document.getElementById('page-container');
+            if (pageContainer) {
+                pageContainer.innerHTML = '';
+                pageContainer.appendChild(newContent);
+            }
         } catch (err) {
             showToast({ message: 'Error al cerrar caja: ' + err.message, type: 'error' });
         }
