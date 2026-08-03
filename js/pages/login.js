@@ -8,6 +8,9 @@ export function renderLoginPage() {
     container.innerHTML = `
         <div class="login-card card">
             <div class="login-header">
+                <div class="login-banner-box" style="margin-bottom: 1.2rem;">
+                    <img src="banner.png" alt="Burgame Banner" class="login-banner-img" style="width: 100%; max-height: 110px; object-fit: contain; filter: drop-shadow(0 0 12px var(--color-primary-glow));">
+                </div>
                 <div class="login-logo-box">
                     <img src="BurgameLogoTrazoAmarillo.png" alt="Burgame" class="login-logo-img">
                 </div>

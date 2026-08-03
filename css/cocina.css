@@ -25,17 +25,10 @@
     gap: 1.2rem;
 }
 
-.cocina-header__badge {
-    font-size: 1.8rem;
-    width: 44px;
-    height: 44px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-gold-bright);
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 0 15px var(--color-primary-glow);
+.cocina-header__logo-img {
+    height: 42px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 10px var(--color-primary-glow));
 }
 
 .cocina-header__title {
