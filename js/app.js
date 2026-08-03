@@ -35,7 +35,7 @@ async function init() {
             window.open('cocina.html', '_blank');
         });
 
-        document.getElementById('btn-logout')?.addEventListener('click', () => {
+        document.getElementById('btn-logout')?.addEventListener('click', async () => {
             const { logout } = await import('./services/auth-service.js');
             logout();
         });
