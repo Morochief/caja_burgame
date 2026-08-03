@@ -32,8 +32,8 @@ export async function renderVentasPage() {
             <!-- Sección de Selección de Productos (Izquierda / Centro) -->
             <section class="ventas-catalog">
                 <div class="ventas-sticky-header">
-                    <div class="pos-banner-container" style="margin-bottom: 0.5rem; text-align: center;">
-                        <img src="banner.png" alt="Burgame Banner" class="pos-banner-img" style="max-height: 75px; width: 100%; object-fit: contain; filter: drop-shadow(0 0 10px var(--color-primary-glow));">
+                    <div class="pos-banner-container" style="margin-bottom: 0.8rem; text-align: center;">
+                        <img src="banner.png" alt="Burgame Banner" class="pos-banner-img">
                     </div>
                     <header class="ventas-header">
                         <div class="search-bar">
