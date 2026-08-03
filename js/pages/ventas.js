@@ -8,6 +8,7 @@ let currentCategory = 'all';
 let searchQuery = '';
 let cartItems = [];
 let currentNotes = '';
+let currentCustomerName = '';
 let products = [];
 let categories = [];
 
@@ -73,6 +74,11 @@ export async function renderVentasPage() {
                 </div>
 
                 <div class="ticket-summary">
+                    <div class="ticket-notes" style="margin-bottom: 0.5rem;">
+                        <label for="customer-name"><i data-lucide="user"></i> Nombre del Cliente / Mesa:</label>
+                        <input type="text" id="customer-name" placeholder="Ej: Juan Pérez, Mesa 4..." value="${currentCustomerName}">
+                    </div>
+
                     <div class="ticket-notes">
                         <label for="order-notes"><i data-lucide="file-text"></i> Notas para Cocina:</label>
                         <input type="text" id="order-notes" placeholder="Ej: Sin cebolla, extra salsa..." value="${currentNotes}">
@@ -302,37 +308,47 @@ function updateTicketUI(container) {
 
 async function sendOrderToKitchen(container) {
     if (cartItems.length === 0) {
-        showToast({ message: 'Agrega al menos un producto al pedido', type: 'warning' });
+        showToast({ message: 'El carrito está vacío', type: 'error' });
         return;
     }
 
+    const currentRegister = cashService.getCurrentRegister();
+    if (!currentRegister) {
+        showToast({ message: 'Debes abrir una caja antes de tomar pedidos', type: 'error' });
+        return;
+    }
+
+    const notesInput = container.querySelector('#order-notes');
+    const customerInput = container.querySelector('#customer-name');
+    const notes = notesInput ? notesInput.value.trim() : '';
+    const customerName = customerInput ? customerInput.value.trim() : '';
+
     try {
-        const activeRegister = await cashService.getCurrentRegister();
-        if (!activeRegister) {
-            showToast({ message: 'Debes abrir caja antes de registrar pedidos', type: 'error' });
-            return;
-        }
-
-        const newOrder = await orderService.createOrder({
+        const order = await orderService.createOrder({
             items: cartItems,
-            notes: currentNotes,
-            cashRegisterId: activeRegister.id
+            notes,
+            customerName,
+            cashRegisterId: currentRegister.id
         });
 
-        showToast({ 
-            message: `🏆 ¡Pedido #${newOrder.order_number || ''} enviado a cocina!`, 
-            type: 'success' 
+        showToast({
+            message: `🚀 Orden #${order.order_number} enviada a Cocina`,
+            type: 'success'
         });
 
-        // Limpiar ticket
+        // Clear cart & inputs
         cartItems = [];
         currentNotes = '';
-        const notesInput = container.querySelector('#order-notes');
+        currentCustomerName = '';
         if (notesInput) notesInput.value = '';
-        updateTicketUI(container);
+        if (customerInput) customerInput.value = '';
 
+        // Cerrar drawer móvil si estaba abierto
+        container.querySelector('#ticket-panel')?.classList.remove('open');
+
+        updateTicketUI(container);
     } catch (err) {
-        showToast({ message: 'Error al enviar pedido a la cocina: ' + err.message, type: 'error' });
+        showToast({ message: 'Error enviando orden: ' + err.message, type: 'error' });
     }
 }
 

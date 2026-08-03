@@ -77,7 +77,12 @@ function renderOrdersList() {
     return list.map(order => `
         <div class="order-card order-card--${order.status}">
             <div class="order-card__header">
-                <span class="order-card__number">PEDIDO #${order.order_number}</span>
+                <div>
+                    <span class="order-card__number">PEDIDO #${order.order_number}</span>
+                    <div style="font-size: 0.82rem; font-weight: 700; color: var(--color-primary); margin-top: 0.15rem;">
+                        👤 ${order.customer_name || 'Mesa / Cliente General'}
+                    </div>
+                </div>
                 <span class="order-card__time">${new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
 

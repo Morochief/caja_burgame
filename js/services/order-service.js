@@ -1,10 +1,11 @@
 import { supabase } from '../supabase-client.js';
 
-export async function createOrder({ items, notes, cashRegisterId }) {
+export async function createOrder({ items, notes, customerName, cashRegisterId }) {
     const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
     const { data: order, error: orderError } = await supabase.from('orders').insert([{
         notes,
+        customer_name: customerName || 'Mesa / Cliente General',
         cash_register_id: cashRegisterId,
         status: 'ordered',
         total: total

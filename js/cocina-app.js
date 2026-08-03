@@ -113,7 +113,12 @@ function renderCocinaView() {
         return `
             <div class="kds-card kds-card--${statusClass}">
                 <div class="kds-card__header">
-                    <span class="kds-card__number">PEDIDO #${order.order_number}</span>
+                    <div>
+                        <span class="kds-card__number">PEDIDO #${order.order_number}</span>
+                        <div style="font-size: 0.85rem; font-weight: 700; color: var(--color-primary); margin-top: 0.2rem;">
+                            👤 ${order.customer_name || 'Mesa / Cliente'}
+                        </div>
+                    </div>
                     <span class="kds-card__timer ${isLate ? 'kds-card__timer--late' : ''}">
                         ⏱️ ${minutesElapsed}m ${isLate ? '⚠️' : ''}
                     </span>

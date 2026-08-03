@@ -55,6 +55,31 @@ async function init() {
             backdrop?.classList.remove('active');
         });
 
+        // Suscripción Realtime para Notificaciones al Admin cuando Cocina marca "LISTO"
+        supabase.channel('admin-kitchen-alerts')
+            .on('postgres_changes', { 
+                event: 'UPDATE', 
+                schema: 'public', 
+                table: 'orders' 
+            }, (payload) => {
+                const updatedOrder = payload.new;
+                const oldOrder = payload.old;
+
+                if (updatedOrder && updatedOrder.status === 'ready' && (!oldOrder || oldOrder.status !== 'ready')) {
+                    showToast({
+                        message: `✅ PEDIDO #${updatedOrder.order_number} (${updatedOrder.customer_name || 'Cliente'}) — ¡LISTO EN BARRA!`,
+                        type: 'success',
+                        duration: 6000
+                    });
+
+                    // Si estamos en la página de Órdenes, recargar la vista automáticamente
+                    if (window.location.hash === '#/ordenes') {
+                        navigate('#/ordenes');
+                    }
+                }
+            })
+            .subscribe();
+
         // Initialized router and sidebar
     } catch (error) {
         console.error('App init error:', error);
