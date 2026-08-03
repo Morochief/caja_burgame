@@ -99,7 +99,7 @@ export async function renderCajaPage() {
                 <form id="form-close-cash">
                     <div class="form-group">
                         <label for="counted-amount">Monto Contado en Efectivo (Gs.):</label>
-                        <input type="number" id="counted-amount" placeholder="Monto contado real" required>
+                        <input type="number" id="counted-amount" value="${summary.expectedCash || 0}" placeholder="Monto contado real" required>
                     </div>
 
                     <div class="form-group">
