@@ -9,6 +9,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
     
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="BurgameLogoTrazoAmarillo.png">
+    
     <link rel="stylesheet" href="css/reset.css">
     <link rel="stylesheet" href="css/variables.css">
     <link rel="stylesheet" href="css/components.css">
@@ -31,6 +34,10 @@
                     <span class="cocina-stat__number" id="ready-count" style="color: var(--color-success);">0</span>
                     <span class="cocina-stat__label">En Barra</span>
                 </div>
+                <div class="cocina-stat">
+                    <span class="cocina-stat__number" id="total-burgers-count" style="color: var(--color-primary);">0</span>
+                    <span class="cocina-stat__label">Burgers Hoy</span>
+                </div>
             </div>
             <button id="btn-kitchen-logout" class="btn btn--secondary" style="color: var(--color-danger); border-color: rgba(255, 61, 113, 0.4); padding: 0.5rem 0.9rem; font-size: 0.85rem;" title="Cerrar Sesión">
                 🚪 SALIR
@@ -38,8 +45,19 @@
         </div>
     </header>
 
-    <main class="cocina-grid" id="cocina-grid">
-        <!-- Renderizado dinámico desde cocina-app.js -->
+    <main class="cocina-main">
+        <div class="cocina-grid" id="cocina-grid">
+            <!-- Renderizado dinámico de tarjetas KDS -->
+        </div>
+
+        <section class="cocina-summary-panel card" style="margin-top: 2rem; background: var(--bg-card); border-color: var(--border-subtle);">
+            <h3 style="font-family: var(--font-title); font-size: 0.9rem; color: var(--color-primary); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                📊 TOTAL DE PRODUCTOS PREPARADOS HOY
+            </h3>
+            <div id="kitchen-prepared-breakdown" class="kitchen-prepared-grid" style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                <!-- Conteo por producto cargado dinámicamente -->
+            </div>
+        </section>
     </main>
 
     <script type="module" src="js/cocina-app.js"></script>

@@ -2,6 +2,7 @@ import { orderService } from './services/order-service.js';
 import { showToast } from './components/toast.js';
 
 let activeOrders = [];
+let allTodayOrders = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
     await initCocina();
@@ -36,8 +37,12 @@ async function initCocina() {
 
 async function loadActiveOrders() {
     try {
-        const orders = await orderService.getActiveOrders();
-        activeOrders = orders || [];
+        const [active, today] = await Promise.all([
+            orderService.getActiveOrders(),
+            orderService.getTodayOrders()
+        ]);
+        activeOrders = active || [];
+        allTodayOrders = today || [];
     } catch (err) {
         showToast({ message: 'Error cargando comandas de cocina', type: 'error' });
     }
@@ -47,6 +52,8 @@ function renderCocinaView() {
     const grid = document.getElementById('cocina-grid');
     const activeCountEl = document.getElementById('active-count');
     const readyCountEl = document.getElementById('ready-count');
+    const totalBurgersCountEl = document.getElementById('total-burgers-count');
+    const breakdownGrid = document.getElementById('kitchen-prepared-breakdown');
 
     if (!grid) return;
 
@@ -56,6 +63,35 @@ function renderCocinaView() {
 
     if (activeCountEl) activeCountEl.textContent = ordered.length + preparing.length;
     if (readyCountEl) readyCountEl.textContent = ready.length;
+
+    // Calcular desglose de ítems hoy
+    const productCounts = {};
+    let grandTotalItems = 0;
+
+    allTodayOrders.forEach(o => {
+        (o.order_items || []).forEach(item => {
+            const name = item.product_name;
+            const qty = item.quantity || 1;
+            productCounts[name] = (productCounts[name] || 0) + qty;
+            grandTotalItems += qty;
+        });
+    });
+
+    if (totalBurgersCountEl) totalBurgersCountEl.textContent = grandTotalItems;
+
+    if (breakdownGrid) {
+        const keys = Object.keys(productCounts);
+        if (keys.length === 0) {
+            breakdownGrid.innerHTML = `<span style="color: var(--text-muted); font-size: 0.85rem;">Aún no se han enviado pedidos hoy.</span>`;
+        } else {
+            breakdownGrid.innerHTML = keys.map(pName => `
+                <div class="badge badge--yellow" style="padding: 0.6rem 1rem; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem; background: var(--bg-elevated); border: 1px solid var(--border-gold);">
+                    <span style="font-weight: 800; color: var(--color-primary); font-family: var(--font-mono); font-size: 1rem;">${productCounts[pName]}x</span>
+                    <span style="color: var(--text-main); font-weight: 600;">${pName}</span>
+                </div>
+            `).join('');
+        }
+    }
 
     if (activeOrders.length === 0) {
         grid.innerHTML = `
