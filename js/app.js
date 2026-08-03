@@ -13,11 +13,14 @@ async function init() {
         const register = await cashService.getCurrentRegister();
         appState.cashRegister = register || null;
         
-        const updateSidebar = (route) => {
+        const updateSidebar = async (route) => {
+            appState.cashRegister = await cashService.getCurrentRegister();
             renderSidebar('sidebar-nav', route || currentRoute, appState.cashRegister ? 'open' : 'closed');
         };
 
-        initRouter(updateSidebar);
+        initRouter((route) => {
+            updateSidebar(route);
+        });
         
         let startRoute = window.location.hash;
         if (!startRoute || startRoute === '#/') {

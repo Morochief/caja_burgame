@@ -3,15 +3,15 @@ import { cashService } from '../services/cash-service.js';
 import { formatGs } from '../components/currency.js';
 import { showToast } from '../components/toast.js';
 
+let expenses = [];
+let categories = [];
+let currentRegister = null;
+
 export async function renderGastosPage() {
     const container = document.createElement('div');
     container.className = 'gastos-page';
 
-    const [expenses, categories, currentRegister] = await Promise.all([
-        expenseService.getAll(),
-        expenseService.getCategories(),
-        cashService.getCurrentRegister()
-    ]);
+    await loadData();
 
     container.innerHTML = `
         <header class="page-header">
@@ -52,24 +52,60 @@ export async function renderGastosPage() {
                             <th>Descripción</th>
                             <th>Categoría</th>
                             <th>Monto</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        ${(expenses || []).map(e => `
-                            <tr>
-                                <td>${new Date(e.created_at).toLocaleDateString()}</td>
-                                <td>${e.description}</td>
-                                <td>${e.expense_categories ? e.expense_categories.name : '-'}</td>
-                                <td><strong class="text-red">${formatGs(e.amount)}</strong></td>
-                            </tr>
-                        `).join('')}
+                    <tbody id="expenses-table-body">
+                        ${renderExpensesRows()}
                     </tbody>
                 </table>
             </div>
         </div>
     `;
 
-    container.querySelector('#form-expense')?.addEventListener('submit', async (ev) => {
+    setupEvents(container);
+    return container;
+}
+
+async function loadData() {
+    try {
+        const [exp, cat, reg] = await Promise.all([
+            expenseService.getAll(),
+            expenseService.getCategories(),
+            cashService.getCurrentRegister()
+        ]);
+        expenses = exp || [];
+        categories = cat || [];
+        currentRegister = reg;
+    } catch (err) {
+        showToast({ message: 'Error cargando historial de gastos', type: 'error' });
+    }
+}
+
+function renderExpensesRows() {
+    if (expenses.length === 0) {
+        return `<tr><td colspan="5" class="text-center p-4">No hay gastos registrados</td></tr>`;
+    }
+
+    return expenses.map(e => `
+        <tr>
+            <td>${new Date(e.created_at).toLocaleDateString()} ${new Date(e.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+            <td><strong>${e.description}</strong></td>
+            <td>${e.expense_categories ? e.expense_categories.name : '-'}</td>
+            <td><strong class="text-red">${formatGs(e.amount)}</strong></td>
+            <td>
+                <button class="btn btn--ghost btn-delete-exp" data-id="${e.id}" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">
+                    🗑️ Borrar
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function setupEvents(container) {
+    const form = container.querySelector('#form-expense');
+
+    form?.addEventListener('submit', async (ev) => {
         ev.preventDefault();
         if (!currentRegister) {
             showToast({ message: 'Abre caja antes de registrar gastos', type: 'error' });
@@ -87,12 +123,36 @@ export async function renderGastosPage() {
                 categoryId: categoryId,
                 cashRegisterId: currentRegister.id
             });
-            showToast({ message: 'Gasto registrado correctamente', type: 'success' });
-            window.location.reload();
+            showToast({ message: '💸 Gasto registrado correctamente', type: 'success' });
+            form.reset();
+
+            // Re-renderizado reactivo en tiempo real sin F5
+            await loadData();
+            container.querySelector('#expenses-table-body').innerHTML = renderExpensesRows();
+            attachDeleteEvents(container);
         } catch (err) {
             showToast({ message: 'Error al guardar gasto: ' + err.message, type: 'error' });
         }
     });
 
-    return container;
+    attachDeleteEvents(container);
+}
+
+function attachDeleteEvents(container) {
+    container.querySelectorAll('.btn-delete-exp').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const id = btn.dataset.id;
+            if (!confirm('¿Estás seguro de eliminar este gasto?')) return;
+
+            try {
+                await expenseService.deleteExpense(id);
+                showToast({ message: 'Gasto eliminado', type: 'success' });
+                await loadData();
+                container.querySelector('#expenses-table-body').innerHTML = renderExpensesRows();
+                attachDeleteEvents(container);
+            } catch (err) {
+                showToast({ message: 'Error al eliminar gasto: ' + err.message, type: 'error' });
+            }
+        });
+    });
 }
