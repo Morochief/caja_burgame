@@ -284,7 +284,9 @@ function addToCart(productId, isCombo) {
     if (!product) return;
 
     const price = isCombo ? (product.combo_price || (product.price + 10000)) : product.price;
-    const existingIdx = cartItems.findIndex(ci => ci.productId === product.id && ci.isCombo === isCombo);
+    
+    // Si ya existe una fila vacía de notas la incrementa; de lo contrario crea una fila separada
+    const existingIdx = cartItems.findIndex(ci => ci.productId === product.id && ci.isCombo === isCombo && (ci.customNotes || '') === '');
 
     if (existingIdx >= 0) {
         cartItems[existingIdx].quantity++;
@@ -294,7 +296,8 @@ function addToCart(productId, isCombo) {
             productName: product.name,
             price: price,
             quantity: 1,
-            isCombo: isCombo
+            isCombo: isCombo,
+            customNotes: ''
         });
     }
 }

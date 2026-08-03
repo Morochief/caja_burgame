@@ -44,8 +44,9 @@ export async function createOrder({ items, notes, customerName, cashRegisterId }
 
     const orderItems = items.map(item => {
         let pName = item.productName;
-        if (item.customNotes && item.customNotes.trim()) {
-            pName = `${pName} (${item.customNotes.trim()})`;
+        const note = item.customNotes ? item.customNotes.trim() : '';
+        if (note) {
+            pName = `${pName} [📝 ${note}]`;
         }
         return {
             order_id: order.id,

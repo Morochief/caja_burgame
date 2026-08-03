@@ -292,7 +292,10 @@ function addProductToCart(productId, isCombo) {
 
     const price = isCombo ? (product.combo_price || (product.price + 10000)) : product.price;
 
-    const existingIdx = cartItems.findIndex(ci => ci.productId === product.id && ci.isCombo === isCombo);
+    // Si ya existe una fila idéntica CON LA MISMA NOTA PERSONALIZADA y modalidad, incrementar cantidad.
+    // Si la nota o la modalidad difieren, crear una nueva fila separada para no confundir a la cocina.
+    const existingIdx = cartItems.findIndex(ci => ci.productId === product.id && ci.isCombo === isCombo && (ci.customNotes || '') === '');
+    
     if (existingIdx >= 0) {
         cartItems[existingIdx].quantity++;
     } else {
@@ -302,7 +305,7 @@ function addProductToCart(productId, isCombo) {
             price: price,
             quantity: 1,
             isCombo: isCombo,
-            aggregates: []
+            customNotes: ''
         });
     }
 }
