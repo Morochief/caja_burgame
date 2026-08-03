@@ -3,14 +3,44 @@ import { supabase } from '../supabase-client.js';
 export async function createOrder({ items, notes, customerName, cashRegisterId }) {
     const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-    const { data: order, error: orderError } = await supabase.from('orders').insert([{
-        notes,
-        customer_name: customerName || 'Mesa / Cliente General',
+    // Formatear notas combinadas con el nombre del cliente para compatibilidad total de esquema Supabase
+    let finalNotes = notes || '';
+    let cName = customerName ? customerName.trim() : '';
+
+    if (cName) {
+        finalNotes = `[Cliente: ${cName}] ${finalNotes}`.trim();
+    }
+
+    const insertData = {
+        notes: finalNotes,
         cash_register_id: cashRegisterId,
         status: 'ordered',
         total: total
-    }]).select().single();
-    if (orderError) throw orderError;
+    };
+
+    if (cName) {
+        insertData.customer_name = cName;
+    }
+
+    // Intentar inserción con customer_name; si la columna no existe en Supabase, fallback seguro a la versión formateada en notes
+    let order;
+    let orderError;
+
+    try {
+        const res = await supabase.from('orders').insert([insertData]).select().single();
+        order = res.data;
+        orderError = res.error;
+    } catch {
+        orderError = true;
+    }
+
+    if (orderError) {
+        // Fallback sin la propiedad customer_name directa para evitar error 400 por esquema de base de datos
+        delete insertData.customer_name;
+        const resFallback = await supabase.from('orders').insert([insertData]).select().single();
+        if (resFallback.error) throw resFallback.error;
+        order = resFallback.data;
+    }
 
     const orderItems = items.map(item => ({
         order_id: order.id,

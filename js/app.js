@@ -66,8 +66,9 @@ async function init() {
                 const oldOrder = payload.old;
 
                 if (updatedOrder && updatedOrder.status === 'ready' && (!oldOrder || oldOrder.status !== 'ready')) {
+                    const cName = updatedOrder.customer_name || (updatedOrder.notes && updatedOrder.notes.match(/\[Cliente:\s*([^\]]+)\]/i)?.[1]) || 'Cliente';
                     showToast({
-                        message: `✅ PEDIDO #${updatedOrder.order_number} (${updatedOrder.customer_name || 'Cliente'}) — ¡LISTO EN BARRA!`,
+                        message: `✅ PEDIDO #${updatedOrder.order_number} (${cName}) — ¡LISTO EN BARRA!`,
                         type: 'success',
                         duration: 6000
                     });

@@ -110,13 +110,15 @@ function renderCocinaView() {
         const isLate = minutesElapsed >= 15;
         const statusClass = order.status === 'ordered' ? 'ordered' : order.status === 'preparing' ? 'preparing' : 'ready';
 
+        const customerDisplay = order.customer_name || extractCustomerFromNotes(order.notes) || 'Mesa / Cliente';
+
         return `
             <div class="kds-card kds-card--${statusClass}">
                 <div class="kds-card__header">
                     <div>
                         <span class="kds-card__number">PEDIDO #${order.order_number}</span>
                         <div style="font-size: 0.85rem; font-weight: 700; color: var(--color-primary); margin-top: 0.2rem;">
-                            👤 ${order.customer_name || 'Mesa / Cliente'}
+                            👤 ${customerDisplay}
                         </div>
                     </div>
                     <span class="kds-card__timer ${isLate ? 'kds-card__timer--late' : ''}">
@@ -216,4 +218,10 @@ function setupRealtimeSubscription() {
         await loadActiveOrders();
         renderCocinaView();
     });
+}
+
+function extractCustomerFromNotes(notes) {
+    if (!notes) return null;
+    const match = notes.match(/\[Cliente:\s*([^\]]+)\]/i);
+    return match ? match[1].trim() : null;
 }
