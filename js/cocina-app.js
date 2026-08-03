@@ -8,6 +8,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function initCocina() {
+    const { getSession } = await import('./services/auth-service.js');
+    const session = getSession();
+    if (!session) {
+        window.location.href = 'index.html#/login';
+        return;
+    }
+
     const grid = document.getElementById('cocina-grid');
     if (!grid) return;
 

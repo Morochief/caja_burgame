@@ -33,7 +33,7 @@ export function loginWithPin(pin) {
 
 export function logout() {
     localStorage.removeItem(AUTH_KEY);
-    window.location.hash = '#/login';
+    window.location.href = 'index.html#/login';
 }
 
 export function isAdmin() {
