@@ -195,31 +195,50 @@ function renderCartItems() {
         `;
     }
 
-    return cartItems.map((item, idx) => `
-        <div class="cart-item" style="border-left: 3px solid ${item.isCombo ? 'var(--color-primary)' : 'var(--border-subtle)'};">
-            <div class="cart-item__info">
-                <div>
-                    <div class="cart-item__title" style="font-weight: 700;">${item.productName}</div>
-                    <button class="btn-toggle-combo" data-idx="${idx}" style="background: transparent; border: none; padding: 0; font-size: 0.75rem; cursor: pointer; color: ${item.isCombo ? 'var(--color-primary)' : 'var(--text-muted)'}; margin-top: 0.2rem; font-weight: 700;">
-                        ${item.isCombo ? '🍟 COMBO (Papas + Bebida)' : '🍔 Solo Hamburguesa (Cambiar a Combo)'}
-                    </button>
-                </div>
-                <div class="cart-item__subtotal">${formatGs(item.price * item.quantity)}</div>
-            </div>
-            
-            <!-- Nota individual por producto -->
-            <div style="margin-top: 0.4rem;">
-                <input type="text" class="input-item-note" data-idx="${idx}" placeholder="✏️ Aclaración (ej: Sin cebolla...)" value="${item.customNotes || ''}" style="width: 100%; font-size: 0.78rem; padding: 0.35rem 0.6rem; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 4px; color: var(--color-primary);">
-            </div>
+    return cartItems.map((item, idx) => {
+        const isBurger = item.isCombo !== undefined && !item.productName.includes('(');
+        const hasVariantLabel = item.productName.includes('(');
+        
+        let subtitleHtml = '';
+        if (isBurger) {
+            subtitleHtml = `
+                <button class="btn-toggle-combo" data-idx="${idx}" style="background: transparent; border: none; padding: 0; font-size: 0.75rem; cursor: pointer; color: ${item.isCombo ? 'var(--color-primary)' : 'var(--text-muted)'}; margin-top: 0.2rem; font-weight: 700;">
+                    ${item.isCombo ? '🍟 COMBO (Papas + Bebida)' : '🍔 Solo Hamburguesa (Cambiar a Combo)'}
+                </button>
+            `;
+        } else if (hasVariantLabel) {
+            const variantText = item.productName.match(/\((.*?)\)/)?.[1] || '';
+            subtitleHtml = `
+                <span style="font-size: 0.75rem; color: var(--color-primary); margin-top: 0.2rem; font-weight: 700; display: block;">
+                    ✨ Presentación: ${variantText}
+                </span>
+            `;
+        }
 
-            <div class="cart-item__controls" style="margin-top: 0.5rem;">
-                <button class="btn-qty" data-action="dec" data-idx="${idx}">-</button>
-                <span class="cart-item__qty">${item.quantity}</span>
-                <button class="btn-qty" data-action="inc" data-idx="${idx}">+</button>
-                <button class="btn-remove" data-action="del" data-idx="${idx}"><i data-lucide="x"></i></button>
+        return `
+            <div class="cart-item" style="border-left: 3px solid ${item.isCombo ? 'var(--color-primary)' : 'var(--border-subtle)'};">
+                <div class="cart-item__info">
+                    <div>
+                        <div class="cart-item__title" style="font-weight: 700;">${item.productName}</div>
+                        ${subtitleHtml}
+                    </div>
+                    <div class="cart-item__subtotal">${formatGs(item.price * item.quantity)}</div>
+                </div>
+                
+                <!-- Nota individual por producto -->
+                <div style="margin-top: 0.4rem;">
+                    <input type="text" class="input-item-note" data-idx="${idx}" placeholder="✏️ Aclaración (ej: Sin cebolla...)" value="${item.customNotes || ''}" style="width: 100%; font-size: 0.78rem; padding: 0.35rem 0.6rem; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 4px; color: var(--color-primary);">
+                </div>
+
+                <div class="cart-item__controls" style="margin-top: 0.5rem;">
+                    <button class="btn-qty" data-action="dec" data-idx="${idx}">-</button>
+                    <span class="cart-item__qty">${item.quantity}</span>
+                    <button class="btn-qty" data-action="inc" data-idx="${idx}">+</button>
+                    <button class="btn-remove" data-action="del" data-idx="${idx}"><i data-lucide="x"></i></button>
+                </div>
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 function calculateTotal() {
@@ -293,6 +312,18 @@ function setupEvents(container) {
 }
 
 function attachProductClickEvents(container) {
+    // Botón Variante (ej. Chopp 1x, 2x1, Libre)
+    container.querySelectorAll('.btn-add-variant').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+            const vName = btn.dataset.vname;
+            const vPrice = parseInt(btn.dataset.vprice, 10);
+            addVariantToCart(id, vName, vPrice);
+            updateTicketUI(container);
+        });
+    });
+
     // Botón Individual
     container.querySelectorAll('.btn-add-single').forEach(btn => {
         btn.addEventListener('click', (e) => {
