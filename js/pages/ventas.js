@@ -143,7 +143,7 @@ function renderProductsGrid() {
         const comboPrice = product.combo_price || (product.price + 10000);
         const isBurger = product.category_id === 'burgers' || (product.name.toLowerCase().includes('burger') || product.name.toLowerCase().includes('classic') || product.name.toLowerCase().includes('bowser') || product.name.toLowerCase().includes('cheat') || product.name.toLowerCase().includes('fatality') || product.name.toLowerCase().includes('ronin') || product.name.toLowerCase().includes('yoshi'));
         const isChopp = product.name.toLowerCase().includes('pilsen') || product.name.toLowerCase().includes('chopp');
-        const isCheat = product.name.toLowerCase().includes('cheat');
+        const isCheat = product.name.toLowerCase().includes('cheat') && !product.name.toLowerCase().includes('doble');
         const isBowser = product.name.toLowerCase().includes('bowser');
 
         return `
@@ -166,9 +166,9 @@ function renderProductsGrid() {
                                         <span>🍟 Combo</span><span style="font-size: 0.66rem; font-weight: 900;">${formatGs(comboPrice)}</span>
                                     </button>
                                 </div>
-                                <button class="btn btn-add-promo" data-id="${product.id}" data-vname="Promo 3x Cheat Burger" data-vprice="${product.promo_price || 50000}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0.5rem; font-size: 0.7rem; font-weight: 900; background: linear-gradient(135deg, #FFD700, #FF9100); border: none; color: #000; border-radius: 4px; cursor: pointer;">
-                                    <span>🔥 3x50.000</span>
-                                    <span style="font-weight: 900;">${formatGs(product.promo_price || 50000)}</span>
+                                <button class="btn btn-add-promo" data-id="${product.id}" data-vname="Promo Jueves Cheat" data-vprice="${product.promo_price || 50000}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0.5rem; font-size: 0.7rem; font-weight: 900; background: linear-gradient(135deg, #FFD700, #FF9100); border: none; color: #000; border-radius: 4px; cursor: pointer;">
+                                    <span>🔥 PROMO JUEVES</span>
+                                    <span style="font-weight: 900; white-space: nowrap;">${formatGs(product.promo_price || 50000)}</span>
                                 </button>
                             </div>
                         ` : isBowser ? `
@@ -182,8 +182,8 @@ function renderProductsGrid() {
                                     </button>
                                 </div>
                                 <button class="btn btn-add-promo" data-id="${product.id}" data-vname="Promo Viernes Bowser" data-vprice="${product.promo_price || 35000}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0.5rem; font-size: 0.7rem; font-weight: 900; background: rgba(255,82,82,0.15); border: 1px solid #FF5252; color: #FF5252; border-radius: 4px; cursor: pointer;">
-                                    <span>🔥 PROMO VIERNES</span>
-                                    <span style="font-weight: 900;">${formatGs(product.promo_price || 35000)}</span>
+                                    <span style="white-space: nowrap;">🔥 PROMO VIERNES</span>
+                                    <span style="font-weight: 900; white-space: nowrap; margin-left: 0.3rem;">${formatGs(product.promo_price || 35000)}</span>
                                 </button>
                             </div>
                         ` : isBurger ? `
