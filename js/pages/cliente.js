@@ -152,7 +152,7 @@ function renderProductsGrid() {
                                         🍟 Combo<br><span style="font-size: 0.7rem;">${formatGs(comboPrice)}</span>
                                     </button>
                                 </div>
-                                <button class="btn btn-add-variant" data-id="${product.id}" data-vname="Promo 3x Cheat Burger" data-vprice="${product.promo_price || 50000}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.45rem 0.6rem; font-size: 0.78rem; font-weight: 900; background: linear-gradient(135deg, #FFD700, #FF9100); border: none; color: #000; border-radius: 6px; cursor: pointer; box-shadow: 0 0 12px rgba(255,215,0,0.3);">
+                                <button class="btn btn-add-promo" data-id="${product.id}" data-vname="Promo 3x Cheat Burger" data-vprice="${product.promo_price || 50000}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.45rem 0.6rem; font-size: 0.78rem; font-weight: 900; background: linear-gradient(135deg, #FFD700, #FF9100); border: none; color: #000; border-radius: 6px; cursor: pointer; box-shadow: 0 0 12px rgba(255,215,0,0.3);">
                                     <span>🔥 PROMO 3x50.000</span>
                                     <span style="font-weight: 900;">${formatGs(product.promo_price || 50000)}</span>
                                 </button>
@@ -167,7 +167,7 @@ function renderProductsGrid() {
                                         🍟 Combo<br><span style="font-size: 0.7rem;">${formatGs(comboPrice)}</span>
                                     </button>
                                 </div>
-                                <button class="btn btn-add-variant" data-id="${product.id}" data-vname="Promo Viernes Bowser" data-vprice="${product.promo_price || 35000}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.45rem 0.6rem; font-size: 0.78rem; font-weight: 900; background: rgba(255,82,82,0.15); border: 1px solid #FF5252; color: #FF5252; border-radius: 6px; cursor: pointer;">
+                                <button class="btn btn-add-promo" data-id="${product.id}" data-vname="Promo Viernes Bowser" data-vprice="${product.promo_price || 35000}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.45rem 0.6rem; font-size: 0.78rem; font-weight: 900; background: rgba(255,82,82,0.15); border: 1px solid #FF5252; color: #FF5252; border-radius: 6px; cursor: pointer;">
                                     <span>🔥 PROMO VIERNES</span>
                                     <span style="font-weight: 900;">${formatGs(product.promo_price || 35000)}</span>
                                 </button>
@@ -265,6 +265,18 @@ function setupEvents(appEl) {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             addToCart(btn.dataset.id, true);
+            renderView(appEl);
+        });
+    });
+
+    // Agregar promo especial cliente
+    appEl.querySelectorAll('.btn-add-promo').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+            const vName = btn.dataset.vname;
+            const vPrice = parseInt(btn.dataset.vprice, 10);
+            addVariantToCart(id, vName, vPrice);
             renderView(appEl);
         });
     });
