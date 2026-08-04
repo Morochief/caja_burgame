@@ -1,12 +1,16 @@
-import { supabase } from '../supabase-client.js';
-
-export async function getDailySummary(date) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+export async function getCurrentShiftSummary(cashRegisterId) {
+    if (!cashRegisterId) {
+        return {
+            totalSales: 0,
+            totalExpenses: 0,
+            net: 0,
+            orderCount: 0
+        };
+    }
 
     const [ordersRes, expensesRes] = await Promise.all([
-        supabase.from('orders').select('*').gte('created_at', today.toISOString()).eq('status', 'paid'),
-        supabase.from('expenses').select('*').gte('created_at', today.toISOString())
+        supabase.from('orders').select('*').eq('cash_register_id', cashRegisterId).eq('status', 'paid'),
+        supabase.from('expenses').select('*').eq('cash_register_id', cashRegisterId)
     ]);
 
     const orders = ordersRes.data || [];
@@ -46,7 +50,7 @@ export async function getPaymentBreakdown() {
 }
 
 export const reportService = {
-    getDailySummary,
+    getCurrentShiftSummary,
     getWeeklySales,
     getTopProducts,
     getPaymentBreakdown

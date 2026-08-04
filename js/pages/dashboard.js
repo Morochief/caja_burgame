@@ -1,42 +1,56 @@
 import { reportService } from '../services/report-service.js';
 import { productService } from '../services/product-service.js';
 import { orderService } from '../services/order-service.js';
+import { cashService } from '../services/cash-service.js';
 import { formatGs } from '../components/currency.js';
 
 export async function renderDashboardPage() {
     const container = document.createElement('div');
     container.className = 'dashboard-page';
 
-    const [dailySummary, lowStock, activeOrders] = await Promise.all([
-        reportService.getDailySummary(),
+    const currentRegister = await cashService.getCurrentRegister();
+
+    const [shiftSummary, lowStock, activeOrders] = await Promise.all([
+        reportService.getCurrentShiftSummary(currentRegister ? currentRegister.id : null),
         productService.getLowStock(10),
         orderService.getActiveOrders()
     ]);
 
     container.innerHTML = `
-        <header class="page-header">
+        <header class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
             <div class="page-header__info">
                 <h1>🎮 BURGAME DASHBOARD</h1>
-                <p>Resumen operacional y métricas clave en tiempo real</p>
+                <p>Resumen operacional y métricas del turno actual</p>
+            </div>
+            <div>
+                ${currentRegister ? `
+                    <span class="badge badge--green" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">
+                        🟢 CAJA ABIERTA (Turno #${currentRegister.id.slice(0, 6)})
+                    </span>
+                ` : `
+                    <span class="badge badge--red" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">
+                        🔒 CAJA CERRADA (Abre turno en Caja)
+                    </span>
+                `}
             </div>
         </header>
 
         <div class="dashboard-grid">
             <!-- Stats Row -->
             <div class="stat-card stat-card--neon">
-                <span class="stat-card__title">Ventas de Hoy</span>
-                <span class="stat-card__value">${formatGs(dailySummary.totalSales || 0)}</span>
-                <span class="stat-card__subtitle">${dailySummary.orderCount || 0} pedidos procesados</span>
+                <span class="stat-card__title">Ventas del Turno</span>
+                <span class="stat-card__value">${formatGs(shiftSummary.totalSales || 0)}</span>
+                <span class="stat-card__subtitle">${shiftSummary.orderCount || 0} pedidos cobrados</span>
             </div>
 
             <div class="stat-card stat-card--red">
-                <span class="stat-card__title">Gastos del Día</span>
-                <span class="stat-card__value">${formatGs(dailySummary.totalExpenses || 0)}</span>
+                <span class="stat-card__title">Gastos del Turno</span>
+                <span class="stat-card__value">${formatGs(shiftSummary.totalExpenses || 0)}</span>
             </div>
 
             <div class="stat-card stat-card--green">
-                <span class="stat-card__title">Balance Neto</span>
-                <span class="stat-card__value">${formatGs(dailySummary.net || 0)}</span>
+                <span class="stat-card__title">Balance Neto Turno</span>
+                <span class="stat-card__value">${formatGs(shiftSummary.net || 0)}</span>
             </div>
 
             <div class="stat-card stat-card--yellow">
@@ -77,11 +91,13 @@ export async function renderDashboardPage() {
         </div>
     `;
 
-    // Cargar y calcular productos vendidos en el día
+    // Cargar y calcular productos vendidos en el turno actual
     try {
         const todayOrders = await orderService.getTodaysOrders();
+        const shiftOrders = currentRegister ? (todayOrders || []).filter(o => o.cash_register_id === currentRegister.id && o.status === 'paid') : [];
+
         const counts = {};
-        (todayOrders || []).forEach(o => {
+        shiftOrders.forEach(o => {
             (o.order_items || []).forEach(item => {
                 counts[item.product_name] = (counts[item.product_name] || 0) + (item.quantity || 1);
             });
@@ -91,7 +107,7 @@ export async function renderDashboardPage() {
         if (breakdownEl) {
             const items = Object.entries(counts);
             if (items.length === 0) {
-                breakdownEl.innerHTML = `<p class="empty-text">No hay ventas registradas en la jornada.</p>`;
+                breakdownEl.innerHTML = `<p class="empty-text">${currentRegister ? 'No hay ventas cobradas en este turno.' : 'Abre la caja para iniciar la contabilización del turno.'}</p>`;
             } else {
                 breakdownEl.innerHTML = `
                     <ul class="stock-list">
