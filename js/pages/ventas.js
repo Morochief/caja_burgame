@@ -131,6 +131,8 @@ function renderProductsGrid() {
                 <p>No se encontraron productos disponibles</p>
             </div>
         `;
+    }
+
     return filtered.map(product => {
         const imageSrc = product.image_url || 'assets/placeholders/burger-placeholder.svg';
         const comboPrice = product.combo_price || (product.price + 10000);
