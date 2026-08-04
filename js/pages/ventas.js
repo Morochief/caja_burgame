@@ -304,9 +304,38 @@ function setupEvents(container) {
 
     // Abrir modal carrito
     const fabBtn = container.querySelector('#btn-floating-cart');
+    const overlay = document.querySelector('#cart-modal-overlay') || container.querySelector('#cart-modal-overlay');
     fabBtn?.addEventListener('click', () => openCartModal(container));
 
-    // Notas y nombre: capturados por variable en openCartModal, no necesita listener global
+    // Cerrar modal carrito
+    document.addEventListener('click', (e) => {
+        const overlay = document.querySelector('#cart-modal-overlay');
+        if (overlay && e.target === overlay) closeCartModal();
+    });
+    document.addEventListener('click', (e) => {
+        if (e.target?.id === 'btn-close-cart-modal') closeCartModal();
+    });
+
+    // Limpiar Carrito (delegado, el modal se monta dinámicamente)
+    document.addEventListener('click', (e) => {
+        if (e.target?.id === 'btn-clear-cart' || e.target?.closest('#btn-clear-cart')) {
+            cartItems = [];
+            updateTicketUI(container);
+        }
+    });
+
+    // Enviar Pedido
+    document.addEventListener('click', (e) => {
+        if (e.target?.id === 'btn-send-order' || e.target?.closest('#btn-send-order')) {
+            sendOrderToKitchen(container);
+        }
+    });
+
+    // Notas y Nombre del cliente (delegado)
+    document.addEventListener('input', (e) => {
+        if (e.target?.id === 'customer-name') currentCustomerName = e.target.value;
+        if (e.target?.id === 'order-notes') currentNotes = e.target.value;
+    });
 
     attachProductClickEvents(container);
     setupKeyboardShortcuts(container);
@@ -565,11 +594,10 @@ async function sendOrderToKitchen(container) {
         return;
     }
 
-    // Leer notas desde el modal si está abierto, sino usar variables guardadas
-    const notesEl = document.querySelector('#order-notes');
-    const customerEl = document.querySelector('#customer-name');
-    const notes = (notesEl ? notesEl.value.trim() : currentNotes) || '';
-    const customerName = (customerEl ? customerEl.value.trim() : currentCustomerName) || '';
+    const notesInput = container.querySelector('#order-notes');
+    const customerInput = container.querySelector('#customer-name');
+    const notes = notesInput ? notesInput.value.trim() : '';
+    const customerName = customerInput ? customerInput.value.trim() : '';
 
     try {
         const order = await orderService.createOrder({
@@ -584,13 +612,15 @@ async function sendOrderToKitchen(container) {
             type: 'success'
         });
 
-        // Limpiar
+        // Clear cart & inputs
         cartItems = [];
         currentNotes = '';
         currentCustomerName = '';
+        if (notesInput) notesInput.value = '';
+        if (customerInput) customerInput.value = '';
 
-        // Cerrar modal si está abierto
-        closeCartModal();
+        // Cerrar drawer móvil si estaba abierto
+        container.querySelector('#ticket-panel')?.classList.remove('open');
 
         updateTicketUI(container);
     } catch (err) {
