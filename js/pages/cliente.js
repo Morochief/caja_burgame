@@ -150,15 +150,18 @@ function renderProductsGrid() {
                                 </button>
                             </div>
                         ` : isChopp ? `
-                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.2rem; width: 100%;">
-                                <button class="btn btn-add-variant" data-id="${product.id}" data-vname="1 Chopp" data-vprice="15000" style="padding: 0.35rem 0.1rem; font-size: 0.68rem; font-weight: 700; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-color); border-radius: 6px; cursor: pointer;">
-                                    🍺 1x<br><span style="color: var(--color-primary); font-size: 0.62rem;">15.000</span>
+                            <div style="display: flex; flex-direction: column; gap: 0.3rem; width: 100%;">
+                                <button class="btn btn-add-variant" data-id="${product.id}" data-vname="1 Chopp" data-vprice="15000" style="display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0.6rem; font-size: 0.78rem; font-weight: 700; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-color); border-radius: 6px; cursor: pointer;">
+                                    <span>🍺 1 Chopp</span>
+                                    <span style="color: var(--color-primary); font-weight: 800;">15.000</span>
                                 </button>
-                                <button class="btn btn-add-variant" data-id="${product.id}" data-vname="2x1 Chopp" data-vprice="25000" style="padding: 0.35rem 0.1rem; font-size: 0.68rem; font-weight: 800; background: rgba(255,215,0,0.15); border: 1px solid var(--color-primary); color: var(--color-primary); border-radius: 6px; cursor: pointer;">
-                                    🍻 2x1<br><span style="font-size: 0.62rem;">25.000</span>
+                                <button class="btn btn-add-variant" data-id="${product.id}" data-vname="2x1 Chopp" data-vprice="25000" style="display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0.6rem; font-size: 0.78rem; font-weight: 800; background: rgba(255,215,0,0.12); border: 1px solid var(--color-primary); color: var(--color-primary); border-radius: 6px; cursor: pointer;">
+                                    <span>🍻 Promo 2x1</span>
+                                    <span style="font-weight: 900;">25.000</span>
                                 </button>
-                                <button class="btn btn-add-variant" data-id="${product.id}" data-vname="Chopp LIBRE" data-vprice="55000" style="padding: 0.35rem 0.1rem; font-size: 0.68rem; font-weight: 900; background: var(--color-primary); border: none; color: #000; border-radius: 6px; cursor: pointer;">
-                                    ♾️ LIBRE<br><span style="font-size: 0.62rem;">55.000</span>
+                                <button class="btn btn-add-variant" data-id="${product.id}" data-vname="Chopp LIBRE" data-vprice="55000" style="display: flex; justify-content: space-between; align-items: center; padding: 0.45rem 0.6rem; font-size: 0.78rem; font-weight: 900; background: var(--color-primary); border: none; color: #000; border-radius: 6px; cursor: pointer;">
+                                    <span>♾️ Chopp LIBRE</span>
+                                    <span style="font-weight: 900;">55.000</span>
                                 </button>
                             </div>
                         ` : `
