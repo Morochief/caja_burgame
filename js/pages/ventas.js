@@ -304,34 +304,9 @@ function setupEvents(container) {
 
     // Abrir modal carrito
     const fabBtn = container.querySelector('#btn-floating-cart');
-    const overlay = document.querySelector('#cart-modal-overlay') || container.querySelector('#cart-modal-overlay');
     fabBtn?.addEventListener('click', () => openCartModal(container));
 
-    // Cerrar modal carrito
-    document.addEventListener('click', (e) => {
-        const overlay = document.querySelector('#cart-modal-overlay');
-        if (overlay && e.target === overlay) closeCartModal();
-    });
-    document.addEventListener('click', (e) => {
-        if (e.target?.id === 'btn-close-cart-modal') closeCartModal();
-    });
-
-    // Limpiar Carrito (delegado, el modal se monta dinámicamente)
-    document.addEventListener('click', (e) => {
-        if (e.target?.id === 'btn-clear-cart' || e.target?.closest('#btn-clear-cart')) {
-            cartItems = [];
-            updateTicketUI(container);
-        }
-    });
-
-    // Enviar Pedido
-    document.addEventListener('click', (e) => {
-        if (e.target?.id === 'btn-send-order' || e.target?.closest('#btn-send-order')) {
-            sendOrderToKitchen(container);
-        }
-    });
-
-    // Notas y Nombre del cliente (delegado)
+    // Notas y Nombre del cliente (delegado - para cuando el modal está abierto)
     document.addEventListener('input', (e) => {
         if (e.target?.id === 'customer-name') currentCustomerName = e.target.value;
         if (e.target?.id === 'order-notes') currentNotes = e.target.value;
@@ -393,14 +368,16 @@ function openCartModal(container) {
     overlay.querySelector('#btn-close-cart-modal')?.addEventListener('click', closeCartModal);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) closeCartModal(); });
 
-    overlay.querySelector('#btn-clear-cart')?.addEventListener('click', () => {
+    overlay.querySelector('#btn-clear-cart')?.addEventListener('click', (e) => {
+        e.stopPropagation();
         cartItems = [];
         updateTicketUI(container);
         closeCartModal();
         openCartModal(container);
     });
 
-    overlay.querySelector('#btn-send-order')?.addEventListener('click', () => {
+    overlay.querySelector('#btn-send-order')?.addEventListener('click', (e) => {
+        e.stopPropagation();
         sendOrderToKitchen(container);
     });
 
