@@ -29,8 +29,8 @@ export async function renderVentasPage() {
     }
 
     container.innerHTML = `
-        <div class="ventas-layout">
-            <!-- Sección de Selección de Productos (Izquierda / Centro) -->
+        <div class="ventas-layout-full">
+            <!-- Sección de Selección de Productos (Full Width) -->
             <section class="ventas-catalog">
                 <div class="ventas-sticky-header">
                     <div class="pos-banner-container" style="margin-bottom: 0.8rem; text-align: center;">
@@ -62,49 +62,54 @@ export async function renderVentasPage() {
                 </div>
             </section>
 
-            <!-- Sidebar Lateral / Drawer Móvil: Ticket del Pedido Actual -->
-            <aside class="ticket-panel" id="ticket-panel">
-                <div class="ticket-header">
-                    <h2><i data-lucide="shopping-bag"></i> PEDIDO ACTUAL</h2>
-                    <button id="btn-close-ticket-drawer" class="btn-close mobile-only">&times;</button>
-                </div>
-
-                <div class="ticket-items" id="ticket-items">
-                    ${renderCartItems()}
-                </div>
-
-                <div class="ticket-summary">
-                    <div class="ticket-notes" style="margin-bottom: 0.5rem;">
-                        <label for="customer-name"><i data-lucide="user"></i> Nombre del Cliente / Mesa:</label>
-                        <input type="text" id="customer-name" placeholder="Ej: Juan Pérez, Mesa 4..." value="${currentCustomerName}">
-                    </div>
-
-                    <div class="ticket-notes">
-                        <label for="order-notes"><i data-lucide="file-text"></i> Notas para Cocina:</label>
-                        <input type="text" id="order-notes" placeholder="Ej: Sin cebolla, extra salsa..." value="${currentNotes}">
-                    </div>
-
-                    <div class="ticket-row ticket-row--total">
-                        <span>TOTAL</span>
-                        <span class="ticket-total-val" id="ticket-total">${formatGs(calculateTotal())}</span>
-                    </div>
-
-                    <div class="ticket-actions">
-                        <button id="btn-clear-cart" class="btn btn--danger btn--ghost">
-                            <i data-lucide="trash-2"></i> Limpiar
-                        </button>
-                        <button id="btn-send-order" class="btn btn--primary btn--block">
-                            ⌨️ ORDENAR PEDIDO
-                        </button>
-                    </div>
-                </div>
-            </aside>
-
-            <!-- Botón Flotante para Celulares -->
-            <button id="btn-floating-cart" class="mobile-cart-floating-btn">
-                <span>🛒 VER PEDIDO (${cartItems.length})</span>
-                <span id="floating-cart-total">${formatGs(calculateTotal())}</span>
+            <!-- Botón Flotante Carrito -->
+            <button id="btn-floating-cart" class="fab-cart" aria-label="Ver Pedido">
+                <span class="fab-cart__icon">🛒</span>
+                <span class="fab-cart__badge" id="fab-badge">${cartItems.reduce((a,b)=>a+b.quantity,0) || ''}</span>
+                <span class="fab-cart__total" id="fab-total">${calculateTotal() > 0 ? formatGs(calculateTotal()) : 'Pedido'}</span>
             </button>
+        </div>
+
+        <!-- Modal Carrito -->
+        <div class="cart-modal-overlay" id="cart-modal-overlay">
+            <div class="cart-modal" id="cart-modal">
+                <div class="cart-modal__header">
+                    <h2><i data-lucide="shopping-bag"></i> PEDIDO ACTUAL</h2>
+                    <button id="btn-close-cart-modal" class="cart-modal__close" aria-label="Cerrar">&times;</button>
+                </div>
+
+                <div class="cart-modal__body">
+                    <div class="ticket-items" id="ticket-items">
+                        ${renderCartItems()}
+                    </div>
+
+                    <div class="ticket-summary">
+                        <div class="ticket-notes" style="margin-bottom: 0.5rem;">
+                            <label for="customer-name"><i data-lucide="user"></i> Nombre del Cliente / Mesa:</label>
+                            <input type="text" id="customer-name" placeholder="Ej: Juan Pérez, Mesa 4..." value="${currentCustomerName}">
+                        </div>
+
+                        <div class="ticket-notes">
+                            <label for="order-notes"><i data-lucide="file-text"></i> Notas para Cocina:</label>
+                            <input type="text" id="order-notes" placeholder="Ej: Sin cebolla, extra salsa..." value="${currentNotes}">
+                        </div>
+
+                        <div class="ticket-row ticket-row--total">
+                            <span>TOTAL</span>
+                            <span class="ticket-total-val" id="ticket-total">${formatGs(calculateTotal())}</span>
+                        </div>
+
+                        <div class="ticket-actions">
+                            <button id="btn-clear-cart" class="btn btn--danger btn--ghost">
+                                <i data-lucide="trash-2"></i> Limpiar
+                            </button>
+                            <button id="btn-send-order" class="btn btn--primary btn--block">
+                                ⌨️ ORDENAR PEDIDO
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     `;
 
@@ -278,18 +283,6 @@ function calculateTotal() {
 }
 
 function setupEvents(container) {
-    // Agregar variante de bebida (ej Chopp)
-    container.querySelectorAll('.btn-add-variant').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const id = btn.dataset.id;
-            const vName = btn.dataset.vname;
-            const vPrice = parseInt(btn.dataset.vprice, 10);
-            addVariantToCart(id, vName, vPrice);
-            updateTicketUI(container);
-        });
-    });
-
     // Filtros de categoría
     container.querySelectorAll('.category-tab').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -309,38 +302,160 @@ function setupEvents(container) {
         attachProductClickEvents(container);
     });
 
-    // Notas de Cocina
-    const notesInput = container.querySelector('#order-notes');
-    notesInput?.addEventListener('input', (e) => {
-        currentNotes = e.target.value;
+    // Abrir modal carrito
+    const fabBtn = container.querySelector('#btn-floating-cart');
+    const overlay = document.querySelector('#cart-modal-overlay') || container.querySelector('#cart-modal-overlay');
+    fabBtn?.addEventListener('click', () => openCartModal(container));
+
+    // Cerrar modal carrito
+    document.addEventListener('click', (e) => {
+        const overlay = document.querySelector('#cart-modal-overlay');
+        if (overlay && e.target === overlay) closeCartModal();
+    });
+    document.addEventListener('click', (e) => {
+        if (e.target?.id === 'btn-close-cart-modal') closeCartModal();
     });
 
-    // Limpiar Carrito
-    container.querySelector('#btn-clear-cart')?.addEventListener('click', () => {
-        cartItems = [];
-        updateTicketUI(container);
+    // Limpiar Carrito (delegado, el modal se monta dinámicamente)
+    document.addEventListener('click', (e) => {
+        if (e.target?.id === 'btn-clear-cart' || e.target?.closest('#btn-clear-cart')) {
+            cartItems = [];
+            updateTicketUI(container);
+        }
     });
 
     // Enviar Pedido
-    container.querySelector('#btn-send-order')?.addEventListener('click', () => {
-        sendOrderToKitchen(container);
+    document.addEventListener('click', (e) => {
+        if (e.target?.id === 'btn-send-order' || e.target?.closest('#btn-send-order')) {
+            sendOrderToKitchen(container);
+        }
     });
 
-    // Toggle Drawer móvil del carrito
-    const ticketPanel = container.querySelector('#ticket-panel');
-    const floatBtn = container.querySelector('#btn-floating-cart');
-    const closeDrawerBtn = container.querySelector('#btn-close-ticket-drawer');
-
-    floatBtn?.addEventListener('click', () => {
-        ticketPanel?.classList.toggle('open');
-    });
-
-    closeDrawerBtn?.addEventListener('click', () => {
-        ticketPanel?.classList.remove('open');
+    // Notas y Nombre del cliente (delegado)
+    document.addEventListener('input', (e) => {
+        if (e.target?.id === 'customer-name') currentCustomerName = e.target.value;
+        if (e.target?.id === 'order-notes') currentNotes = e.target.value;
     });
 
     attachProductClickEvents(container);
     setupKeyboardShortcuts(container);
+}
+
+function openCartModal(container) {
+    // Renderizar modal fresco con datos actuales
+    const existing = document.querySelector('#cart-modal-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'cart-modal-overlay';
+    overlay.id = 'cart-modal-overlay';
+    overlay.innerHTML = `
+        <div class="cart-modal" id="cart-modal">
+            <div class="cart-modal__header">
+                <h2>🛒 PEDIDO ACTUAL</h2>
+                <button id="btn-close-cart-modal" class="cart-modal__close" aria-label="Cerrar">&times;</button>
+            </div>
+            <div class="cart-modal__body">
+                <div class="ticket-items" id="ticket-items">
+                    ${renderCartItems()}
+                </div>
+                <div class="ticket-summary">
+                    <div class="ticket-notes" style="margin-bottom:0.5rem">
+                        <label for="customer-name"><i data-lucide="user"></i> Nombre / Mesa:</label>
+                        <input type="text" id="customer-name" placeholder="Ej: Juan Pérez, Mesa 4..." value="${currentCustomerName}">
+                    </div>
+                    <div class="ticket-notes">
+                        <label for="order-notes"><i data-lucide="file-text"></i> Notas Cocina:</label>
+                        <input type="text" id="order-notes" placeholder="Ej: Sin cebolla..." value="${currentNotes}">
+                    </div>
+                    <div class="ticket-row ticket-row--total">
+                        <span>TOTAL</span>
+                        <span class="ticket-total-val" id="ticket-total">${formatGs(calculateTotal())}</span>
+                    </div>
+                    <div class="ticket-actions">
+                        <button id="btn-clear-cart" class="btn btn--danger btn--ghost">
+                            <i data-lucide="trash-2"></i> Limpiar
+                        </button>
+                        <button id="btn-send-order" class="btn btn--primary btn--block">
+                            ⌨️ ORDENAR PEDIDO
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('open'));
+
+    if (window.lucide) window.lucide.createIcons();
+
+    // Eventos internos del modal
+    overlay.querySelector('#btn-close-cart-modal')?.addEventListener('click', closeCartModal);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeCartModal(); });
+
+    overlay.querySelector('#btn-clear-cart')?.addEventListener('click', () => {
+        cartItems = [];
+        updateTicketUI(container);
+        closeCartModal();
+        openCartModal(container);
+    });
+
+    overlay.querySelector('#btn-send-order')?.addEventListener('click', () => {
+        sendOrderToKitchen(container);
+    });
+
+    overlay.querySelector('#customer-name')?.addEventListener('input', (e) => { currentCustomerName = e.target.value; });
+    overlay.querySelector('#order-notes')?.addEventListener('input', (e) => { currentNotes = e.target.value; });
+
+    // Qty controls dentro del modal
+    setupModalQtyControls(overlay, container);
+}
+
+function closeCartModal() {
+    const overlay = document.querySelector('#cart-modal-overlay');
+    if (!overlay) return;
+    overlay.classList.remove('open');
+    setTimeout(() => overlay.remove(), 280);
+}
+
+function setupModalQtyControls(overlay, container) {
+    overlay.querySelectorAll('.btn-toggle-combo').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const idx = parseInt(btn.dataset.idx, 10);
+            const item = cartItems[idx];
+            if (!item) return;
+            const product = products.find(p => p.id === item.productId);
+            item.isCombo = !item.isCombo;
+            if (product) item.price = item.isCombo ? (product.combo_price || (product.price + 10000)) : product.price;
+            updateTicketUI(container);
+            closeCartModal();
+            openCartModal(container);
+        });
+    });
+
+    overlay.querySelectorAll('.input-item-note').forEach(input => {
+        input.addEventListener('input', (e) => {
+            const idx = parseInt(input.dataset.idx, 10);
+            if (cartItems[idx]) cartItems[idx].customNotes = e.target.value;
+        });
+    });
+
+    overlay.querySelectorAll('.btn-qty, .btn-remove').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const action = btn.dataset.action;
+            const idx = parseInt(btn.dataset.idx, 10);
+            if (action === 'inc') cartItems[idx].quantity++;
+            else if (action === 'dec') {
+                cartItems[idx].quantity--;
+                if (cartItems[idx].quantity <= 0) cartItems.splice(idx, 1);
+            } else if (action === 'del') cartItems.splice(idx, 1);
+            updateTicketUI(container);
+            closeCartModal();
+            openCartModal(container);
+        });
+    });
 }
 
 function attachProductClickEvents(container) {
@@ -442,73 +557,27 @@ function addVariantToCart(productId, variantName, variantPrice) {
 }
 
 function updateTicketUI(container) {
-    const ticketItemsContainer = container.querySelector('#ticket-items');
-    if (ticketItemsContainer) {
-        ticketItemsContainer.innerHTML = renderCartItems();
-        if (window.lucide) window.lucide.createIcons();
-    }
-
+    // Actualizar badge y total del FAB
+    const totalItems = cartItems.reduce((a, b) => a + b.quantity, 0);
     const totalGs = formatGs(calculateTotal());
 
-    const totalEl = container.querySelector('#ticket-total');
-    if (totalEl) totalEl.textContent = totalGs;
+    const badge = container.querySelector('#fab-badge');
+    if (badge) badge.textContent = totalItems > 0 ? totalItems : '';
 
-    // Actualizar botón flotante de celular
-    const floatBtn = container.querySelector('#btn-floating-cart');
-    const floatTotal = container.querySelector('#floating-cart-total');
-    if (floatBtn) {
-        floatBtn.querySelector('span:first-child').textContent = `🛒 VER PEDIDO (${cartItems.reduce((a, b) => a + b.quantity, 0)})`;
+    const fabTotal = container.querySelector('#fab-total');
+    if (fabTotal) fabTotal.textContent = calculateTotal() > 0 ? totalGs : 'Pedido';
+
+    // Si el modal está abierto, actualizar su contenido también
+    const modalItems = document.querySelector('#ticket-items');
+    if (modalItems) {
+        modalItems.innerHTML = renderCartItems();
+        if (window.lucide) window.lucide.createIcons();
+        const modalTotal = document.querySelector('#ticket-total');
+        if (modalTotal) modalTotal.textContent = totalGs;
+        // Re-attach qty controls
+        const overlay = document.querySelector('#cart-modal-overlay');
+        if (overlay) setupModalQtyControls(overlay, container);
     }
-    if (floatTotal) floatTotal.textContent = totalGs;
-
-    // Toggle Combo switch in cart item
-    container.querySelectorAll('.btn-toggle-combo').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const idx = parseInt(btn.dataset.idx, 10);
-            const item = cartItems[idx];
-            if (!item) return;
-
-            const product = products.find(p => p.id === item.productId);
-            item.isCombo = !item.isCombo;
-            if (product) {
-                item.price = item.isCombo ? (product.combo_price || (product.price + 10000)) : product.price;
-            }
-
-            updateTicketUI(container);
-        });
-    });
-
-    // Guardar aclaraciones individuales de cada ítem
-    container.querySelectorAll('.input-item-note').forEach(input => {
-        input.addEventListener('input', (e) => {
-            const idx = parseInt(input.dataset.idx, 10);
-            if (cartItems[idx]) {
-                cartItems[idx].customNotes = e.target.value;
-            }
-        });
-    });
-
-    // Attach qty controls
-    container.querySelectorAll('.btn-qty, .btn-remove').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const action = btn.dataset.action;
-            const idx = parseInt(btn.dataset.idx, 10);
-
-            if (action === 'inc') {
-                cartItems[idx].quantity++;
-            } else if (action === 'dec') {
-                cartItems[idx].quantity--;
-                if (cartItems[idx].quantity <= 0) {
-                    cartItems.splice(idx, 1);
-                }
-            } else if (action === 'del') {
-                cartItems.splice(idx, 1);
-            }
-            updateTicketUI(container);
-        });
-    });
 }
 
 async function sendOrderToKitchen(container) {
