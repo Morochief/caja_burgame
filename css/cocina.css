@@ -10,13 +10,13 @@
 }
 
 .cocina-header {
-    background: #11131C;
-    border-bottom: 2px solid var(--border-gold-bright);
-    padding: 1rem 2rem;
+    background: #0D0F16;
+    border-bottom: 3px solid var(--color-primary);
+    padding: 0.85rem 2rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 4px 25px rgba(0, 0, 0, 0.9);
+    box-shadow: 0 4px 0px #000, 0 6px 20px rgba(0,0,0,0.8);
 }
 
 .cocina-header__left {
@@ -26,50 +26,57 @@
 }
 
 .cocina-header__logo-img {
-    height: 42px;
+    height: 40px;
     object-fit: contain;
     filter: drop-shadow(0 0 10px var(--color-primary-glow));
+    image-rendering: pixelated;
 }
 
 .cocina-header__title {
     font-family: var(--font-title);
-    font-size: 1.25rem;
+    font-size: 0.9rem;
     color: var(--color-primary);
-    text-shadow: 0 0 15px var(--color-primary-glow);
-    letter-spacing: 1px;
+    text-shadow: 0 0 12px var(--color-primary-glow), 3px 3px 0px #000;
+    letter-spacing: 2px;
+    text-transform: uppercase;
 }
 
 .cocina-header__right {
     display: flex;
     align-items: center;
-    gap: 1.5rem;
+    gap: 1.25rem;
 }
 
 .cocina-header__stats {
     display: flex;
-    gap: 1rem;
+    gap: 0.85rem;
 }
 
+/* Stat boxes - 8-bit arcade scoreboard */
 .cocina-stat {
     display: flex;
     flex-direction: column;
     align-items: center;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-subtle);
-    padding: 0.4rem 1rem;
-    border-radius: var(--radius-md);
+    background: #141722;
+    border: 2px solid #000;
+    padding: 0.4rem 0.9rem;
+    border-radius: 4px;
+    box-shadow: 3px 3px 0px #000;
 }
 
 .cocina-stat__number {
     font-family: var(--font-title);
-    font-size: 1.1rem;
+    font-size: 1rem;
     color: var(--color-primary);
+    text-shadow: 0 0 8px var(--color-primary-glow);
 }
 
 .cocina-stat__label {
-    font-size: 0.7rem;
+    font-family: var(--font-pixel);
+    font-size: 0.55rem;
     color: var(--text-muted);
     text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 .cocina-header__sound-btn {
@@ -101,64 +108,69 @@
 }
 
 /* Comanda Card */
+/* KDS Comanda Cards — Pixel Art Arcade */
 .kds-card {
-    background: #121520;
-    border: 2px solid var(--border-subtle);
-    border-radius: var(--radius-lg);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+    background: #0F1219;
+    border: 3px solid #1E2535;
+    border-radius: 6px;
+    box-shadow: 6px 6px 0px #000;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transition: all var(--transition-bounce);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
 }
 
 .kds-card--ordered {
     border-color: var(--color-primary);
-    box-shadow: 0 0 20px var(--color-primary-glow);
+    box-shadow: 6px 6px 0px #000, 0 0 18px var(--color-primary-glow);
 }
 
 .kds-card--preparing {
     border-color: var(--color-warning);
-    box-shadow: 0 0 20px rgba(255, 145, 0, 0.35);
+    box-shadow: 6px 6px 0px #000, 0 0 18px rgba(255, 145, 0, 0.4);
 }
 
 .kds-card__header {
     background: #181C2B;
-    padding: 1rem 1.25rem;
+    padding: 0.85rem 1.1rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid var(--border-subtle);
+    border-bottom: 3px solid #1E2535;
 }
 
+/* Comanda number — pixel scoreboard style */
 .kds-card__number {
     font-family: var(--font-title);
-    font-size: 1rem;
+    font-size: 0.82rem;
     color: var(--color-primary);
-    text-shadow: 0 0 8px var(--color-primary-glow);
+    text-shadow: 0 0 8px var(--color-primary-glow), 2px 2px 0px #000;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 .kds-card__timer {
-    font-family: var(--font-mono);
+    font-family: var(--font-pixel);
     font-weight: 700;
-    font-size: 0.95rem;
-    background: rgba(0, 0, 0, 0.4);
-    padding: 0.3rem 0.7rem;
-    border-radius: var(--radius-full);
-    border: 1px solid var(--border-subtle);
+    font-size: 0.72rem;
+    background: #0A0C12;
+    padding: 0.3rem 0.65rem;
+    border-radius: 3px;
+    border: 2px solid #2A2F3E;
     color: var(--text-main);
+    box-shadow: 2px 2px 0px #000;
 }
 
 .kds-card__timer--late {
     color: var(--color-danger);
     border-color: var(--color-danger);
     background: rgba(255, 61, 113, 0.15);
-    animation: latePulse 1s infinite alternate;
+    animation: latePulse 0.8s infinite alternate;
 }
 
 @keyframes latePulse {
-    from { opacity: 0.8; }
-    to { opacity: 1; box-shadow: 0 0 10px var(--color-danger-glow); }
+    from { opacity: 0.75; }
+    to { opacity: 1; box-shadow: 2px 2px 0px #000, 0 0 12px var(--color-danger-glow); }
 }
 
 .kds-card__status-bar {
@@ -181,18 +193,21 @@
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.65rem;
 }
 
 .kds-item {
     display: flex;
     align-items: flex-start;
-    gap: 0.8rem;
-    font-size: 1.05rem;
-    font-weight: 600;
+    gap: 0.75rem;
+    font-family: var(--font-pixel);
+    font-size: 0.65rem;
+    font-weight: 700;
     color: var(--text-main);
-    padding-bottom: 0.6rem;
-    border-bottom: 1px dashed rgba(255, 255, 255, 0.07);
+    line-height: 1.6;
+    text-transform: uppercase;
+    padding-bottom: 0.55rem;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
 }
 
 .kds-item:last-child {

@@ -1,60 +1,62 @@
 /* ==========================================================================
-   SUPER SAIYAN COMPONENTS (BUTTONS, CARDS, BADGES, INPUTS, TOASTS)
+   PIXEL ART ARCADE COMPONENTS (BUTTONS, CARDS, BADGES, INPUTS)
    ========================================================================== */
 
-/* Buttons */
+/* Buttons - Arcade 8-Bit Tactile Press */
 .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.6rem;
     padding: 0.75rem 1.4rem;
-    font-weight: 600;
-    border-radius: var(--radius-md);
-    transition: all var(--transition-bounce);
+    font-family: var(--font-pixel);
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    border-radius: 4px;
+    border: var(--border-pixel);
+    box-shadow: var(--shadow-pixel);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
     position: relative;
-    overflow: hidden;
+    cursor: pointer;
 }
 
 .btn:active {
-    transform: scale(0.97) translateY(1px);
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px #000;
 }
 
 .btn--primary {
-    background: linear-gradient(135deg, var(--color-primary) 0%, #E6C200 100%);
-    color: var(--text-inverse);
-    font-weight: 700;
-    box-shadow: 0 4px 15px var(--color-primary-glow);
-    border: 1px solid var(--color-primary-hover);
+    background: var(--color-primary);
+    color: #000;
+    box-shadow: 4px 4px 0px #000;
 }
 
 .btn--primary:hover {
-    background: linear-gradient(135deg, var(--color-primary-hover) 0%, var(--color-primary) 100%);
-    box-shadow: var(--shadow-glow-bright), 0 6px 20px rgba(255, 215, 0, 0.4);
-    transform: translateY(-2px);
+    background: var(--color-primary-hover);
+    box-shadow: 4px 4px 0px #000, 0 0 15px var(--color-primary-glow);
 }
 
 .btn--secondary {
-    background: var(--bg-elevated);
+    background: #1A1E2C;
     color: var(--text-main);
-    border: 1px solid var(--border-subtle);
+    border: 2px solid var(--border-subtle);
+    box-shadow: 3px 3px 0px #000;
 }
 
 .btn--secondary:hover {
-    border-color: var(--border-gold);
+    border-color: var(--color-primary);
     color: var(--color-primary);
-    transform: translateY(-2px);
 }
 
 .btn--danger {
-    background: linear-gradient(135deg, var(--color-danger) 0%, #D62853 100%);
+    background: var(--color-danger);
     color: #FFF;
-    box-shadow: 0 4px 15px var(--color-danger-glow);
+    box-shadow: 4px 4px 0px #000;
 }
 
 .btn--danger:hover {
-    box-shadow: 0 6px 20px var(--color-danger-glow);
-    transform: translateY(-2px);
+    background: #FF527B;
 }
 
 .btn--ghost {
@@ -72,51 +74,48 @@
     width: 100%;
 }
 
-/* Badges */
+/* Badges 8-Bit Pixel Art */
 .badge {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    padding: 0.3rem 0.75rem;
-    font-size: 0.75rem;
+    padding: 0.35rem 0.75rem;
+    font-family: var(--font-pixel);
+    font-size: 0.7rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    border-radius: var(--radius-full);
+    border-radius: 4px;
+    border: 2px solid #000;
+    box-shadow: 2px 2px 0px #000;
 }
 
 .badge--yellow {
-    background: var(--color-primary-dim);
-    color: var(--color-primary);
-    border: 1px solid var(--border-gold);
+    background: var(--color-primary);
+    color: #000;
 }
 
 .badge--green {
-    background: rgba(0, 230, 118, 0.12);
-    color: var(--color-success);
-    border: 1px solid rgba(0, 230, 118, 0.3);
+    background: var(--color-success);
+    color: #000;
 }
 
 .badge--orange {
-    background: rgba(255, 145, 0, 0.12);
-    color: var(--color-warning);
-    border: 1px solid rgba(255, 145, 0, 0.3);
+    background: var(--color-warning);
+    color: #000;
 }
 
 .badge--red {
-    background: rgba(255, 61, 113, 0.12);
-    color: var(--color-danger);
-    border: 1px solid rgba(255, 61, 113, 0.3);
+    background: var(--color-danger);
+    color: #FFF;
 }
 
 .badge--combo {
-    background: linear-gradient(135deg, rgba(255,215,0,0.2) 0%, rgba(255,145,0,0.2) 100%);
-    color: var(--color-primary);
-    border: 1px solid var(--border-gold-bright);
-    font-size: 0.7rem;
+    background: var(--color-primary);
+    color: #000;
+    font-weight: 900;
 }
 
-/* Inputs & Form Controls */
+/* Inputs & Form Controls Pixel Art */
 input[type="text"],
 input[type="number"],
 input[type="password"],
@@ -125,17 +124,19 @@ textarea {
     width: 100%;
     padding: 0.8rem 1.1rem;
     background: var(--bg-darker);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
+    border: 2px solid var(--border-subtle);
+    border-radius: 4px;
     color: var(--text-main);
-    transition: all var(--transition-normal);
+    font-family: var(--font-body);
+    transition: all var(--transition-fast);
     outline: none;
 }
 
 input:focus, select:focus, textarea:focus {
     outline: none;
     border-color: var(--color-primary);
-    box-shadow: 0 0 14px var(--color-primary-glow);
+    box-shadow: 0 0 10px var(--color-primary-glow);
+}
     background: rgba(15, 17, 23, 0.95);
 }
 
