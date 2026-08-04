@@ -33,7 +33,7 @@ export async function renderVentasPage() {
             <!-- Sección de Selección de Productos (Full Width) -->
             <section class="ventas-catalog">
                 <div class="ventas-sticky-header">
-                    <div class="pos-banner-container" style="margin-bottom: 0.8rem; text-align: center;">
+                    <div class="pos-banner-container">
                         <img src="banner.png" alt="Burgame Banner" class="pos-banner-img">
                     </div>
                     <header class="ventas-header">
@@ -181,9 +181,9 @@ function renderProductsGrid() {
                                         <span>🍟 Combo</span><span style="font-size: 0.66rem; font-weight: 900;">${formatGs(comboPrice)}</span>
                                     </button>
                                 </div>
-                                <button class="btn btn-add-promo" data-id="${product.id}" data-vname="Promo Viernes Bowser" data-vprice="${product.promo_price || 35000}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0.5rem; font-size: 0.7rem; font-weight: 900; background: rgba(255,82,82,0.15); border: 1px solid #FF5252; color: #FF5252; border-radius: 4px; cursor: pointer;">
-                                    <span style="white-space: nowrap;">🔥 PROMO VIERNES</span>
-                                    <span style="font-weight: 900; white-space: nowrap; margin-left: 0.3rem;">${formatGs(product.promo_price || 35000)}</span>
+                                <button class="btn btn-add-promo" data-id="${product.id}" data-vname="Promo Viernes Bowser" data-vprice="${product.promo_price || 35000}" style="display: flex; justify-content: space-between; align-items: center; gap: 0.25rem; padding: 0.35rem 0.4rem; font-size: 0.65rem; font-weight: 900; background: rgba(255,82,82,0.15); border: 1px solid #FF5252; color: #FF5252; border-radius: 4px; cursor: pointer; overflow: hidden;">
+                                    <span style="white-space: nowrap; flex-shrink: 0;">🔥 VIERNES</span>
+                                    <span style="font-weight: 900; white-space: nowrap; flex-shrink: 0;">${formatGs(product.promo_price || 35000)}</span>
                                 </button>
                             </div>
                         ` : isBurger ? `
