@@ -138,6 +138,8 @@ function renderProductsGrid() {
         const comboPrice = product.combo_price || (product.price + 10000);
         const isBurger = product.category_id === 'burgers' || (product.name.toLowerCase().includes('burger') || product.name.toLowerCase().includes('classic') || product.name.toLowerCase().includes('bowser') || product.name.toLowerCase().includes('cheat') || product.name.toLowerCase().includes('fatality') || product.name.toLowerCase().includes('ronin') || product.name.toLowerCase().includes('yoshi'));
         const isChopp = product.name.toLowerCase().includes('pilsen') || product.name.toLowerCase().includes('chopp');
+        const isCheat = product.name.toLowerCase().includes('cheat');
+        const isBowser = product.name.toLowerCase().includes('bowser');
 
         return `
             <div class="product-card" data-id="${product.id}">
@@ -149,7 +151,37 @@ function renderProductsGrid() {
                     <p class="product-card__ingredients">${(product.ingredients || []).join(', ')}</p>
                     
                     <div class="product-card__actions" style="margin-top: 0.5rem;">
-                        ${isBurger ? `
+                        ${isCheat ? `
+                            <div style="display: flex; flex-direction: column; gap: 0.3rem; width: 100%;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; width: 100%;">
+                                    <button class="btn btn-add-single" data-id="${product.id}" style="padding: 0.4rem 0.2rem; font-size: 0.75rem; font-weight: 700; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-color); border-radius: 6px; cursor: pointer;">
+                                        🍔 Solo<br><span style="color: var(--color-primary); font-size: 0.7rem;">${formatGs(product.price)}</span>
+                                    </button>
+                                    <button class="btn btn-add-combo" data-id="${product.id}" style="padding: 0.4rem 0.2rem; font-size: 0.75rem; font-weight: 800; background: var(--color-primary); border: none; color: #000; border-radius: 6px; cursor: pointer;">
+                                        🍟 Combo<br><span style="font-size: 0.7rem;">${formatGs(comboPrice)}</span>
+                                    </button>
+                                </div>
+                                <button class="btn btn-add-variant" data-id="${product.id}" data-vname="Promo 3x Cheat Burger" data-vprice="${product.promo_price || 50000}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.45rem 0.6rem; font-size: 0.78rem; font-weight: 900; background: linear-gradient(135deg, #FFD700, #FF9100); border: none; color: #000; border-radius: 6px; cursor: pointer; box-shadow: 0 0 12px rgba(255,215,0,0.3);">
+                                    <span>🔥 PROMO 3x50.000</span>
+                                    <span style="font-weight: 900;">${formatGs(product.promo_price || 50000)}</span>
+                                </button>
+                            </div>
+                        ` : isBowser ? `
+                            <div style="display: flex; flex-direction: column; gap: 0.3rem; width: 100%;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; width: 100%;">
+                                    <button class="btn btn-add-single" data-id="${product.id}" style="padding: 0.4rem 0.2rem; font-size: 0.75rem; font-weight: 700; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-color); border-radius: 6px; cursor: pointer;">
+                                        🍔 Solo<br><span style="color: var(--color-primary); font-size: 0.7rem;">${formatGs(product.price)}</span>
+                                    </button>
+                                    <button class="btn btn-add-combo" data-id="${product.id}" style="padding: 0.4rem 0.2rem; font-size: 0.75rem; font-weight: 800; background: var(--color-primary); border: none; color: #000; border-radius: 6px; cursor: pointer;">
+                                        🍟 Combo<br><span style="font-size: 0.7rem;">${formatGs(comboPrice)}</span>
+                                    </button>
+                                </div>
+                                <button class="btn btn-add-variant" data-id="${product.id}" data-vname="Promo Viernes Bowser" data-vprice="${product.promo_price || 35000}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.45rem 0.6rem; font-size: 0.78rem; font-weight: 900; background: rgba(255,82,82,0.15); border: 1px solid #FF5252; color: #FF5252; border-radius: 6px; cursor: pointer;">
+                                    <span>🔥 PROMO VIERNES</span>
+                                    <span style="font-weight: 900;">${formatGs(product.promo_price || 35000)}</span>
+                                </button>
+                            </div>
+                        ` : isBurger ? `
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; width: 100%;">
                                 <button class="btn btn-add-single" data-id="${product.id}" style="padding: 0.4rem 0.2rem; font-size: 0.75rem; font-weight: 700; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-color); border-radius: 6px; cursor: pointer;">
                                     🍔 Solo<br><span style="color: var(--color-primary); font-size: 0.7rem;">${formatGs(product.price)}</span>

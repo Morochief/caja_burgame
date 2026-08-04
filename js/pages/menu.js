@@ -74,6 +74,10 @@ export async function renderMenuPage() {
                             <label for="prod-combo">Precio Combo (Gs. opcional):</label>
                             <input type="number" id="prod-combo" placeholder="55000" min="0">
                         </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label for="prod-promo">Precio Promo Especial (Gs.):</label>
+                            <input type="number" id="prod-promo" placeholder="35000 / 50000" min="0">
+                        </div>
                     </div>
 
                     <!-- Campos de Variantes de Bebida (Promos Chopp) -->
@@ -228,6 +232,7 @@ function setupEvents(container) {
             container.querySelector('#prod-category').value = p.category_id;
             container.querySelector('#prod-price').value = p.price;
             container.querySelector('#prod-combo').value = p.combo_price || '';
+            container.querySelector('#prod-promo').value = p.promo_price || '';
             container.querySelector('#prod-stock').value = p.stock || 0;
             container.querySelector('#prod-ingredients').value = (p.ingredients || []).join(', ');
             container.querySelector('#prod-image-url').value = p.image_url || '';
@@ -276,6 +281,7 @@ function setupEvents(container) {
         const category_id = container.querySelector('#prod-category').value;
         const price = parseInt(container.querySelector('#prod-price').value, 10);
         const combo_price = container.querySelector('#prod-combo').value ? parseInt(container.querySelector('#prod-combo').value, 10) : null;
+        const promo_price = container.querySelector('#prod-promo').value ? parseInt(container.querySelector('#prod-promo').value, 10) : null;
         const stock = parseInt(container.querySelector('#prod-stock').value, 10);
         const price_1x = container.querySelector('#prod-v1').value ? parseInt(container.querySelector('#prod-v1').value, 10) : 15000;
         const price_2x1 = container.querySelector('#prod-v2').value ? parseInt(container.querySelector('#prod-v2').value, 10) : 25000;
@@ -303,6 +309,7 @@ function setupEvents(container) {
                 category_id,
                 price,
                 combo_price,
+                promo_price,
                 price_1x,
                 price_2x1,
                 price_libre,
