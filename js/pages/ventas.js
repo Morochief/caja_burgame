@@ -137,6 +137,7 @@ function renderProductsGrid() {
         const imageSrc = product.image_url || 'assets/placeholders/burger-placeholder.svg';
         const comboPrice = product.combo_price || (product.price + 10000);
         const isBurger = product.category_id === 'burgers' || (product.name.toLowerCase().includes('burger') || product.name.toLowerCase().includes('classic') || product.name.toLowerCase().includes('bowser') || product.name.toLowerCase().includes('cheat') || product.name.toLowerCase().includes('fatality') || product.name.toLowerCase().includes('ronin') || product.name.toLowerCase().includes('yoshi'));
+        const isChopp = product.name.toLowerCase().includes('pilsen') || product.name.toLowerCase().includes('chopp');
 
         return `
             <div class="product-card" data-id="${product.id}">
@@ -150,15 +151,27 @@ function renderProductsGrid() {
                     <div class="product-card__actions" style="margin-top: 0.5rem;">
                         ${isBurger ? `
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; width: 100%;">
-                                <button class="btn btn-add-single" data-id="${product.id}" style="padding: 0.4rem 0.2rem; font-size: 0.75rem; font-weight: 700; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-color); border-radius: 6px; cursor: pointer; transition: all 0.2s;">
+                                <button class="btn btn-add-single" data-id="${product.id}" style="padding: 0.4rem 0.2rem; font-size: 0.75rem; font-weight: 700; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-color); border-radius: 6px; cursor: pointer;">
                                     🍔 Solo<br><span style="color: var(--color-primary); font-size: 0.7rem;">${formatGs(product.price)}</span>
                                 </button>
-                                <button class="btn btn-add-combo" data-id="${product.id}" style="padding: 0.4rem 0.2rem; font-size: 0.75rem; font-weight: 800; background: var(--color-primary); border: none; color: #000; border-radius: 6px; cursor: pointer; transition: all 0.2s; box-shadow: 0 0 10px rgba(255,215,0,0.2);">
+                                <button class="btn btn-add-combo" data-id="${product.id}" style="padding: 0.4rem 0.2rem; font-size: 0.75rem; font-weight: 800; background: var(--color-primary); border: none; color: #000; border-radius: 6px; cursor: pointer;">
                                     🍟 Combo<br><span style="font-size: 0.7rem;">${formatGs(comboPrice)}</span>
                                 </button>
                             </div>
+                        ` : isChopp ? `
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.25rem; width: 100%;">
+                                <button class="btn btn-add-variant" data-id="${product.id}" data-vname="1 Chopp" data-vprice="15000" style="padding: 0.35rem 0.1rem; font-size: 0.7rem; font-weight: 700; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-color); border-radius: 6px; cursor: pointer;">
+                                    🍺 1x<br><span style="color: var(--color-primary); font-size: 0.65rem;">15.000</span>
+                                </button>
+                                <button class="btn btn-add-variant" data-id="${product.id}" data-vname="2x1 Chopp" data-vprice="25000" style="padding: 0.35rem 0.1rem; font-size: 0.7rem; font-weight: 800; background: rgba(255,215,0,0.15); border: 1px solid var(--color-primary); color: var(--color-primary); border-radius: 6px; cursor: pointer;">
+                                    🍻 2x1<br><span style="font-size: 0.65rem;">25.000</span>
+                                </button>
+                                <button class="btn btn-add-variant" data-id="${product.id}" data-vname="Chopp LIBRE" data-vprice="55000" style="padding: 0.35rem 0.1rem; font-size: 0.7rem; font-weight: 900; background: var(--color-primary); border: none; color: #000; border-radius: 6px; cursor: pointer;">
+                                    ♾️ LIBRE<br><span style="font-size: 0.65rem;">55.000</span>
+                                </button>
+                            </div>
                         ` : `
-                            <button class="btn btn-add-single" data-id="${product.id}" style="width: 100%; padding: 0.45rem 0.5rem; font-size: 0.8rem; font-weight: 800; background: rgba(255,215,0,0.12); border: 1px solid var(--color-primary); color: var(--color-primary); border-radius: 6px; cursor: pointer; transition: all 0.2s;">
+                            <button class="btn btn-add-single" data-id="${product.id}" style="width: 100%; padding: 0.45rem 0.5rem; font-size: 0.8rem; font-weight: 800; background: rgba(255,215,0,0.12); border: 1px solid var(--color-primary); color: var(--color-primary); border-radius: 6px; cursor: pointer;">
                                 ➕ ${formatGs(product.price)}
                             </button>
                         `}
@@ -211,6 +224,18 @@ function calculateTotal() {
 }
 
 function setupEvents(container) {
+    // Agregar variante de bebida (ej Chopp)
+    container.querySelectorAll('.btn-add-variant').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+            const vName = btn.dataset.vname;
+            const vPrice = parseInt(btn.dataset.vprice, 10);
+            addVariantToCart(id, vName, vPrice);
+            updateTicketUI(container);
+        });
+    });
+
     // Filtros de categoría
     container.querySelectorAll('.category-tab').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -301,8 +326,6 @@ function addProductToCart(productId, isCombo) {
 
     const price = isCombo ? (product.combo_price || (product.price + 10000)) : product.price;
 
-    // Si ya existe una fila idéntica CON LA MISMA NOTA PERSONALIZADA y modalidad, incrementar cantidad.
-    // Si la nota o la modalidad difieren, crear una nueva fila separada para no confundir a la cocina.
     const existingIdx = cartItems.findIndex(ci => ci.productId === product.id && ci.isCombo === isCombo && (ci.customNotes || '') === '');
     
     if (existingIdx >= 0) {
@@ -314,6 +337,27 @@ function addProductToCart(productId, isCombo) {
             price: price,
             quantity: 1,
             isCombo: isCombo,
+            customNotes: ''
+        });
+    }
+}
+
+function addVariantToCart(productId, variantName, variantPrice) {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    const fullName = `${product.name} (${variantName})`;
+    const existingIdx = cartItems.findIndex(ci => ci.productId === product.id && ci.productName === fullName);
+
+    if (existingIdx >= 0) {
+        cartItems[existingIdx].quantity++;
+    } else {
+        cartItems.push({
+            productId: product.id,
+            productName: fullName,
+            price: variantPrice,
+            quantity: 1,
+            isCombo: false,
             customNotes: ''
         });
     }
