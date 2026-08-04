@@ -67,12 +67,31 @@ export async function renderMenuPage() {
 
                     <div class="form-row" style="display: flex; gap: 1rem;">
                         <div class="form-group" style="flex: 1;">
-                            <label for="prod-price">Precio Solo (Gs.):</label>
+                            <label for="prod-price">Precio Base / Solo (Gs.):</label>
                             <input type="number" id="prod-price" placeholder="40000" min="0" required>
                         </div>
                         <div class="form-group" style="flex: 1;">
                             <label for="prod-combo">Precio Combo (Gs. opcional):</label>
                             <input type="number" id="prod-combo" placeholder="55000" min="0">
+                        </div>
+                    </div>
+
+                    <!-- Campos de Variantes de Bebida (Promos Chopp) -->
+                    <div id="drink-variants-box" class="card" style="padding: 0.8rem; background: rgba(255,215,0,0.05); border: 1px dashed var(--color-primary); margin-bottom: 1rem;">
+                        <h4 style="font-size: 0.82rem; color: var(--color-primary); margin-bottom: 0.5rem;">🍺 Promociones / Variantes de Bebida (Chopp)</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+                            <div class="form-group" style="margin: 0;">
+                                <label for="prod-v1" style="font-size: 0.75rem;">1x (Gs.):</label>
+                                <input type="number" id="prod-v1" placeholder="15000" value="15000" min="0">
+                            </div>
+                            <div class="form-group" style="margin: 0;">
+                                <label for="prod-v2" style="font-size: 0.75rem;">Promo 2x1 (Gs.):</label>
+                                <input type="number" id="prod-v2" placeholder="25000" value="25000" min="0">
+                            </div>
+                            <div class="form-group" style="margin: 0;">
+                                <label for="prod-v3" style="font-size: 0.75rem;">LIBRE (Gs.):</label>
+                                <input type="number" id="prod-v3" placeholder="55000" value="55000" min="0">
+                            </div>
                         </div>
                     </div>
 
@@ -212,6 +231,9 @@ function setupEvents(container) {
             container.querySelector('#prod-stock').value = p.stock || 0;
             container.querySelector('#prod-ingredients').value = (p.ingredients || []).join(', ');
             container.querySelector('#prod-image-url').value = p.image_url || '';
+            container.querySelector('#prod-v1').value = p.price_1x || 15000;
+            container.querySelector('#prod-v2').value = p.price_2x1 || 25000;
+            container.querySelector('#prod-v3').value = p.price_libre || 55000;
 
             if (p.image_url) {
                 previewTag.src = p.image_url;
@@ -255,6 +277,9 @@ function setupEvents(container) {
         const price = parseInt(container.querySelector('#prod-price').value, 10);
         const combo_price = container.querySelector('#prod-combo').value ? parseInt(container.querySelector('#prod-combo').value, 10) : null;
         const stock = parseInt(container.querySelector('#prod-stock').value, 10);
+        const price_1x = container.querySelector('#prod-v1').value ? parseInt(container.querySelector('#prod-v1').value, 10) : 15000;
+        const price_2x1 = container.querySelector('#prod-v2').value ? parseInt(container.querySelector('#prod-v2').value, 10) : 25000;
+        const price_libre = container.querySelector('#prod-v3').value ? parseInt(container.querySelector('#prod-v3').value, 10) : 55000;
         const rawIngredients = container.querySelector('#prod-ingredients').value;
         const ingredients = rawIngredients.split(',').map(s => s.trim()).filter(Boolean);
 
@@ -278,6 +303,9 @@ function setupEvents(container) {
                 category_id,
                 price,
                 combo_price,
+                price_1x,
+                price_2x1,
+                price_libre,
                 stock,
                 ingredients,
                 image_url
