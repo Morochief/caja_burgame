@@ -127,20 +127,32 @@ function renderProductsGrid() {
         const imageSrc = product.image_url || 'assets/placeholders/burger-placeholder.svg';
         const comboPrice = product.combo_price || (product.price + 10000);
 
+        const isBurger = product.category_id === 'burgers' || (product.name.toLowerCase().includes('burger') || product.name.toLowerCase().includes('classic') || product.name.toLowerCase().includes('bowser') || product.name.toLowerCase().includes('cheat') || product.name.toLowerCase().includes('fatality') || product.name.toLowerCase().includes('ronin') || product.name.toLowerCase().includes('yoshi'));
+
         return `
-            <div class="product-card" data-id="${product.id}">
-                <div class="product-card__image" style="height: 110px;">
+            <div class="product-card">
+                <div class="product-card__image">
                     <img src="${imageSrc}" alt="${product.name}">
                 </div>
                 <div class="product-card__content" style="padding: 0.75rem;">
-                    <h3 class="product-card__title" style="font-size: 0.88rem;">${product.name}</h3>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; margin-top: 0.5rem;">
-                        <button class="btn btn--sm btn--secondary btn-add-single" data-id="${product.id}">
-                            🍔 ${formatGs(product.price)}
-                        </button>
-                        <button class="btn btn--sm btn--primary btn-add-combo" data-id="${product.id}">
-                            🍟 COMBO ${formatGs(comboPrice)}
-                        </button>
+                    <h3 class="product-card__title" style="font-size: 0.95rem; font-weight: 800;">${product.name}</h3>
+                    <p class="product-card__ingredients" style="font-size: 0.75rem; min-height: 28px;">${(product.ingredients || []).join(', ')}</p>
+                    
+                    <div class="product-card__actions" style="margin-top: 0.5rem;">
+                        ${isBurger ? `
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; width: 100%;">
+                                <button class="btn btn-add-single" data-id="${product.id}" style="padding: 0.4rem 0.2rem; font-size: 0.75rem; font-weight: 700; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-color); border-radius: 6px; cursor: pointer;">
+                                    🍔 Solo<br><span style="color: var(--color-primary); font-size: 0.7rem;">${formatGs(product.price)}</span>
+                                </button>
+                                <button class="btn btn-add-combo" data-id="${product.id}" style="padding: 0.4rem 0.2rem; font-size: 0.75rem; font-weight: 800; background: var(--color-primary); border: none; color: #000; border-radius: 6px; cursor: pointer;">
+                                    🍟 Combo<br><span style="font-size: 0.7rem;">${formatGs(comboPrice)}</span>
+                                </button>
+                            </div>
+                        ` : `
+                            <button class="btn btn-add-single" data-id="${product.id}" style="width: 100%; padding: 0.45rem 0.5rem; font-size: 0.8rem; font-weight: 800; background: rgba(255,215,0,0.12); border: 1px solid var(--color-primary); color: var(--color-primary); border-radius: 6px; cursor: pointer;">
+                                ➕ ${formatGs(product.price)}
+                            </button>
+                        `}
                     </div>
                 </div>
             </div>
