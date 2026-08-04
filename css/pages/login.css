@@ -1,4 +1,4 @@
-/* ==========================================================================
+﻿/* ==========================================================================
    ARCADE LOGIN PAGE STYLES
    ========================================================================== */
 
@@ -51,7 +51,7 @@
     letter-spacing: 0.8rem;
     text-align: center;
     color: var(--color-primary);
-    background: #090A0E !important;
+    background: #050505 !important;
     border: 2px solid var(--border-gold) !important;
     box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.8);
     margin-bottom: 1.2rem;
@@ -95,14 +95,14 @@
 
 .btn-key--enter {
     background: var(--color-primary);
-    color: #0A0B0E;
+    color: #000000;
     border-color: var(--color-primary-hover);
     font-weight: 900;
 }
 
 .btn-key--enter:hover {
     background: var(--color-primary-hover);
-    color: #0A0B0E;
+    color: #000000;
 }
 
 .pin-hints {

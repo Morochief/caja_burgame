@@ -1,17 +1,17 @@
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@700;800&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@700;800&display=swap');
 
 /* ==========================================================================
    BURGAME DESIGN SYSTEM - PIXEL ART ARCADE DESIGN TOKENS
    ========================================================================== */
 
 :root {
-    /* Color Palette - Cyber Arcade Dark */
-    --bg-darker: #07080A;
-    --bg-main: #0C0D12;
-    --bg-card: #141722;
-    --bg-card-hover: #1C2030;
-    --bg-elevated: #1A1E2C;
-    --bg-ticket: #10121A;
+    /* Color Palette — Pure Black & Yellow Arcade */
+    --bg-darker: #000000;
+    --bg-main: #0A0A0A;
+    --bg-card: #111111;
+    --bg-card-hover: #1A1A1A;
+    --bg-elevated: #161616;
+    --bg-ticket: #0D0D0D;
 
     /* Brand Primary - Electric Yellow / Cyber Gold */
     --color-primary: #FFD700;
@@ -32,7 +32,7 @@
     --text-main: #F0F3F8;
     --text-muted: #8E9BAE;
     --text-dim: #5C6779;
-    --text-inverse: #07080A;
+    --text-inverse: #000000;
 
     /* Pixel Borders & Shadows (8-Bit Stepped Borders) */
     --border-subtle: rgba(255, 255, 255, 0.1);
