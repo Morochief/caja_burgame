@@ -306,11 +306,7 @@ function setupEvents(container) {
     const fabBtn = container.querySelector('#btn-floating-cart');
     fabBtn?.addEventListener('click', () => openCartModal(container));
 
-    // Notas y Nombre del cliente (delegado - para cuando el modal está abierto)
-    document.addEventListener('input', (e) => {
-        if (e.target?.id === 'customer-name') currentCustomerName = e.target.value;
-        if (e.target?.id === 'order-notes') currentNotes = e.target.value;
-    });
+    // Notas y nombre: capturados por variable en openCartModal, no necesita listener global
 
     attachProductClickEvents(container);
     setupKeyboardShortcuts(container);
@@ -569,10 +565,11 @@ async function sendOrderToKitchen(container) {
         return;
     }
 
-    const notesInput = container.querySelector('#order-notes');
-    const customerInput = container.querySelector('#customer-name');
-    const notes = notesInput ? notesInput.value.trim() : '';
-    const customerName = customerInput ? customerInput.value.trim() : '';
+    // Leer notas desde el modal si está abierto, sino usar variables guardadas
+    const notesEl = document.querySelector('#order-notes');
+    const customerEl = document.querySelector('#customer-name');
+    const notes = (notesEl ? notesEl.value.trim() : currentNotes) || '';
+    const customerName = (customerEl ? customerEl.value.trim() : currentCustomerName) || '';
 
     try {
         const order = await orderService.createOrder({
@@ -587,15 +584,13 @@ async function sendOrderToKitchen(container) {
             type: 'success'
         });
 
-        // Clear cart & inputs
+        // Limpiar
         cartItems = [];
         currentNotes = '';
         currentCustomerName = '';
-        if (notesInput) notesInput.value = '';
-        if (customerInput) customerInput.value = '';
 
-        // Cerrar drawer móvil si estaba abierto
-        container.querySelector('#ticket-panel')?.classList.remove('open');
+        // Cerrar modal si está abierto
+        closeCartModal();
 
         updateTicketUI(container);
     } catch (err) {
