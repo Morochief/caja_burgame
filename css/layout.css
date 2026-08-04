@@ -1,4 +1,4 @@
-﻿/* ==========================================================================
+/* ==========================================================================
    APP LAYOUT & RESPONSIVE SIDEBAR STYLES (MOBILE FIRST & DESKTOP)
    ========================================================================== */
 
@@ -59,10 +59,10 @@
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    padding: 0.55rem 0.85rem;
+    padding: 0.5rem 0.85rem;
     border-radius: 4px;
-    font-family: var(--font-pixel);
-    font-size: 0.58rem;
+    font-family: var(--font-body);
+    font-size: 0.72rem;
     font-weight: 700;
     margin-bottom: 1.25rem;
     border: 2px solid transparent;
@@ -98,16 +98,16 @@
     flex: 1;
 }
 
-/* Nav links â€” Arcade Selector */
+/* Nav links — Silkscreen only, clean and readable */
 .sidebar__menu-link {
     display: flex;
     align-items: center;
     gap: 0.8rem;
-    padding: 0.7rem 0.85rem;
+    padding: 0.65rem 0.85rem;
     border-radius: 4px;
     color: var(--text-muted);
-    font-family: var(--font-pixel);
-    font-size: 0.62rem;
+    font-family: 'Silkscreen', monospace;
+    font-size: 0.7rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;

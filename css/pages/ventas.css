@@ -1,4 +1,4 @@
-﻿/* ==========================================================================
+/* ==========================================================================
    POS VENTAS STYLES (MOBILE FIRST & DESKTOP RESPONSIVE)
    ========================================================================== */
 
@@ -113,19 +113,22 @@
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.5rem 1.1rem;
+    padding: 0.5rem 1rem;
     background: var(--bg-card);
     border: 2px solid var(--border-subtle);
     border-radius: 4px;
     color: var(--text-muted);
-    font-family: var(--font-pixel);
-    font-size: 0.72rem;
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    font-weight: 700;
     white-space: nowrap;
     transition: all var(--transition-fast);
     flex-shrink: 0;
     outline: none;
     cursor: pointer;
     box-shadow: 3px 3px 0px #000;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
 }
 
 .category-tab:hover {
@@ -212,12 +215,13 @@
 }
 
 .product-card__title {
-    font-family: var(--font-pixel);
-    font-size: 0.72rem;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
     font-weight: 700;
     color: var(--text-main);
-    line-height: 1.5;
+    line-height: 1.35;
     text-transform: uppercase;
+    letter-spacing: 0.3px;
 }
 
 .product-card__ingredients {
@@ -240,11 +244,12 @@
 }
 
 .product-card__price {
-    font-family: var(--font-pixel);
-    font-size: 0.82rem;
-    font-weight: 700;
+    font-family: var(--font-body);
+    font-size: 0.88rem;
+    font-weight: 800;
     color: var(--color-primary);
     text-shadow: 0 0 8px var(--color-primary-glow);
+    letter-spacing: 0.3px;
 }
 
 /* Ticket Panel â€” Pixel Art Arcade Style */
@@ -305,18 +310,19 @@
 }
 
 .cart-item__title {
-    font-family: var(--font-pixel);
-    font-size: 0.62rem;
+    font-family: var(--font-body);
+    font-size: 0.82rem;
     font-weight: 700;
     color: var(--text-main);
-    line-height: 1.5;
+    line-height: 1.35;
     text-transform: uppercase;
+    letter-spacing: 0.2px;
 }
 
 .cart-item__subtotal {
-    font-family: var(--font-pixel);
-    font-size: 0.65rem;
-    font-weight: 700;
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    font-weight: 800;
     color: var(--color-primary);
     white-space: nowrap;
     text-shadow: 0 0 6px var(--color-primary-glow);
@@ -357,9 +363,9 @@
 }
 
 .cart-item__qty {
-    font-family: var(--font-pixel);
-    font-size: 0.65rem;
-    font-weight: 700;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    font-weight: 800;
     min-width: 20px;
     text-align: center;
     color: var(--color-primary);
