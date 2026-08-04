@@ -156,21 +156,22 @@
 /* Products Grid */
 .products-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-    gap: 1.25rem;
+    grid-template-columns: repeat(auto-fill, minmax(195px, 1fr));
+    gap: 1rem;
 }
 
-/* Product Cards â€” Pixel Art Arcade Style */
+/* Product Cards — Pixel Art Arcade Style */
 .product-card {
     background: var(--bg-card);
     border: 3px solid #1A1A1A;
     border-radius: 6px;
-    overflow: hidden;
+    overflow: visible;
     cursor: pointer;
     transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
     display: flex;
     flex-direction: column;
     box-shadow: 5px 5px 0px #000;
+    /* clip the rounded corners only on the image via the image container */
 }
 
 .product-card:hover {
@@ -185,7 +186,7 @@
 }
 
 .product-card__image {
-    height: 145px;
+    height: 140px;
     width: 100%;
     background: #080808;
     display: flex;
@@ -195,6 +196,8 @@
     overflow: hidden;
     position: relative;
     border-bottom: 3px solid #1A1A1A;
+    border-radius: 3px 3px 0 0;
+    flex-shrink: 0;
 }
 
 .product-card:hover .product-card__image {
@@ -233,13 +236,14 @@
 }
 
 .product-card__ingredients {
-    font-size: 0.74rem;
+    font-size: 0.72rem;
     color: var(--text-muted);
     display: -webkit-box;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 1;
     -webkit-box-orient: vertical;
     overflow: hidden;
     line-height: 1.4;
+    margin-bottom: 0.15rem;
 }
 
 .product-card__footer {
