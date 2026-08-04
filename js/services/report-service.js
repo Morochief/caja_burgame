@@ -1,3 +1,5 @@
+import { supabase } from '../supabase-client.js';
+
 export async function getCurrentShiftSummary(cashRegisterId) {
     if (!cashRegisterId) {
         return {
