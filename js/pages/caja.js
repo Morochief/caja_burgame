@@ -267,10 +267,11 @@ async function loadCajaHistory(container) {
                         <th>Monto Inicial</th>
                         <th>Efectivo Contado</th>
                         <th>Estado</th>
+                        <th>Descarga</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${closed.slice(0, 15).map(r => {
+                    ${closed.map(r => {
                         const openedDate = new Date(r.opened_at).toLocaleDateString('es-PY', { day: '2-digit', month: 'short', year: 'numeric' });
                         const openedTime = new Date(r.opened_at).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' });
                         const closedTime = r.closed_at ? new Date(r.closed_at).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' }) : '—';
@@ -282,13 +283,191 @@ async function loadCajaHistory(container) {
                                 <td style="font-family: var(--font-mono);">${formatGs(r.initial_amount)}</td>
                                 <td style="font-family: var(--font-mono); font-weight: 700; color: var(--color-primary);">${r.counted_amount ? formatGs(r.counted_amount) : '—'}</td>
                                 <td><span class="badge badge--dark">🔒 CERRADA</span></td>
+                                <td>
+                                    <button class="btn btn--secondary btn-download-cash" data-id="${r.id}" data-date="${openedDate}" title="Descargar Excel completo de esta caja">
+                                        📥 Excel
+                                    </button>
+                                </td>
                             </tr>
                         `;
                     }).join('')}
                 </tbody>
             </table>
         `;
+
+        // Bind botones de descarga
+        historyEl.querySelectorAll('.btn-download-cash').forEach(btn => {
+            btn.addEventListener('click', () => {
+                downloadClosedCajaExcel(btn.dataset.id, btn.dataset.date, btn);
+            });
+        });
     } catch (err) {
         historyEl.innerHTML = `<p class="empty-text">Error al cargar historial: ${err.message}</p>`;
+    }
+}
+
+// ============================================================
+// Descarga Excel completo de una caja cerrada (multi-hoja)
+// ============================================================
+async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
+    const originalText = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Cargando...';
+    }
+
+    try {
+        const XLSX = await loadXLSX();
+        const details = await cashService.getRegisterFullDetails(registerId);
+        const { register, paidOrders, orders, expenses, totalSales, totalExpenses, payments, expectedCash, counted, difference } = details;
+
+        const wb = XLSX.utils.book_new();
+        const fmtDate = (d) => new Date(d).toLocaleString('es-PY');
+        const paymentLabels = { efectivo: 'Efectivo', transferencia: 'Transferencia', debito: 'Débito', credito: 'Crédito' };
+
+        // ---------- HOJA 1: Resumen ----------
+        const resumenData = [
+            ['CIERRE DE CAJA - BURGAME'],
+            [''],
+            ['Fecha de apertura', fmtDate(register.opened_at)],
+            ['Fecha de cierre', register.closed_at ? fmtDate(register.closed_at) : '—'],
+            [''],
+            ['--- RESUMEN GENERAL ---'],
+            ['Monto Inicial', register.initial_amount],
+            ['Ventas Totales (pagadas)', totalSales],
+            ['Gastos Totales', totalExpenses],
+            ['Efectivo Esperado', expectedCash],
+            ['Efectivo Contado', counted],
+            ['Diferencia', difference],
+            [''],
+            ['--- DESGLOSE POR MÉTODO DE PAGO ---'],
+            ['💵 Efectivo', payments.efectivo],
+            ['📱 Transferencia', payments.transferencia],
+            ['💳 Débito', payments.debito],
+            ['💳 Crédito', payments.credito],
+            [''],
+            ['--- ESTADÍSTICAS ---'],
+            ['Total de pedidos (todas)', orders.length],
+            ['Pedidos pagos', paidOrders.length],
+            ['Pedidos cancelados', orders.filter(o => o.status === 'cancelled').length],
+            ['Pedidos pendientes', orders.filter(o => !['paid', 'cancelled'].includes(o.status)).length],
+            ['Gastos registrados', expenses.length],
+            [''],
+            ['Observaciones', register.notes || '—']
+        ];
+        const wsResumen = XLSX.utils.aoa_to_sheet(resumenData);
+        wsResumen['!cols'] = [{ wch: 30 }, { wch: 22 }];
+        XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen');
+
+        // ---------- HOJA 2: Ventas Detalladas ----------
+        const ventasHeader = ['#', 'Pedido Nº', 'Hora', 'Cliente', 'Método de Pago', 'Estado', 'Total (Gs.)', 'Notas'];
+        const ventasData = [ventasHeader];
+        paidOrders.forEach((o, i) => {
+            ventasData.push([
+                i + 1,
+                o.order_number || '—',
+                new Date(o.created_at).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' }),
+                o.customer_name || '—',
+                paymentLabels[o.payment_method] || o.payment_method || 'Efectivo',
+                o.status,
+                o.total || 0,
+                o.notes || ''
+            ]);
+        });
+        // Fila de total
+        ventasData.push([]);
+        ventasData.push(['', '', '', '', '', 'TOTAL', totalSales, '']);
+
+        const wsVentas = XLSX.utils.aoa_to_sheet(ventasData);
+        wsVentas['!cols'] = [{ wch: 5 }, { wch: 10 }, { wch: 8 }, { wch: 22 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 30 }];
+        XLSX.utils.book_append_sheet(wb, wsVentas, 'Ventas Detalladas');
+
+        // ---------- HOJA 3: Items Vendidos ----------
+        const itemsHeader = ['Pedido Nº', 'Producto', 'Cantidad', 'Precio Unit. (Gs.)', 'Subtotal (Gs.)', '¿Combo?', 'Cliente'];
+        const itemsData = [itemsHeader];
+        paidOrders.forEach(o => {
+            (o.order_items || []).forEach(it => {
+                itemsData.push([
+                    o.order_number || '—',
+                    it.product_name || '—',
+                    it.quantity || 0,
+                    it.price || 0,
+                    (it.price || 0) * (it.quantity || 0),
+                    it.is_combo ? 'Sí' : 'No',
+                    o.customer_name || '—'
+                ]);
+            });
+        });
+        // Resumen de items
+        const itemTotals = {};
+        paidOrders.forEach(o => {
+            (o.order_items || []).forEach(it => {
+                const name = it.product_name || '—';
+                if (!itemTotals[name]) itemTotals[name] = { qty: 0, subtotal: 0 };
+                itemTotals[name].qty += (it.quantity || 0);
+                itemTotals[name].subtotal += (it.price || 0) * (it.quantity || 0);
+            });
+        });
+        itemsData.push([]);
+        itemsData.push(['', 'RESUMEN POR PRODUCTO', '', '', '', '', '']);
+        itemsData.push(['', 'Producto', 'Cant. Total', '', 'Subtotal Total', '', '']);
+        Object.entries(itemTotals)
+            .sort((a, b) => b[1].subtotal - a[1].subtotal)
+            .forEach(([name, t]) => {
+                itemsData.push(['', name, t.qty, '', t.subtotal, '', '']);
+            });
+
+        const wsItems = XLSX.utils.aoa_to_sheet(itemsData);
+        wsItems['!cols'] = [{ wch: 10 }, { wch: 32 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 8 }, { wch: 22 }];
+        XLSX.utils.book_append_sheet(wb, wsItems, 'Items Vendidos');
+
+        // ---------- HOJA 4: Gastos Detallados ----------
+        const gastosHeader = ['#', 'Fecha/Hora', 'Descripción', 'Categoría', 'Monto (Gs.)'];
+        const gastosData = [gastosHeader];
+        expenses.forEach((e, i) => {
+            gastosData.push([
+                i + 1,
+                fmtDate(e.created_at),
+                e.description || '—',
+                (e.expense_categories && e.expense_categories.name) || 'Sin categoría',
+                e.amount || 0
+            ]);
+        });
+        gastosData.push([]);
+        gastosData.push(['', '', '', 'TOTAL GASTOS', totalExpenses]);
+
+        const wsGastos = XLSX.utils.aoa_to_sheet(gastosData);
+        wsGastos['!cols'] = [{ wch: 5 }, { wch: 22 }, { wch: 36 }, { wch: 18 }, { wch: 14 }];
+        XLSX.utils.book_append_sheet(wb, wsGastos, 'Gastos Detallados');
+
+        // ---------- HOJA 5: Resumen por Categoría de Gasto ----------
+        const gastosPorCat = {};
+        expenses.forEach(e => {
+            const cat = (e.expense_categories && e.expense_categories.name) || 'Sin categoría';
+            if (!gastosPorCat[cat]) gastosPorCat[cat] = 0;
+            gastosPorCat[cat] += (e.amount || 0);
+        });
+        const catData = [['Categoría', 'Monto Total (Gs.)']];
+        Object.entries(gastosPorCat)
+            .sort((a, b) => b[1] - a[1])
+            .forEach(([cat, monto]) => catData.push([cat, monto]));
+        catData.push([]);
+        catData.push(['TOTAL', totalExpenses]);
+
+        const wsCat = XLSX.utils.aoa_to_sheet(catData);
+        wsCat['!cols'] = [{ wch: 22 }, { wch: 18 }];
+        XLSX.utils.book_append_sheet(wb, wsCat, 'Gastos por Categoría');
+
+        // ---------- Nombre del archivo ----------
+        const dateStr = new Date(register.opened_at).toISOString().slice(0, 10);
+        XLSX.writeFile(wb, `Caja_Burgame_${dateStr}.xlsx`);
+        showToast({ message: `✅ Descargado: Caja del ${dateLabel}`, type: 'success' });
+    } catch (err) {
+        showToast({ message: 'Error al exportar: ' + err.message, type: 'error' });
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
     }
 }

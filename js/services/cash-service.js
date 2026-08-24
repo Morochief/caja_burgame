@@ -74,11 +74,60 @@ export async function getRegisterSummary(registerId) {
     };
 }
 
+// Trae todos los detalles de una caja específica: registro + órdenes con items + gastos con categorías
+export async function getRegisterFullDetails(registerId) {
+    const [ordersRes, expensesRes, registerRes] = await Promise.all([
+        supabase.from('orders').select('*, order_items(*)').eq('cash_register_id', registerId).order('created_at', { ascending: true }),
+        supabase.from('expenses').select('*, expense_categories(*)').eq('cash_register_id', registerId).order('created_at', { ascending: true }),
+        supabase.from('cash_registers').select('*').eq('id', registerId).single()
+    ]);
+
+    if (ordersRes.error) throw ordersRes.error;
+    if (expensesRes.error) throw expensesRes.error;
+    if (registerRes.error) throw registerRes.error;
+
+    const orders = ordersRes.data || [];
+    const expenses = expensesRes.data || [];
+    const register = registerRes.data;
+
+    // Solo las pagas cuentan para ventas
+    const paidOrders = orders.filter(o => o.status === 'paid');
+
+    const totalSales = paidOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+    const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+
+    const payments = { efectivo: 0, transferencia: 0, debito: 0, credito: 0 };
+    paidOrders.forEach(o => {
+        const method = o.payment_method || 'efectivo';
+        if (payments[method] !== undefined) {
+            payments[method] += (o.total || 0);
+        }
+    });
+
+    const expectedCash = (register.initial_amount || 0) + payments.efectivo - totalExpenses;
+    const counted = register.counted_amount || 0;
+    const difference = counted - expectedCash;
+
+    return {
+        register,
+        orders,        // todas las órdenes del turno (incluye cancelled)
+        paidOrders,    // solo las pagas
+        expenses,
+        totalSales,
+        totalExpenses,
+        payments,
+        expectedCash,
+        counted,
+        difference
+    };
+}
+
 export const cashService = {
     openRegister,
     closeRegister,
     getCurrentRegister,
     getRegisterHistory,
-    getRegisterSummary
+    getRegisterSummary,
+    getRegisterFullDetails
 };
 
