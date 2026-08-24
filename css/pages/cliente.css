@@ -109,3 +109,32 @@
     color: var(--color-primary);
     text-shadow: 0 0 8px var(--color-primary-glow);
 }
+
+@media (max-width: 480px) {
+    .cliente-container {
+        padding: 0.7rem;
+    }
+    .cliente-banner-img {
+        max-height: 80px;
+    }
+    .service-type-selector {
+        grid-template-columns: 1fr;
+        gap: 0.6rem;
+    }
+    .btn-service-type {
+        padding: 0.8rem;
+        font-size: 0.82rem;
+    }
+    .tracker-title {
+        font-size: 0.9rem;
+    }
+    .tracker-steps {
+        font-size: 0.68rem;
+        gap: 0.3rem;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    .order-tracker-card {
+        padding: 1.1rem;
+    }
+}

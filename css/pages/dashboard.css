@@ -79,6 +79,7 @@
     font-weight: 700;
     color: var(--text-main);
     line-height: 1.2;
+    word-break: break-all;
 }
 
 .stat-card__value--green {
@@ -131,8 +132,25 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
     padding: 0.8rem 1rem;
     background: var(--bg-elevated);
     border-radius: var(--radius-md);
     border: 1px solid var(--border-subtle);
+}
+
+.stock-list li span:first-child {
+    min-width: 0;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+    .stat-card {
+        padding: 1.1rem;
+    }
+    .stat-card__value {
+        font-size: 1.4rem;
+    }
 }

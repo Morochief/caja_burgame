@@ -95,12 +95,19 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.breakdown-list li span:first-child {
+    min-width: 0;
 }
 
 .breakdown-list strong {
     font-family: var(--font-mono);
     font-size: 1.1rem;
     color: var(--color-primary);
+    white-space: nowrap;
 }
 
 .caja-actions {
@@ -231,5 +238,26 @@
     }
     .caja-detail-actions .btn {
         width: 100%;
+    }
+    .caja-card {
+        padding: 2rem 1.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .caja-stats-grid {
+        grid-template-columns: 1fr;
+    }
+    .caja-breakdown-card, .caja-close-card {
+        padding: 1.2rem;
+    }
+    .breakdown-list {
+        grid-template-columns: 1fr;
+    }
+    .caja-day-card__num {
+        font-size: 1.3rem;
+    }
+    .caja-actions .btn {
+        min-width: 100%;
     }
 }

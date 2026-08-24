@@ -16,6 +16,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
     box-shadow: 0 4px 0px #000, 0 6px 20px rgba(0,0,0,0.8);
 }
 
@@ -23,6 +25,8 @@
     display: flex;
     align-items: center;
     gap: 1.2rem;
+    flex-wrap: wrap;
+    min-width: 0;
 }
 
 .cocina-header__logo-img {
@@ -30,6 +34,7 @@
     object-fit: contain;
     filter: drop-shadow(0 0 10px var(--color-primary-glow));
     image-rendering: pixelated;
+    flex-shrink: 0;
 }
 
 .cocina-header__title {
@@ -39,17 +44,20 @@
     text-shadow: 0 0 12px var(--color-primary-glow), 3px 3px 0px #000;
     letter-spacing: 2px;
     text-transform: uppercase;
+    word-break: break-word;
 }
 
 .cocina-header__right {
     display: flex;
     align-items: center;
     gap: 1.25rem;
+    flex-wrap: wrap;
 }
 
 .cocina-header__stats {
     display: flex;
     gap: 0.85rem;
+    flex-wrap: wrap;
 }
 
 /* Stat boxes - 8-bit arcade scoreboard */
@@ -101,7 +109,7 @@
 .cocina-grid {
     padding: 2rem;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
     gap: 1.8rem;
     flex: 1;
     align-content: start;
@@ -118,6 +126,7 @@
     flex-direction: column;
     overflow: hidden;
     transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+    min-width: 0;
 }
 
 .kds-card--ordered {
@@ -136,6 +145,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
     border-bottom: 3px solid #1A1A1A;
 }
 
@@ -147,6 +158,7 @@
     text-shadow: 0 0 8px var(--color-primary-glow), 2px 2px 0px #000;
     text-transform: uppercase;
     letter-spacing: 1px;
+    word-break: break-word;
 }
 
 .kds-card__timer {
@@ -209,6 +221,7 @@
     letter-spacing: 0.3px;
     padding-bottom: 0.55rem;
     border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+    min-width: 0;
 }
 
 .kds-item:last-child {
@@ -226,11 +239,15 @@
     border-radius: var(--radius-sm);
     font-size: 0.95rem;
     line-height: 1;
+    flex-shrink: 0;
 }
 
 .kds-item__name {
     flex: 1;
+    min-width: 0;
     line-height: 1.3;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .kds-item__tag {
@@ -268,6 +285,8 @@
     box-shadow: 0 4px 20px var(--color-primary-glow);
     transition: all var(--transition-bounce);
     cursor: pointer;
+    line-height: 1.3;
+    word-break: break-word;
 }
 
 .kds-btn-action:hover {
@@ -311,5 +330,45 @@
 
 .cocina-empty__subtext {
     color: var(--text-muted);
+}
+
+/* ==========================================================================
+   RESPONSIVE — Tablets y teléfonos
+   ========================================================================== */
+@media (max-width: 900px) {
+    .cocina-header {
+        padding: 0.85rem 1rem;
+    }
+    .cocina-grid {
+        padding: 1rem;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .cocina-header {
+        padding: 0.7rem 0.8rem;
+        gap: 0.6rem;
+    }
+    .cocina-header__title {
+        font-size: 0.75rem;
+        letter-spacing: 1px;
+    }
+    .cocina-grid {
+        grid-template-columns: 1fr;
+        padding: 0.7rem;
+        gap: 0.8rem;
+    }
+    .kds-card__body {
+        padding: 0.9rem;
+    }
+    .kds-item {
+        font-size: 0.82rem;
+    }
+    .kds-btn-action {
+        padding: 0.85rem;
+        font-size: 0.85rem;
+    }
 }
 

@@ -51,10 +51,10 @@ function renderSingleComboButtons(product, comboPrice, s) {
     const subFontSize = s.compact ? '0.7rem' : '0.66rem';
     return `
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: ${s.colGap}; width: 100%;">
-            <button class="btn btn-add-single" data-id="${product.id}" style="padding: ${s.pad}; font-size: ${s.fontSize}; font-weight: 700; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: ${textColor}; border-radius: ${s.radius}; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px;">
+            <button class="btn btn-add-single" data-id="${product.id}" style="padding: ${s.pad}; font-size: ${s.fontSize}; font-weight: 700; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: ${textColor}; border-radius: ${s.radius}; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0; overflow-wrap: anywhere;">
                 <span>🍔 Solo</span><span style="color: var(--color-primary); font-size: ${subFontSize}; font-weight: 800;">${formatGs(product.price)}</span>
             </button>
-            <button class="btn btn-add-combo" data-id="${product.id}" style="padding: ${s.pad}; font-size: ${s.fontSize}; font-weight: 800; background: var(--color-primary); border: none; color: #000; border-radius: ${s.radius}; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px;">
+            <button class="btn btn-add-combo" data-id="${product.id}" style="padding: ${s.pad}; font-size: ${s.fontSize}; font-weight: 800; background: var(--color-primary); border: none; color: #000; border-radius: ${s.radius}; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0; overflow-wrap: anywhere;">
                 <span>🍟 Combo</span><span style="font-size: ${subFontSize}; font-weight: 900;">${formatGs(comboPrice)}</span>
             </button>
         </div>
@@ -85,9 +85,9 @@ function renderCheatActions(product, comboPrice, s) {
     return `
         <div style="display: flex; flex-direction: column; gap: ${s.rowGap}; width: 100%;">
             ${renderSingleComboButtons(product, comboPrice, s)}
-            <button class="btn btn-add-promo" data-id="${product.id}" data-vname="${promoName}" data-vprice="${product.promo_price || 50000}" style="display: flex; justify-content: space-between; align-items: center; padding: ${promoPad}; font-size: ${promoFontSize}; font-weight: 900; background: linear-gradient(135deg, #FFD700, #FF9100); border: none; color: #000; border-radius: ${s.radius}; cursor: pointer; ${boxShadow}">
-                <span>🔥 ${promoLabel}</span>
-                <span style="font-weight: 900; white-space: nowrap;">${formatGs(product.promo_price || 50000)}</span>
+            <button class="btn btn-add-promo" data-id="${product.id}" data-vname="${promoName}" data-vprice="${product.promo_price || 50000}" style="display: flex; justify-content: space-between; align-items: center; gap: 0.4rem; flex-wrap: wrap; padding: ${promoPad}; font-size: ${promoFontSize}; font-weight: 900; background: linear-gradient(135deg, #FFD700, #FF9100); border: none; color: #000; border-radius: ${s.radius}; cursor: pointer; ${boxShadow}">
+                <span style="min-width: 0; overflow-wrap: anywhere;">🔥 ${promoLabel}</span>
+                <span style="font-weight: 900; white-space: nowrap; flex-shrink: 0;">${formatGs(product.promo_price || 50000)}</span>
             </button>
         </div>
     `;
@@ -102,8 +102,8 @@ function renderBowserActions(product, comboPrice, s) {
     return `
         <div style="display: flex; flex-direction: column; gap: ${s.rowGap}; width: 100%;">
             ${renderSingleComboButtons(product, comboPrice, s)}
-            <button class="btn btn-add-promo" data-id="${product.id}" data-vname="Promo Viernes Bowser" data-vprice="${product.promo_price || 35000}" style="display: flex; justify-content: space-between; align-items: center; padding: ${promoPad}; font-size: ${promoFontSize}; font-weight: 900; background: rgba(255,82,82,0.15); border: 1px solid #FF5252; color: #FF5252; border-radius: ${s.radius}; cursor: pointer; overflow: hidden;">
-                <span style="white-space: nowrap; flex-shrink: 0;">🔥 ${promoLabel}</span>
+            <button class="btn btn-add-promo" data-id="${product.id}" data-vname="Promo Viernes Bowser" data-vprice="${product.promo_price || 35000}" style="display: flex; justify-content: space-between; align-items: center; gap: 0.4rem; flex-wrap: wrap; padding: ${promoPad}; font-size: ${promoFontSize}; font-weight: 900; background: rgba(255,82,82,0.15); border: 1px solid #FF5252; color: #FF5252; border-radius: ${s.radius}; cursor: pointer; overflow: hidden;">
+                <span style="white-space: nowrap; flex-shrink: 0; min-width: 0; overflow-wrap: anywhere;">🔥 ${promoLabel}</span>
                 <span style="font-weight: 900; white-space: nowrap; flex-shrink: 0;">${formatGs(product.promo_price || 35000)}</span>
             </button>
         </div>
@@ -119,17 +119,17 @@ function renderBurgerActions(product, comboPrice, s) {
 function renderChoppActions(product, s) {
     return `
         <div style="display: flex; flex-direction: column; gap: ${s.rowGap}; width: 100%;">
-            <button class="btn btn-add-variant" data-id="${product.id}" data-vname="1 Chopp" data-vprice="${product.price_1x || 15000}" style="display: flex; justify-content: space-between; align-items: center; padding: ${s.compact ? '0.4rem 0.6rem' : '0.35rem 0.5rem'}; font-size: ${s.compact ? '0.78rem' : '0.7rem'}; font-weight: 700; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: ${s.compact ? 'var(--text-color)' : 'var(--text-main)'}; border-radius: ${s.radius}; cursor: pointer;">
-                <span>🍺 1 Chopp</span>
-                <span style="color: var(--color-primary); font-weight: 800;">${formatGs(product.price_1x || 15000)}</span>
+            <button class="btn btn-add-variant" data-id="${product.id}" data-vname="1 Chopp" data-vprice="${product.price_1x || 15000}" style="display: flex; justify-content: space-between; align-items: center; gap: 0.4rem; padding: ${s.compact ? '0.4rem 0.6rem' : '0.35rem 0.5rem'}; font-size: ${s.compact ? '0.78rem' : '0.7rem'}; font-weight: 700; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: ${s.compact ? 'var(--text-color)' : 'var(--text-main)'}; border-radius: ${s.radius}; cursor: pointer; flex-wrap: wrap;">
+                <span style="min-width: 0;">🍺 1 Chopp</span>
+                <span style="color: var(--color-primary); font-weight: 800; white-space: nowrap; flex-shrink: 0;">${formatGs(product.price_1x || 15000)}</span>
             </button>
-            <button class="btn btn-add-variant" data-id="${product.id}" data-vname="2x1 Chopp" data-vprice="${product.price_2x1 || 25000}" style="display: flex; justify-content: space-between; align-items: center; padding: ${s.compact ? '0.4rem 0.6rem' : '0.35rem 0.5rem'}; font-size: ${s.compact ? '0.78rem' : '0.7rem'}; font-weight: 800; background: rgba(255,215,0,0.12); border: 1px solid var(--color-primary); color: var(--color-primary); border-radius: ${s.radius}; cursor: pointer;">
-                <span>🍻 ${s.compact ? 'Promo 2x1' : '2x1'}</span>
-                <span style="font-weight: 900;">${formatGs(product.price_2x1 || 25000)}</span>
+            <button class="btn btn-add-variant" data-id="${product.id}" data-vname="2x1 Chopp" data-vprice="${product.price_2x1 || 25000}" style="display: flex; justify-content: space-between; align-items: center; gap: 0.4rem; padding: ${s.compact ? '0.4rem 0.6rem' : '0.35rem 0.5rem'}; font-size: ${s.compact ? '0.78rem' : '0.7rem'}; font-weight: 800; background: rgba(255,215,0,0.12); border: 1px solid var(--color-primary); color: var(--color-primary); border-radius: ${s.radius}; cursor: pointer; flex-wrap: wrap;">
+                <span style="min-width: 0;">🍻 ${s.compact ? 'Promo 2x1' : '2x1'}</span>
+                <span style="font-weight: 900; white-space: nowrap; flex-shrink: 0;">${formatGs(product.price_2x1 || 25000)}</span>
             </button>
-            <button class="btn btn-add-variant" data-id="${product.id}" data-vname="Chopp LIBRE" data-vprice="${product.price_libre || 55000}" style="display: flex; justify-content: space-between; align-items: center; padding: ${s.compact ? '0.45rem 0.6rem' : '0.38rem 0.5rem'}; font-size: ${s.compact ? '0.78rem' : '0.72rem'}; font-weight: 900; background: var(--color-primary); border: none; color: #000; border-radius: ${s.radius}; cursor: pointer;">
-                <span>♾️ Chopp LIBRE</span>
-                <span style="font-weight: 900;">${formatGs(product.price_libre || 55000)}</span>
+            <button class="btn btn-add-variant" data-id="${product.id}" data-vname="Chopp LIBRE" data-vprice="${product.price_libre || 55000}" style="display: flex; justify-content: space-between; align-items: center; gap: 0.4rem; padding: ${s.compact ? '0.45rem 0.6rem' : '0.38rem 0.5rem'}; font-size: ${s.compact ? '0.78rem' : '0.72rem'}; font-weight: 900; background: var(--color-primary); border: none; color: #000; border-radius: ${s.radius}; cursor: pointer; flex-wrap: wrap;">
+                <span style="min-width: 0;">♾️ Chopp LIBRE</span>
+                <span style="font-weight: 900; white-space: nowrap; flex-shrink: 0;">${formatGs(product.price_libre || 55000)}</span>
             </button>
         </div>
     `;
@@ -138,7 +138,7 @@ function renderChoppActions(product, s) {
 // Producto estándar (un solo botón agregar)
 function renderStandardActions(product, s) {
     return `
-        <button class="btn btn-add-single" data-id="${product.id}" style="width: 100%; padding: ${s.compact ? '0.45rem 0.5rem' : '0.4rem 0.5rem'}; font-size: ${s.compact ? '0.8rem' : '0.75rem'}; font-weight: 800; background: rgba(255,215,0,0.12); border: 1px solid var(--color-primary); color: var(--color-primary); border-radius: ${s.radius}; cursor: pointer;">
+        <button class="btn btn-add-single" data-id="${product.id}" style="width: 100%; padding: ${s.compact ? '0.45rem 0.5rem' : '0.4rem 0.5rem'}; font-size: ${s.compact ? '0.8rem' : '0.75rem'}; font-weight: 800; background: rgba(255,215,0,0.12); border: 1px solid var(--color-primary); color: var(--color-primary); border-radius: ${s.radius}; cursor: pointer; overflow-wrap: anywhere; line-height: 1.2;">
             ➕ ${formatGs(product.price)}
         </button>
     `;

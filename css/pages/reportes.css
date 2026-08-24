@@ -17,6 +17,20 @@
   margin-bottom: var(--spacing-6);
 }
 
+@media (max-width: 700px) {
+  .reportes-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-4);
+  }
+  .reportes-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .reportes-filters > * {
+    width: 100%;
+  }
+}
+
 .report-panel {
   background-color: var(--color-bg-surface);
   border: 2px solid #333;
@@ -49,6 +63,7 @@
 .top-item {
   display: flex;
   align-items: center;
+  gap: var(--spacing-3);
   padding: var(--spacing-3);
   background-color: rgba(255,255,255,0.02);
   border-radius: var(--border-radius-sm);
@@ -59,14 +74,20 @@
   font-family: var(--font-family-game);
   color: var(--color-text-secondary);
   width: 30px;
+  flex-shrink: 0;
 }
 
 .top-item-name {
   flex: 1;
+  min-width: 0;
   font-weight: bold;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .top-item-val {
   font-family: var(--font-family-mono);
   color: var(--color-primary);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
