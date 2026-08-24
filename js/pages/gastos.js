@@ -1,5 +1,6 @@
 import { expenseService } from '../services/expense-service.js';
 import { cashService } from '../services/cash-service.js';
+import { appState } from '../app.js';
 import { formatGs } from '../components/currency.js';
 import { showToast } from '../components/toast.js';
 
@@ -69,14 +70,13 @@ export async function renderGastosPage() {
 
 async function loadData() {
     try {
-        const [exp, cat, reg] = await Promise.all([
+        const [exp, cat] = await Promise.all([
             expenseService.getAll(),
-            expenseService.getCategories(),
-            cashService.getCurrentRegister()
+            expenseService.getCategories()
         ]);
         expenses = exp || [];
         categories = cat || [];
-        currentRegister = reg;
+        currentRegister = appState.cashRegister || await cashService.getCurrentRegister();
     } catch (err) {
         showToast({ message: 'Error cargando historial de gastos', type: 'error' });
     }

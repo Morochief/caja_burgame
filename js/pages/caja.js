@@ -1,5 +1,6 @@
 import { cashService } from '../services/cash-service.js';
 import { reportService } from '../services/report-service.js';
+import { appState } from '../app.js';
 import { formatGs } from '../components/currency.js';
 import { showToast } from '../components/toast.js';
 
@@ -7,7 +8,7 @@ export async function renderCajaPage() {
     const container = document.createElement('div');
     container.className = 'caja-page';
 
-    const currentRegister = await cashService.getCurrentRegister();
+    const currentRegister = appState.cashRegister || await cashService.getCurrentRegister();
 
     if (!currentRegister) {
         // Vista para ABRIR CAJA
@@ -39,6 +40,9 @@ export async function renderCajaPage() {
             const amount = parseInt(container.querySelector('#initial-amount').value, 10) || 0;
             try {
                 await cashService.openRegister(amount);
+                // Invalidar caché para que el resto de la app vea la caja abierta
+                appState.cashRegister = null;
+                appState._registerFetchedAt = 0;
                 showToast({ message: '¡Caja abierta con éxito!', type: 'success' });
                 window.location.hash = '#/ventas';
             } catch (err) {
@@ -157,6 +161,9 @@ function setupCloseEvents(container, register, summary) {
 
         try {
             await cashService.closeRegister(register.id, counted, notes);
+            // Invalidar caché: la caja ya no está abierta
+            appState.cashRegister = null;
+            appState._registerFetchedAt = 0;
             showToast({ message: 'Caja cerrada exitosamente. ¡Hasta mañana!', type: 'success' });
             
             // Re-renderizar la página de caja para mostrar la pantalla de APERTURA

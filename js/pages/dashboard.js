@@ -2,19 +2,26 @@ import { reportService } from '../services/report-service.js';
 import { productService } from '../services/product-service.js';
 import { orderService } from '../services/order-service.js';
 import { cashService } from '../services/cash-service.js';
+import { appState } from '../app.js';
 import { formatGs } from '../components/currency.js';
 
 export async function renderDashboardPage() {
     const container = document.createElement('div');
     container.className = 'dashboard-page';
 
-    const currentRegister = await cashService.getCurrentRegister();
+    // Usar cashRegister cacheado de appState (evita fetch innecesario)
+    const currentRegister = appState.cashRegister || await cashService.getCurrentRegister();
 
-    const [shiftSummary, lowStock, activeOrders] = await Promise.all([
+    // OPTIMIZACIÓN: getTodaysOrders ya incluye las activas.
+    // No necesitamos getActiveOrders por separado (solo se usa para .length).
+    const [shiftSummary, lowStock, todaysOrders] = await Promise.all([
         reportService.getCurrentShiftSummary(currentRegister ? currentRegister.id : null),
         productService.getLowStock(10),
-        orderService.getActiveOrders()
+        orderService.getTodaysOrders()
     ]);
+
+    // Contar pedidos activos de las órdenes de hoy (sin fetch extra)
+    const activeOrders = (todaysOrders || []).filter(o => !['paid', 'cancelled'].includes(o.status));
 
     container.innerHTML = `
         <header class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
@@ -92,9 +99,9 @@ export async function renderDashboardPage() {
     `;
 
     // Cargar y calcular productos vendidos en el turno actual
+    // OPTIMIZACIÓN: reutilizar todaysOrders ya fetched arriba (antes era un segundo fetch secuencial)
     try {
-        const todayOrders = await orderService.getTodaysOrders();
-        const shiftOrders = currentRegister ? (todayOrders || []).filter(o => o.cash_register_id === currentRegister.id && o.status === 'paid') : [];
+        const shiftOrders = currentRegister ? (todaysOrders || []).filter(o => o.cash_register_id === currentRegister.id && o.status === 'paid') : [];
 
         const counts = {};
         shiftOrders.forEach(o => {
