@@ -588,9 +588,18 @@ async function sendOrderToKitchen(container) {
         return;
     }
 
+    // GUARD: prevenir doble-envío (doble click / tap)
+    if (window._isSendingOrder) return;
+    window._isSendingOrder = true;
+    const sendBtn = container.querySelector('#btn-send-order');
+    const originalText = sendBtn ? sendBtn.innerHTML : null;
+    if (sendBtn) { sendBtn.disabled = true; sendBtn.style.opacity = '0.6'; sendBtn.innerHTML = '⏳ ENVIANDO...'; }
+
     const currentRegister = cashService.getCurrentRegister();
     if (!currentRegister) {
         showToast({ message: 'Debes abrir una caja antes de tomar pedidos', type: 'error' });
+        window._isSendingOrder = false;
+        if (sendBtn) { sendBtn.disabled = false; sendBtn.style.opacity = ''; sendBtn.innerHTML = originalText; }
         return;
     }
 
@@ -625,6 +634,9 @@ async function sendOrderToKitchen(container) {
         updateTicketUI(container);
     } catch (err) {
         showToast({ message: 'Error enviando orden: ' + err.message, type: 'error' });
+    } finally {
+        window._isSendingOrder = false;
+        if (sendBtn) { sendBtn.disabled = false; sendBtn.style.opacity = ''; sendBtn.innerHTML = originalText; }
     }
 }
 

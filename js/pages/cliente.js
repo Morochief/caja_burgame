@@ -257,7 +257,7 @@ function setupEvents(appEl) {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             addToCart(btn.dataset.id, false);
-            renderView(appEl);
+            updateCartPanel(appEl);
         });
     });
 
@@ -265,7 +265,7 @@ function setupEvents(appEl) {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             addToCart(btn.dataset.id, true);
-            renderView(appEl);
+            updateCartPanel(appEl);
         });
     });
 
@@ -277,7 +277,7 @@ function setupEvents(appEl) {
             const vName = btn.dataset.vname;
             const vPrice = parseInt(btn.dataset.vprice, 10);
             addVariantToCart(id, vName, vPrice);
-            renderView(appEl);
+            updateCartPanel(appEl);
         });
     });
 
@@ -289,50 +289,52 @@ function setupEvents(appEl) {
             const vName = btn.dataset.vname;
             const vPrice = parseInt(btn.dataset.vprice, 10);
             addVariantToCart(id, vName, vPrice);
-            renderView(appEl);
+            updateCartPanel(appEl);
         });
     });
 
-    // Aclaraciones individuales cliente
-    appEl.querySelectorAll('.input-item-note-cliente').forEach(input => {
-        input.addEventListener('input', (e) => {
-            const idx = parseInt(input.dataset.idx, 10);
-            if (cartItems[idx]) {
-                cartItems[idx].customNotes = e.target.value;
-            }
-        });
-    });
-
-    // Cart Qty Controls
-    appEl.querySelectorAll('.btn-qty, .btn-remove').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const action = btn.dataset.action;
-            const idx = parseInt(btn.dataset.idx, 10);
-
-            if (action === 'inc') cartItems[idx].quantity++;
-            else if (action === 'dec') {
-                cartItems[idx].quantity--;
-                if (cartItems[idx].quantity <= 0) cartItems.splice(idx, 1);
-            } else if (action === 'del') {
-                cartItems.splice(idx, 1);
-            }
-            renderView(appEl);
-        });
-    });
+    // Aclaraciones individuales cliente + controles de cantidad (delegado a setupCartEvents)
+    setupCartEvents(appEl);
 
     // Confirm Self Order
-    appEl.querySelector('#btn-submit-self-order')?.addEventListener('click', async () => {
+    let isSubmittingOrder = false;
+    appEl.querySelector('#btn-submit-self-order')?.addEventListener('click', async (e) => {
+        // GUARD: prevenir doble-envío (doble click / tap)
+        if (isSubmittingOrder) return;
+        isSubmittingOrder = true;
+        const btn = e.currentTarget;
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.style.opacity = '0.6';
+        btn.innerHTML = '⏳ ENVIANDO...';
+
         const nameVal = appEl.querySelector('#cust-name')?.value.trim();
         const tableVal = appEl.querySelector('#cust-table')?.value.trim();
 
         if (!nameVal) {
             showToast({ message: 'Ingresa tu nombre o apodo antes de enviar', type: 'warning' });
+            isSubmittingOrder = false;
+            btn.disabled = false;
+            btn.style.opacity = '';
+            btn.innerHTML = originalText;
             return;
         }
 
         if (serviceType === 'eat_in' && !tableVal) {
             showToast({ message: 'Ingresa el número de tu mesa', type: 'warning' });
+            isSubmittingOrder = false;
+            btn.disabled = false;
+            btn.style.opacity = '';
+            btn.innerHTML = originalText;
+            return;
+        }
+
+        if (cartItems.length === 0) {
+            showToast({ message: 'Tu pedido está vacío', type: 'warning' });
+            isSubmittingOrder = false;
+            btn.disabled = false;
+            btn.style.opacity = '';
+            btn.innerHTML = originalText;
             return;
         }
 
@@ -359,6 +361,8 @@ function setupEvents(appEl) {
             renderView(appEl);
         } catch (err) {
             showToast({ message: 'Error enviando pedido: ' + err.message, type: 'error' });
+        } finally {
+            isSubmittingOrder = false;
         }
     });
 }
@@ -403,6 +407,66 @@ function addVariantToCart(productId, variantName, variantPrice) {
             customNotes: ''
         });
     }
+}
+
+// Render SOLO del carrito/drawer (evita reconstruir el catálogo de productos)
+function updateCartPanel(appEl) {
+    const ticketPanel = appEl.querySelector('.ticket-panel.open');
+
+    // Si no hay drawer visible todavía (primer item) o el carrito quedó vacío, re-render completo
+    if (!ticketPanel || cartItems.length === 0) {
+        renderView(appEl);
+        return;
+    }
+
+    const totalQty = cartItems.reduce((a, b) => a + b.quantity, 0);
+    const totalGs = calculateTotal();
+
+    // Actualizar header del carrito (cantidad + total)
+    const headerSpans = ticketPanel.querySelectorAll('div[style*="justify-content: space-between"] > span');
+    if (headerSpans.length >= 2) {
+        headerSpans[0].textContent = `🛒 TU PEDIDO (${totalQty})`;
+        headerSpans[1].textContent = formatGs(totalGs);
+    }
+
+    // Actualizar items del carrito
+    const itemsContainer = ticketPanel.querySelector('.ticket-items');
+    if (itemsContainer) {
+        itemsContainer.innerHTML = renderCartItems();
+    }
+
+    // Re-attach listeners del carrito
+    setupCartEvents(appEl);
+}
+
+function setupCartEvents(appEl) {
+    // Aclaraciones individuales
+    appEl.querySelectorAll('.input-item-note-cliente').forEach(input => {
+        input.addEventListener('input', (e) => {
+            const idx = parseInt(input.dataset.idx, 10);
+            if (cartItems[idx]) {
+                cartItems[idx].customNotes = e.target.value;
+            }
+        });
+    });
+
+    // Cart Qty Controls
+    appEl.querySelectorAll('.btn-qty, .btn-remove').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const action = btn.dataset.action;
+            const idx = parseInt(btn.dataset.idx, 10);
+
+            if (action === 'inc') cartItems[idx].quantity++;
+            else if (action === 'dec') {
+                cartItems[idx].quantity--;
+                if (cartItems[idx].quantity <= 0) cartItems.splice(idx, 1);
+            } else if (action === 'del') {
+                cartItems.splice(idx, 1);
+            }
+            updateCartPanel(appEl);
+        });
+    });
 }
 
 function renderOrderTracker(appEl) {
@@ -457,13 +521,23 @@ function renderOrderTracker(appEl) {
     `;
 
     appEl.querySelector('#btn-new-self-order')?.addEventListener('click', () => {
+        cleanupTracker(); // Limpiar canal realtime del pedido anterior
         activeOrder = null;
         renderView(appEl);
     });
 }
 
+// Track del canal realtime para limpiarlo cuando ya no se necesita
+let activeTrackerChannel = null;
+
 function subscribeToLiveTracker(orderId, appEl) {
-    supabase.channel(`order-tracker-${orderId}`)
+    // Limpiar canal anterior si existe (evita acumular suscripciones)
+    if (activeTrackerChannel) {
+        supabase.removeChannel(activeTrackerChannel);
+        activeTrackerChannel = null;
+    }
+
+    activeTrackerChannel = supabase.channel(`order-tracker-${orderId}`)
         .on('postgres_changes', {
             event: 'UPDATE',
             schema: 'public',
@@ -475,3 +549,13 @@ function subscribeToLiveTracker(orderId, appEl) {
         })
         .subscribe();
 }
+
+function cleanupTracker() {
+    if (activeTrackerChannel) {
+        supabase.removeChannel(activeTrackerChannel);
+        activeTrackerChannel = null;
+    }
+}
+
+// Limpiar canal al salir de la página / recargar
+window.addEventListener('beforeunload', cleanupTracker);

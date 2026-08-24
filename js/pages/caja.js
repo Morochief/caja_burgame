@@ -172,27 +172,39 @@ function setupCloseEvents(container, register, summary) {
     });
 }
 
-function exportCajaExcel(register, summary) {
-    if (!window.XLSX) {
-        showToast({ message: 'Librería Excel no cargada', type: 'error' });
-        return;
+// Carga lazy de SheetJS: solo se descarga cuando se exporta Excel
+function loadXLSX() {
+    return new Promise((resolve, reject) => {
+        if (window.XLSX) { resolve(window.XLSX); return; }
+        const script = document.createElement('script');
+        script.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+        script.onload = () => resolve(window.XLSX);
+        script.onerror = () => reject(new Error('No se pudo cargar la librería Excel'));
+        document.head.appendChild(script);
+    });
+}
+
+async function exportCajaExcel(register, summary) {
+    try {
+        const XLSX = await loadXLSX();
+        const data = [
+            ['CONCEPTO', 'MONTO (Gs.)'],
+            ['Fecha / Hora', new Date().toLocaleString()],
+            ['Monto Inicial', register.initial_amount],
+            ['Ventas Totales', summary.totalSales],
+            ['Efectivo', summary.payments.efectivo || 0],
+            ['Transferencia', summary.payments.transferencia || 0],
+            ['Débito', summary.payments.debito || 0],
+            ['Crédito', summary.payments.credito || 0],
+            ['Gastos Totales', summary.totalExpenses],
+            ['Efectivo Esperado', summary.expectedCash]
+        ];
+
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Cierre de Caja');
+        XLSX.writeFile(wb, `Cierre_Caja_Burgame_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (err) {
+        showToast({ message: 'Error al exportar Excel: ' + err.message, type: 'error' });
     }
-
-    const data = [
-        ['CONCEPTO', 'MONTO (Gs.)'],
-        ['Fecha / Hora', new Date().toLocaleString()],
-        ['Monto Inicial', register.initial_amount],
-        ['Ventas Totales', summary.totalSales],
-        ['Efectivo', summary.payments.efectivo || 0],
-        ['Transferencia', summary.payments.transferencia || 0],
-        ['Débito', summary.payments.debito || 0],
-        ['Crédito', summary.payments.credito || 0],
-        ['Gastos Totales', summary.totalExpenses],
-        ['Efectivo Esperado', summary.expectedCash]
-    ];
-
-    const ws = XLSX.utils.aoa_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Cierre de Caja');
-    XLSX.writeFile(wb, `Cierre_Caja_Burgame_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }

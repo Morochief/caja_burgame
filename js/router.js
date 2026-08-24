@@ -1,4 +1,5 @@
 import { authService } from './services/auth-service.js';
+import { orderService } from './services/order-service.js';
 
 export let currentRoute = '';
 
@@ -20,6 +21,9 @@ const routes = {
 };
 
 export async function navigate(path) {
+    // Limpiar suscripciones realtime de la página anterior antes de navegar
+    orderService.unsubscribeAllOrders();
+
     const session = authService.getSession();
 
     // Redirigir a login si no hay sesión iniciada

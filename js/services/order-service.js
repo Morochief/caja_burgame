@@ -112,12 +112,24 @@ export async function cancelOrder(orderId) {
     return updateStatus(orderId, 'cancelled');
 }
 
+// Registry de canales realtime para limpiarlos al cambiar de página
+const activeChannels = new Set();
+
 export function subscribeToOrders(callback) {
     const channel = supabase.channel('custom-all-channel')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, callback)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, callback)
       .subscribe();
+    activeChannels.add(channel);
     return channel;
+}
+
+// Limpia todas las suscripciones realtime activas (llamar al navegar entre páginas)
+export function unsubscribeAllOrders() {
+    activeChannels.forEach(ch => {
+        try { supabase.removeChannel(ch); } catch { /* */ }
+    });
+    activeChannels.clear();
 }
 
 export async function updatePaymentMethod(orderId, newPaymentMethod) {
@@ -142,6 +154,7 @@ export const orderService = {
     getOrderItems,
     getOrdersByDateRange,
     cancelOrder,
-    subscribeToOrders
+    subscribeToOrders,
+    unsubscribeAllOrders
 };
 

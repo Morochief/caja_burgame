@@ -267,9 +267,16 @@ function attachEvents() {
 }
 
 function setupRealtimeSubscription() {
+    // DEBOUNCE: si llegan varios eventos realtime juntos (ej: 3 pedidos simultáneos),
+    // agruparlos en un solo fetch + render en lugar de N renders.
+    let debounceTimer = null;
     orderService.subscribeToOrders(async (payload) => {
-        await loadActiveOrders();
-        renderCocinaView();
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(async () => {
+            debounceTimer = null;
+            await loadActiveOrders();
+            renderCocinaView();
+        }, 300);
     });
 }
 
