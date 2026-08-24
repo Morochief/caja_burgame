@@ -135,10 +135,10 @@ async function loadCajaData(container) {
                     </div>
                 </div>
 
-                <!-- Historial de cajas por día -->
+                <!-- Navegador de historial: Mes → Día → Caja -->
                 <div class="card" style="margin-top: 1.5rem;">
                     <h3 style="font-family: var(--font-title); font-size: 0.9rem; color: var(--color-primary); margin-bottom: 1rem;">
-                        📅 HISTORIAL DE CAJAS POR DÍA
+                        📅 HISTORIAL DE CAJAS
                     </h3>
                     <div id="caja-history-container">
                         <div class="page-loading" style="padding: 1rem;"><div class="pixel-spinner"></div><p>Cargando historial...</p></div>
@@ -242,72 +242,337 @@ async function exportCajaExcel(register, summary) {
 }
 
 // ============================================================
-// Historial de cajas cerradas por día
+// Navegador de historial: Mes → Día → Caja (con edición)
 // ============================================================
+const MONTH_NAMES_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+// Agrupa cajas por mes y por día
+function groupRegistersByMonthDay(registers) {
+    const byMonth = {};
+    registers.forEach(r => {
+        const d = new Date(r.opened_at);
+        const year = d.getFullYear();
+        const month = d.getMonth(); // 0-11
+        const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
+        const dayKey = d.getDate();
+        if (!byMonth[monthKey]) byMonth[monthKey] = { label: `${MONTH_NAMES_ES[month]} ${year}`, days: {} };
+        if (!byMonth[monthKey].days[dayKey]) byMonth[monthKey].days[dayKey] = [];
+        byMonth[monthKey].days[dayKey].push(r);
+    });
+    return byMonth;
+}
+
+let _historyCache = null;
+
 async function loadCajaHistory(container) {
     const historyEl = container.querySelector('#caja-history-container');
     if (!historyEl) return;
 
     try {
-        const registers = await cashService.getRegisterHistory();
-        const closed = registers.filter(r => r.status === 'closed');
-
-        if (closed.length === 0) {
-            historyEl.innerHTML = '<p class="empty-text">No hay cajas cerradas todavía. El historial aparecerá aquí cuando cierres el primer turno.</p>';
-            return;
-        }
-
-        historyEl.innerHTML = `
-            <table class="table" style="font-size: 0.85rem;">
-                <thead>
-                    <tr>
-                        <th>Fecha</th>
-                        <th>Apertura</th>
-                        <th>Cierre</th>
-                        <th>Monto Inicial</th>
-                        <th>Efectivo Contado</th>
-                        <th>Estado</th>
-                        <th>Descarga</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${closed.map(r => {
-                        const openedDate = new Date(r.opened_at).toLocaleDateString('es-PY', { day: '2-digit', month: 'short', year: 'numeric' });
-                        const openedTime = new Date(r.opened_at).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' });
-                        const closedTime = r.closed_at ? new Date(r.closed_at).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' }) : '—';
-                        return `
-                            <tr>
-                                <td style="font-weight: 700;">${openedDate}</td>
-                                <td style="color: var(--text-muted);">${openedTime}</td>
-                                <td style="color: var(--text-muted);">${closedTime}</td>
-                                <td style="font-family: var(--font-mono);">${formatGs(r.initial_amount)}</td>
-                                <td style="font-family: var(--font-mono); font-weight: 700; color: var(--color-primary);">${r.counted_amount ? formatGs(r.counted_amount) : '—'}</td>
-                                <td><span class="badge badge--dark">🔒 CERRADA</span></td>
-                                <td>
-                                    <button class="btn btn--secondary btn-download-cash" data-id="${r.id}" data-date="${openedDate}" title="Descargar Excel completo de esta caja">
-                                        📥 Excel
-                                    </button>
-                                </td>
-                            </tr>
-                        `;
-                    }).join('')}
-                </tbody>
-            </table>
-        `;
-
-        // Bind botones de descarga
-        historyEl.querySelectorAll('.btn-download-cash').forEach(btn => {
-            btn.addEventListener('click', () => {
-                downloadClosedCajaExcel(btn.dataset.id, btn.dataset.date, btn);
-            });
-        });
+        const registers = await cashService.getAllRegistersGrouped();
+        _historyCache = registers;
+        renderMonthView(historyEl);
     } catch (err) {
         historyEl.innerHTML = `<p class="empty-text">Error al cargar historial: ${err.message}</p>`;
     }
 }
 
+// Vista 1: selección de mes
+function renderMonthView(historyEl) {
+    if (!_historyCache || _historyCache.length === 0) {
+        historyEl.innerHTML = '<p class="empty-text">No hay cajas registradas todavía.</p>';
+        return;
+    }
+
+    const byMonth = groupRegistersByMonthDay(_historyCache);
+    const monthKeys = Object.keys(byMonth).sort((a, b) => b.localeCompare(a));
+
+    historyEl.innerHTML = `
+        <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 0.75rem;">Seleccioná un mes para ver las cajas de cada día:</p>
+        <div class="caja-month-grid">
+            ${monthKeys.map(key => {
+                const m = byMonth[key];
+                const dayCount = Object.keys(m.days).length;
+                const cashCount = Object.values(m.days).reduce((sum, arr) => sum + arr.length, 0);
+                return `
+                    <div class="caja-month-card" data-month="${key}">
+                        <div class="caja-month-card__icon">📅</div>
+                        <div class="caja-month-card__label">${m.label}</div>
+                        <div class="caja-month-card__info">${dayCount} día(s) • ${cashCount} caja(s)</div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+
+    historyEl.querySelectorAll('.caja-month-card').forEach(card => {
+        card.addEventListener('click', () => {
+            renderDayView(historyEl, card.dataset.month, byMonth[card.dataset.month]);
+        });
+    });
+}
+
+// Vista 2: días del mes seleccionado
+function renderDayView(historyEl, monthKey, monthData) {
+    const byMonth = groupRegistersByMonthDay(_historyCache);
+    const dayNums = Object.keys(monthData.days).sort((a, b) => parseInt(b) - parseInt(a));
+
+    historyEl.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+            <button class="btn btn--ghost btn-back-month" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">← Volver a meses</button>
+            <h4 style="font-family: var(--font-title); color: var(--color-primary); margin: 0;">${monthData.label}</h4>
+        </div>
+        <div class="caja-day-grid">
+            ${dayNums.map(dayNum => {
+                const cashBoxes = monthData.days[dayNum];
+                const dateLabel = new Date(cashBoxes[0].opened_at).toLocaleDateString('es-PY', { weekday: 'long', day: '2-digit', month: 'short' });
+                return `
+                    <div class="caja-day-card" data-day="${dayNum}">
+                        <div class="caja-day-card__header">
+                            <span class="caja-day-card__num">${dayNum}</span>
+                            <span class="caja-day-card__label">${dateLabel}</span>
+                        </div>
+                        <div class="caja-day-card__info">
+                            ${cashBoxes.length} caja(s) • ${cashBoxes.map(c => c.status === 'open' ? '🟢' : '🔒').join(' ')}
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+
+    historyEl.querySelector('.btn-back-month')?.addEventListener('click', () => renderMonthView(historyEl));
+
+    historyEl.querySelectorAll('.caja-day-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const dayNum = card.dataset.day;
+            renderCashDetailView(historyEl, monthKey, dayNum, monthData.days[dayNum]);
+        });
+    });
+}
+
+// Vista 3: detalle de cajas de un día específico (con edición y descarga)
+function renderCashDetailView(historyEl, monthKey, dayNum, cashBoxes) {
+    historyEl.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+            <button class="btn btn--ghost btn-back-day" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">← Volver a días</button>
+            <h4 style="font-family: var(--font-title); color: var(--color-primary); margin: 0;">Cajas del día ${dayNum}</h4>
+        </div>
+        <div id="cash-detail-list">
+            ${cashBoxes.map(r => {
+                const openedTime = new Date(r.opened_at).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' });
+                const closedTime = r.closed_at ? new Date(r.closed_at).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' }) : '—';
+                const isOpen = r.status === 'open';
+                return `
+                    <div class="card caja-detail-item" style="margin-bottom: 0.75rem;" data-id="${r.id}">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                            <div>
+                                <strong>${openedTime} → ${closedTime}</strong>
+                                ${isOpen ? '<span class="badge badge--green" style="margin-left: 0.5rem;">ABIERTA</span>' : '<span class="badge badge--dark" style="margin-left: 0.5rem;">🔒 CERRADA</span>'}
+                            </div>
+                            <div class="caja-detail-actions">
+                                <button class="btn btn--secondary btn-view-detail" data-id="${r.id}" style="font-size: 0.8rem; padding: 0.35rem 0.7rem;">👁️ Ver / Editar</button>
+                                <button class="btn btn--secondary btn-download-cash" data-id="${r.id}" data-date="${dayNum}" style="font-size: 0.8rem; padding: 0.35rem 0.7rem;">📥 Excel</button>
+                            </div>
+                        </div>
+                        <div style="margin-top: 0.5rem; font-size: 0.82rem; color: var(--text-muted);">
+                            Inicial: <strong style="font-family: var(--font-mono);">${formatGs(r.initial_amount)}</strong>
+                            ${r.counted_amount != null ? ` • Contado: <strong style="font-family: var(--font-mono);">${formatGs(r.counted_amount)}</strong>` : ''}
+                            ${r.notes ? ` • <em>${r.notes}</em>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+
+    historyEl.querySelector('.btn-back-day')?.addEventListener('click', () => {
+        const byMonth = groupRegistersByMonthDay(_historyCache);
+        renderDayView(historyEl, monthKey, byMonth[monthKey]);
+    });
+
+    historyEl.querySelectorAll('.btn-download-cash').forEach(btn => {
+        btn.addEventListener('click', () => {
+            downloadClosedCajaExcel(btn.dataset.id, btn.dataset.date, btn);
+        });
+    });
+
+    historyEl.querySelectorAll('.btn-view-detail').forEach(btn => {
+        btn.addEventListener('click', () => {
+            openEditModal(btn.dataset.id);
+        });
+    });
+}
+
 // ============================================================
-// Descarga Excel completo de una caja cerrada (multi-hoja)
+// Modal de edición de caja cerrada
+// ============================================================
+async function openEditModal(registerId) {
+    // Buscar la caja en caché o cargarla
+    let register = _historyCache && _historyCache.find(r => r.id === registerId);
+    if (!register) {
+        try {
+            const all = await cashService.getAllRegistersGrouped();
+            _historyCache = all;
+            register = all.find(r => r.id === registerId);
+        } catch (err) {
+            showToast({ message: 'Error al cargar caja: ' + err.message, type: 'error' });
+            return;
+        }
+    }
+    if (!register) {
+        showToast({ message: 'No se encontró la caja', type: 'error' });
+        return;
+    }
+
+    // Cargar el summary para mostrar el contexto
+    let summary = null;
+    try {
+        summary = await cashService.getRegisterSummary(registerId);
+    } catch (err) {
+        console.warn('No se pudo cargar summary:', err.message);
+    }
+
+    // Crear overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 1rem;';
+
+    const isOpen = register.status === 'open';
+    const openedDate = new Date(register.opened_at).toLocaleString('es-PY');
+    const closedDate = register.closed_at ? new Date(register.closed_at).toLocaleString('es-PY') : '';
+
+    overlay.innerHTML = `
+        <div class="card" style="max-width: 540px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 1.5rem; background: var(--bg-card); border-radius: var(--radius-md);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="font-family: var(--font-title); color: var(--color-primary); margin: 0; font-size: 1rem;">
+                    ✏️ Editar Caja #${register.order_number || register.id.slice(0, 8)}
+                </h3>
+                <button class="btn btn--ghost btn-close-modal" style="padding: 0.3rem 0.6rem; font-size: 1.2rem;">✕</button>
+            </div>
+
+            <div style="background: rgba(255,255,255,0.03); border-radius: var(--radius-sm); padding: 0.75rem; margin-bottom: 1rem; font-size: 0.82rem; color: var(--text-muted);">
+                <div>📅 Abierta: ${openedDate}</div>
+                ${closedDate ? `<div>🔒 Cerrada: ${closedDate}</div>` : ''}
+                <div>Estado: <strong>${isOpen ? 'ABIERTA' : 'CERRADA'}</strong></div>
+                ${summary ? `<div style="margin-top: 0.5rem; border-top: 1px solid var(--border-subtle); padding-top: 0.5rem;">
+                    Ventas: <strong style="font-family: var(--font-mono);">${formatGs(summary.totalSales)}</strong> •
+                    Gastos: <strong style="font-family: var(--font-mono);">${formatGs(summary.totalExpenses)}</strong> •
+                    Efec. Esperado: <strong style="font-family: var(--font-mono);">${formatGs(summary.expectedCash)}</strong>
+                </div>` : ''}
+            </div>
+
+            <form id="form-edit-cash">
+                <div class="form-group">
+                    <label for="edit-initial-amount">Monto Inicial (Gs.):</label>
+                    <input type="number" id="edit-initial-amount" value="${register.initial_amount || 0}" min="0" required>
+                </div>
+                ${!isOpen ? `
+                    <div class="form-group">
+                        <label for="edit-counted-amount">Efectivo Contado (Gs.):</label>
+                        <input type="number" id="edit-counted-amount" value="${register.counted_amount || 0}" min="0">
+                    </div>
+                ` : ''}
+                <div class="form-group">
+                    <label for="edit-notes">Observaciones:</label>
+                    <textarea id="edit-notes" placeholder="Notas...">${register.notes || ''}</textarea>
+                </div>
+                <div class="form-group">
+                    <label for="edit-opened-at">Fecha/Hora de Apertura:</label>
+                    <input type="datetime-local" id="edit-opened-at" value="${toLocalDatetimeInput(register.opened_at)}">
+                </div>
+                ${register.closed_at ? `
+                    <div class="form-group">
+                        <label for="edit-closed-at">Fecha/Hora de Cierre:</label>
+                        <input type="datetime-local" id="edit-closed-at" value="${toLocalDatetimeInput(register.closed_at)}">
+                    </div>
+                ` : ''}
+
+                <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
+                    <button type="button" class="btn btn--ghost btn-close-modal" style="flex: 1;">Cancelar</button>
+                    <button type="submit" class="btn btn--primary" style="flex: 1;">💾 Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const close = () => overlay.remove();
+    overlay.querySelectorAll('.btn-close-modal').forEach(b => b.addEventListener('click', close));
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+    overlay.querySelector('#form-edit-cash')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const updates = {
+            initial_amount: parseInt(overlay.querySelector('#edit-initial-amount').value, 10) || 0,
+            notes: overlay.querySelector('#edit-notes').value
+        };
+
+        if (!isOpen) {
+            updates.counted_amount = parseInt(overlay.querySelector('#edit-counted-amount').value, 10) || 0;
+        }
+
+        const openedAtVal = overlay.querySelector('#edit-opened-at').value;
+        if (openedAtVal) updates.opened_at = new Date(openedAtVal).toISOString();
+
+        const closedAtVal = overlay.querySelector('#edit-closed-at');
+        if (closedAtVal && closedAtVal.value) {
+            updates.closed_at = new Date(closedAtVal.value).toISOString();
+        }
+
+        // Recalcular diferencia si la caja está cerrada
+        if (!isOpen && updates.counted_amount != null && summary) {
+            updates.difference = updates.counted_amount - summary.expectedCash;
+        }
+
+        try {
+            const saveBtn = overlay.querySelector('button[type="submit"]');
+            saveBtn.disabled = true;
+            saveBtn.textContent = '⏳ Guardando...';
+            await cashService.updateRegister(registerId, updates);
+            showToast({ message: '✅ Caja actualizada correctamente', type: 'success' });
+
+            // Actualizar caché local
+            if (_historyCache) {
+                const idx = _historyCache.findIndex(r => r.id === registerId);
+                if (idx >= 0) _historyCache[idx] = { ..._historyCache[idx], ...updates };
+            }
+            close();
+            // Re-renderizar la vista de detalle del día
+            const historyEl = document.querySelector('#caja-history-container');
+            if (historyEl) {
+                const byMonth = groupRegistersByMonthDay(_historyCache);
+                // Determinar el mes/día de la caja editada
+                const updatedReg = registerId;
+                const reg = _historyCache.find(r => r.id === updatedReg);
+                if (reg) {
+                    const d = new Date(reg.opened_at);
+                    const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                    const dayNum = d.getDate();
+                    if (byMonth[monthKey] && byMonth[monthKey].days[dayNum]) {
+                        renderCashDetailView(historyEl, monthKey, dayNum, byMonth[monthKey].days[dayNum]);
+                    }
+                }
+            }
+        } catch (err) {
+            showToast({ message: 'Error al guardar: ' + err.message, type: 'error' });
+            const saveBtn = overlay.querySelector('button[type="submit"]');
+            if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 Guardar Cambios'; }
+        }
+    });
+}
+
+// Convierte un ISO timestamp a formato válido para <input type="datetime-local">
+function toLocalDatetimeInput(isoString) {
+    if (!isoString) return '';
+    const d = new Date(isoString);
+    const tzOffset = d.getTimezoneOffset() * 60000;
+    return new Date(d - tzOffset).toISOString().slice(0, 16);
+}
+
+// ============================================================
+// Descarga Excel completo de una caja (multi-hoja)
 // ============================================================
 async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
     const originalText = btn ? btn.innerHTML : '';

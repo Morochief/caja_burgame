@@ -122,12 +122,34 @@ export async function getRegisterFullDetails(registerId) {
     };
 }
 
+// Edita campos de una caja existente (incluye cajas cerradas para correcciones)
+export async function updateRegister(id, updates) {
+    const { data, error } = await supabase.from('cash_registers')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+    if (error) throw error;
+    return data;
+}
+
+// Trae todas las cajas (abiertas y cerradas) agrupadas para el navegador mes→día
+export async function getAllRegistersGrouped() {
+    const { data, error } = await supabase.from('cash_registers')
+        .select('*')
+        .order('opened_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+}
+
 export const cashService = {
     openRegister,
     closeRegister,
     getCurrentRegister,
     getRegisterHistory,
     getRegisterSummary,
-    getRegisterFullDetails
+    getRegisterFullDetails,
+    updateRegister,
+    getAllRegistersGrouped
 };
 

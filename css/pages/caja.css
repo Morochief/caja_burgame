@@ -114,3 +114,122 @@
     flex: 1;
     min-width: 200px;
 }
+
+/* ==========================================================================
+   NAVEGADOR DE HISTORIAL: Mes → Día → Caja
+   ========================================================================== */
+.caja-month-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.caja-month-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.caja-month-card:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+.caja-month-card__icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.caja-month-card__label {
+    font-family: var(--font-title);
+    font-size: 0.95rem;
+    color: var(--color-primary);
+    margin-bottom: 0.25rem;
+    letter-spacing: 0.3px;
+}
+
+.caja-month-card__info {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
+.caja-day-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.75rem;
+}
+
+.caja-day-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.caja-day-card:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.12);
+    transform: translateY(-2px);
+}
+
+.caja-day-card__header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.caja-day-card__num {
+    font-family: var(--font-title);
+    font-size: 1.6rem;
+    color: var(--color-primary);
+    line-height: 1;
+}
+
+.caja-day-card__label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-transform: capitalize;
+}
+
+.caja-day-card__info {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
+.caja-detail-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+}
+
+.caja-detail-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .caja-month-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+    .caja-day-grid {
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    }
+    .caja-detail-actions .btn {
+        width: 100%;
+    }
+}
