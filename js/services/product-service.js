@@ -163,6 +163,14 @@ export async function deleteProduct(id) {
     return toggleActiveStatus(id, false);
 }
 
+// Eliminación real (hard delete) de la base de datos.
+export async function hardDeleteProduct(id) {
+    const { error } = await supabase.from('products').delete().eq('id', id);
+    if (error) throw error;
+    invalidateProductCache();
+    return true;
+}
+
 export async function getCategories() {
     const cached = readCatCache();
     if (cached) return cached;
@@ -189,6 +197,7 @@ export const productService = {
     update,
     saveProduct,
     deleteProduct,
+    hardDeleteProduct,
     toggleActiveStatus,
     getCategories,
     getLowStock,

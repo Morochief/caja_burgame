@@ -5,6 +5,7 @@ import { showToast } from '../components/toast.js';
 
 let productsList = [];
 let categoriesList = [];
+let deleteTargetId = null;
 
 // Estados de paginación, filtro y ordenamiento
 let menuFilter = { search: '', category: 'all', type: 'all' };
@@ -170,6 +171,23 @@ function renderProductModal() {
                 </form>
             </div>
         </div>
+
+        <!-- Modal Confirmar Eliminación -->
+        <div id="prod-delete-modal" class="modal-overlay hidden">
+            <div class="modal-card card" style="max-width: 400px;">
+                <div class="modal-header">
+                    <h2>🗑️ Eliminar Producto</h2>
+                </div>
+                <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
+                    ¿Seguro que querés eliminar <strong id="prod-delete-name" style="color: var(--text-main);"></strong>?<br>
+                    Esta acción <strong style="color: var(--color-danger);">borra el producto de forma permanente</strong> y no se puede deshacer.
+                </p>
+                <div style="display:flex; gap:0.75rem;">
+                    <button class="btn btn--danger btn--block" id="btn-confirm-delete-prod">Sí, Eliminar</button>
+                    <button class="btn btn--secondary" id="btn-cancel-delete-prod">Cancelar</button>
+                </div>
+            </div>
+        </div>
     `;
 }
 
@@ -274,12 +292,15 @@ function renderTableRows() {
                 </span>
             </td>
             <td>
-                <div class="action-buttons" style="display: flex; gap: 0.5rem;">
+                <div class="action-buttons" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                     <button class="btn btn--secondary btn-edit-prod" data-id="${p.id}" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
                         ✏️ Editar
                     </button>
                     <button class="btn btn--ghost btn-toggle-prod" data-id="${p.id}" data-active="${p.active}" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
                         ${p.active ? '🚫 Desactivar' : '✅ Activar'}
+                    </button>
+                    <button class="btn btn--danger btn-delete-prod" data-id="${p.id}" data-name="${p.name}" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+                        🗑️ Eliminar
                     </button>
                 </div>
             </td>
@@ -407,6 +428,29 @@ function setupEvents(container) {
             showToast({ message: 'Error al guardar producto: ' + err.message, type: 'error' });
         }
     });
+
+    // === Modal Confirmar Eliminación (hard delete) ===
+    const deleteModal = container.querySelector('#prod-delete-modal');
+    container.querySelector('#btn-cancel-delete-prod')?.addEventListener('click', () => {
+        deleteModal?.classList.add('hidden');
+        deleteTargetId = null;
+    });
+    container.querySelector('#btn-confirm-delete-prod')?.addEventListener('click', async () => {
+        if (!deleteTargetId) return;
+        try {
+            await productService.hardDeleteProduct(deleteTargetId);
+            showToast({ message: '🗑️ Producto eliminado permanentemente', type: 'success' });
+            deleteModal?.classList.add('hidden');
+            deleteTargetId = null;
+            await loadData();
+            container.querySelector('#menu-table-body').innerHTML = renderTableRows();
+            container.querySelector('#menu-pagination-container').innerHTML = renderPagination();
+            bindRowEvents(container);
+            bindToolbarEvents(container);
+        } catch (err) {
+            showToast({ message: 'Error al eliminar: ' + err.message, type: 'error' });
+        }
+    });
 }
 
 // Eventos de las filas de la tabla (editar/toggle): se re-vinculan tras refrescar
@@ -470,6 +514,17 @@ function bindRowEvents(container) {
             } catch (err) {
                 showToast({ message: 'Error al cambiar estado: ' + err.message, type: 'error' });
             }
+        });
+    });
+
+    // Eliminar producto (hard delete) — abre modal de confirmación
+    container.querySelectorAll('.btn-delete-prod').forEach(btn => {
+        btn.addEventListener('click', () => {
+            deleteTargetId = btn.dataset.id;
+            const name = btn.dataset.name || 'este producto';
+            const nameEl = container.querySelector('#prod-delete-name');
+            if (nameEl) nameEl.textContent = name;
+            container.querySelector('#prod-delete-modal')?.classList.remove('hidden');
         });
     });
 }
