@@ -22,6 +22,7 @@ ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Anyone can read customers" ON customers FOR SELECT TO anon USING (true);
 CREATE POLICY "Anyone can insert customers" ON customers FOR INSERT TO anon WITH CHECK (true);
 CREATE POLICY "Anyone can update customers" ON customers FOR UPDATE TO anon USING (true);
+CREATE POLICY "Anyone can delete customers" ON customers FOR DELETE TO anon USING (true);
 
 -- 3. Índice para búsqueda en el dropdown
 CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name);

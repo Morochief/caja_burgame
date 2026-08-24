@@ -1,0 +1,278 @@
+/* ==========================================================================
+   CLIENTES MODULE — CRUD, paginación y ordenamiento
+   ========================================================================== */
+
+.clientes-page {
+    padding: 1.5rem;
+}
+
+/* Header */
+.clientes-page .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.clientes-page .page-header__info h1 {
+    font-family: var(--font-title);
+    font-size: 1rem;
+    color: var(--color-primary);
+    text-shadow: 0 0 10px var(--color-primary-glow), 2px 2px 0 #000;
+    margin-bottom: 0.5rem;
+}
+
+.clientes-page .page-header__info p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+/* Toolbar */
+.clientes-toolbar {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+    align-items: center;
+}
+
+.clientes-toolbar input,
+.clientes-toolbar select {
+    flex: 1;
+    min-width: 160px;
+}
+
+.clientes-toolbar .btn {
+    flex-shrink: 0;
+}
+
+/* Tabla */
+.clientes-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.clientes-table thead th {
+    text-align: left;
+    padding: 0.7rem 0.6rem;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    border-bottom: 2px solid var(--border-subtle);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    transition: color var(--transition-fast);
+}
+
+.clientes-table thead th:hover {
+    color: var(--color-primary);
+}
+
+.clientes-table thead th.sortable::after {
+    content: ' ↕';
+    opacity: 0.3;
+    font-size: 0.7rem;
+}
+
+.clientes-table thead th.sort-asc::after {
+    content: ' ↑';
+    opacity: 1;
+    color: var(--color-primary);
+}
+
+.clientes-table thead th.sort-desc::after {
+    content: ' ↓';
+    opacity: 1;
+    color: var(--color-primary);
+}
+
+.clientes-table thead th.no-sort {
+    cursor: default;
+}
+
+.clientes-table thead th.no-sort:hover {
+    color: var(--text-muted);
+}
+
+.clientes-table tbody td {
+    padding: 0.65rem 0.6rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    vertical-align: middle;
+}
+
+.clientes-table tbody tr {
+    transition: background var(--transition-fast);
+}
+
+.clientes-table tbody tr:hover {
+    background: rgba(255, 215, 0, 0.04);
+}
+
+.cliente-avatar {
+    width: 32px;
+    height: 32px;
+    background: rgba(255, 215, 0, 0.15);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: var(--color-primary);
+    flex-shrink: 0;
+}
+
+.cliente-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+}
+
+.cliente-phone {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.cliente-actions {
+    display: flex;
+    gap: 0.4rem;
+    justify-content: flex-end;
+}
+
+.cliente-actions .btn {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.72rem;
+}
+
+/* Paginación */
+.clientes-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.clientes-pagination__info {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.clientes-pagination__controls {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+}
+
+.clientes-pagination__controls .btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.75rem;
+    min-width: 38px;
+}
+
+.clientes-pagination__controls .btn.active {
+    background: var(--color-primary);
+    color: #000;
+    border-color: var(--color-primary);
+}
+
+.clientes-pagination__controls .btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* Modal forms */
+.clientes-page .modal-card {
+    max-width: 480px;
+}
+
+.clientes-page .form-group input,
+.clientes-page .form-group textarea {
+    background: var(--bg-elevated);
+}
+
+.clientes-page textarea {
+    resize: vertical;
+    min-height: 70px;
+    font-family: var(--font-body);
+}
+
+/* Empty / loading state */
+.clientes-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-muted);
+}
+
+.clientes-empty .empty-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Stat cards (modal historial) */
+.clientes-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.clientes-stat-grid .stat-card {
+    padding: 0.8rem;
+    text-align: center;
+}
+
+.clientes-stat-grid .stat-card__title {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+}
+
+.clientes-stat-grid .stat-card__value {
+    font-size: 1.2rem;
+    font-family: var(--font-mono);
+    font-weight: 800;
+    display: block;
+    margin-top: 0.2rem;
+}
+
+.stat-card--green .stat-card__value { color: var(--color-success); }
+.stat-card--yellow .stat-card__value { color: var(--color-primary); }
+
+/* Lista de pedidos en historial */
+.clientes-orders-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.clientes-order-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 0.8rem;
+    background: var(--bg-elevated);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+}
+
+@media (max-width: 700px) {
+    .clientes-table thead th:nth-child(3),
+    .clientes-table tbody td:nth-child(3),
+    .clientes-table thead th:nth-child(5),
+    .clientes-table tbody td:nth-child(5) {
+        display: none;
+    }
+}
