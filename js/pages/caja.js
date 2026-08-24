@@ -218,6 +218,18 @@ function loadXLSX() {
     });
 }
 
+// Carga lazy de ExcelJS (para incrustar logo y banner en Excel)
+function loadExcelJS() {
+    return new Promise((resolve, reject) => {
+        if (window.ExcelJS) { resolve(window.ExcelJS); return; }
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+        script.onload = () => resolve(window.ExcelJS);
+        script.onerror = () => reject(new Error('No se pudo cargar ExcelJS'));
+        document.head.appendChild(script);
+    });
+}
+
 // ============================================================
 // Estilos Burgame para Excel (amarillo/negro/blanco)
 // ============================================================
@@ -313,19 +325,31 @@ function _rowHasSubstring(ws, row, range, XLSX, text) {
 
 // Aplica estilos de Burgame a toda una hoja de forma automática
 function styleBurgameSheet(ws, XLSX, opts = {}) {
-    const { firstRowIsTitle = false } = opts;
+    const { firstRowIsTitle = false, imageRows = 0 } = opts;
     const range = XLSX.utils.decode_range(ws['!ref']);
     let dataCount = 0;
 
     for (let row = range.s.r; row <= range.e.r; row++) {
         let style;
+
+        // Filas reservadas para imágenes (logo/banner): siempre fondo negro
+        if (row < imageRows) {
+            style = styleEmpty;
+            for (let col = range.s.c; col <= range.e.c; col++) {
+                const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+                if (!ws[cellRef]) ws[cellRef] = { t: 'z', s: style };
+                else ws[cellRef].s = style;
+            }
+            continue;
+        }
+
         const isEmpty = _rowIsEmpty(ws, row, range, XLSX);
         const isTotal = _rowHasExact(ws, row, range, XLSX, 'TOTAL') || _rowHasExact(ws, row, range, XLSX, 'TOTAL GASTOS');
         const isSection = _rowHasSubstring(ws, row, range, XLSX, '---') || _rowHasExact(ws, row, range, XLSX, 'RESUMEN POR PRODUCTO');
 
-        if (row === 0 && firstRowIsTitle) {
+        if (row === imageRows && firstRowIsTitle) {
             style = styleTitle;
-        } else if (row === 0) {
+        } else if (row === imageRows) {
             style = styleHeader;
         } else if (isSection) {
             style = styleSection;
@@ -350,6 +374,106 @@ function styleBurgameSheet(ws, XLSX, opts = {}) {
     }
 }
 
+// ============================================================
+// Helpers para incrustar logo y banner de Burgame en Excel
+// ============================================================
+
+async function fetchImageBase64(url) {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+
+function getImageNaturalSize(url) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+        img.onerror = () => resolve({ w: 200, h: 60 });
+        img.src = url;
+    });
+}
+
+async function downloadBurgameExcel(wb, XLSX, filename, opts = {}) {
+    const { logoSheets = [], bannerSheet = null } = opts;
+
+    // Sin imágenes: descarga directo con xlsx-js-style
+    if (logoSheets.length === 0 && !bannerSheet) {
+        XLSX.writeFile(wb, filename);
+        return;
+    }
+
+    try {
+        const ExcelJS = await loadExcelJS();
+
+        // Convertir workbook de xlsx-js-style a buffer y cargar en ExcelJS
+        const xlsxBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+        const exceljsWb = new ExcelJS.Workbook();
+        await exceljsWb.xlsx.load(xlsxBuffer);
+
+        // --- Logo en hojas especificadas ---
+        if (logoSheets.length > 0) {
+            const logoBase64 = await fetchImageBase64('BurgameLogoTrazoAmarillo.png');
+            const logoSize = await getImageNaturalSize('BurgameLogoTrazoAmarillo.png');
+            const logoH = 35;
+            const logoW = logoSize.w * (logoH / logoSize.h);
+            const logoId = exceljsWb.addImage({ base64: logoBase64, extension: 'png' });
+
+            for (const sheetName of logoSheets) {
+                const ws = exceljsWb.getWorksheet(sheetName);
+                if (!ws) continue;
+                ws.getRow(1).height = logoH + 8;
+                ws.addImage(logoId, {
+                    tl: { col: 0.3, row: 0.2 },
+                    ext: { width: logoW, height: logoH }
+                });
+            }
+        }
+
+        // --- Banner (solo hoja principal) ---
+        if (bannerSheet) {
+            const bannerBase64 = await fetchImageBase64('banner.png');
+            const bannerSize = await getImageNaturalSize('banner.png');
+            const bannerH = 60;
+            const bannerW = bannerSize.w * (bannerH / bannerSize.h);
+            const bannerId = exceljsWb.addImage({ base64: bannerBase64, extension: 'png' });
+
+            const ws = exceljsWb.getWorksheet(bannerSheet);
+            if (ws) {
+                ws.getRow(2).height = 32;
+                ws.getRow(3).height = 32;
+                ws.getRow(4).height = 6;
+                ws.addImage(bannerId, {
+                    tl: { col: 0.5, row: 1 },
+                    ext: { width: bannerW, height: bannerH }
+                });
+            }
+        }
+
+        // --- Descargar ---
+        const buffer = await exceljsWb.xlsx.writeBuffer();
+        const blob = new Blob([buffer], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (err) {
+        // Fallback: descargar sin imágenes si ExcelJS falla
+        console.warn('ExcelJS fallback, descargando sin imágenes:', err);
+        XLSX.writeFile(wb, filename);
+    }
+}
+
 async function exportCajaExcel(register, summary) {
     try {
         const XLSX = await loadXLSX();
@@ -368,10 +492,13 @@ async function exportCajaExcel(register, summary) {
 
         const ws = XLSX.utils.aoa_to_sheet(data);
         ws['!cols'] = [{ wch: 30 }, { wch: 22 }];
-        styleBurgameSheet(ws, XLSX);
+        styleBurgameSheet(ws, XLSX, { imageRows: 5 });
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Cierre de Caja');
-        XLSX.writeFile(wb, `Cierre_Caja_Burgame_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        await downloadBurgameExcel(wb, XLSX, `Cierre_Caja_Burgame_${new Date().toISOString().slice(0, 10)}.xlsx`, {
+            logoSheets: ['Cierre de Caja'],
+            bannerSheet: 'Cierre de Caja'
+        });
     } catch (err) {
         showToast({ message: 'Error al exportar Excel: ' + err.message, type: 'error' });
     }
@@ -728,6 +855,7 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
 
         // ---------- HOJA 1: Resumen ----------
         const resumenData = [
+            [''], [''], [''], [''], [''],  // filas reservadas para logo (filas 0-1) + banner (filas 2-3) + espaciador (fila 4)
             ['CIERRE DE CAJA - BURGAME'],
             [''],
             ['Fecha de apertura', fmtDate(register.opened_at)],
@@ -758,12 +886,12 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
         ];
         const wsResumen = XLSX.utils.aoa_to_sheet(resumenData);
         wsResumen['!cols'] = [{ wch: 30 }, { wch: 22 }];
-        styleBurgameSheet(wsResumen, XLSX, { firstRowIsTitle: true });
+        styleBurgameSheet(wsResumen, XLSX, { firstRowIsTitle: true, imageRows: 5 });
         XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen');
 
         // ---------- HOJA 2: Ventas Detalladas ----------
         const ventasHeader = ['#', 'Pedido Nº', 'Hora', 'Cliente', 'Método de Pago', 'Estado', 'Total (Gs.)', 'Notas'];
-        const ventasData = [ventasHeader];
+        const ventasData = [[''], [''], [''], [''], [''], ventasHeader];
         paidOrders.forEach((o, i) => {
             ventasData.push([
                 i + 1,
@@ -782,12 +910,12 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
 
         const wsVentas = XLSX.utils.aoa_to_sheet(ventasData);
         wsVentas['!cols'] = [{ wch: 5 }, { wch: 10 }, { wch: 8 }, { wch: 22 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 30 }];
-        styleBurgameSheet(wsVentas, XLSX);
+        styleBurgameSheet(wsVentas, XLSX, { imageRows: 5 });
         XLSX.utils.book_append_sheet(wb, wsVentas, 'Ventas Detalladas');
 
         // ---------- HOJA 3: Items Vendidos ----------
         const itemsHeader = ['Pedido Nº', 'Producto', 'Cantidad', 'Precio Unit. (Gs.)', 'Subtotal (Gs.)', '¿Combo?', 'Cliente'];
-        const itemsData = [itemsHeader];
+        const itemsData = [[''], [''], [''], [''], [''], itemsHeader];
         paidOrders.forEach(o => {
             (o.order_items || []).forEach(it => {
                 itemsData.push([
@@ -822,12 +950,12 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
 
         const wsItems = XLSX.utils.aoa_to_sheet(itemsData);
         wsItems['!cols'] = [{ wch: 10 }, { wch: 32 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 8 }, { wch: 22 }];
-        styleBurgameSheet(wsItems, XLSX);
+        styleBurgameSheet(wsItems, XLSX, { imageRows: 5 });
         XLSX.utils.book_append_sheet(wb, wsItems, 'Items Vendidos');
 
         // ---------- HOJA 4: Gastos Detallados ----------
         const gastosHeader = ['#', 'Fecha/Hora', 'Descripción', 'Categoría', 'Monto (Gs.)'];
-        const gastosData = [gastosHeader];
+        const gastosData = [[''], [''], [''], [''], [''], gastosHeader];
         expenses.forEach((e, i) => {
             gastosData.push([
                 i + 1,
@@ -842,7 +970,7 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
 
         const wsGastos = XLSX.utils.aoa_to_sheet(gastosData);
         wsGastos['!cols'] = [{ wch: 5 }, { wch: 22 }, { wch: 36 }, { wch: 18 }, { wch: 14 }];
-        styleBurgameSheet(wsGastos, XLSX);
+        styleBurgameSheet(wsGastos, XLSX, { imageRows: 5 });
         XLSX.utils.book_append_sheet(wb, wsGastos, 'Gastos Detallados');
 
         // ---------- HOJA 5: Resumen por Categoría de Gasto ----------
@@ -852,7 +980,7 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
             if (!gastosPorCat[cat]) gastosPorCat[cat] = 0;
             gastosPorCat[cat] += (e.amount || 0);
         });
-        const catData = [['Categoría', 'Monto Total (Gs.)']];
+        const catData = [[''], [''], [''], [''], [''], ['Categoría', 'Monto Total (Gs.)']];
         Object.entries(gastosPorCat)
             .sort((a, b) => b[1] - a[1])
             .forEach(([cat, monto]) => catData.push([cat, monto]));
@@ -861,12 +989,15 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
 
         const wsCat = XLSX.utils.aoa_to_sheet(catData);
         wsCat['!cols'] = [{ wch: 22 }, { wch: 18 }];
-        styleBurgameSheet(wsCat, XLSX);
+        styleBurgameSheet(wsCat, XLSX, { imageRows: 5 });
         XLSX.utils.book_append_sheet(wb, wsCat, 'Gastos por Categoría');
 
         // ---------- Nombre del archivo ----------
         const dateStr = new Date(register.opened_at).toISOString().slice(0, 10);
-        XLSX.writeFile(wb, `Caja_Burgame_${dateStr}.xlsx`);
+        await downloadBurgameExcel(wb, XLSX, `Caja_Burgame_${dateStr}.xlsx`, {
+            logoSheets: ['Resumen', 'Ventas Detalladas', 'Items Vendidos', 'Gastos Detallados', 'Gastos por Categoría'],
+            bannerSheet: 'Resumen'
+        });
         showToast({ message: `✅ Descargado: Caja del ${dateLabel}`, type: 'success' });
     } catch (err) {
         showToast({ message: 'Error al exportar: ' + err.message, type: 'error' });
