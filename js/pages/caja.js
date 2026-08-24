@@ -204,16 +204,150 @@ function setupCloseEvents(container, register, summary) {
     });
 }
 
-// Carga lazy de SheetJS: solo se descarga cuando se exporta Excel
+// Carga lazy de xlsx-js-style (fork de SheetJS con soporte de estilos de celda)
 function loadXLSX() {
     return new Promise((resolve, reject) => {
-        if (window.XLSX) { resolve(window.XLSX); return; }
+        // xlsx-js-style expone style_version; la community edition no
+        if (window.XLSX && window.XLSX.style_version) { resolve(window.XLSX); return; }
+        window.XLSX = undefined;
         const script = document.createElement('script');
-        script.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+        script.src = 'https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js';
         script.onload = () => resolve(window.XLSX);
         script.onerror = () => reject(new Error('No se pudo cargar la librería Excel'));
         document.head.appendChild(script);
     });
+}
+
+// ============================================================
+// Estilos Burgame para Excel (amarillo/negro/blanco)
+// ============================================================
+const BURGAME_COLORS = {
+    yellow: 'FFD700',
+    yellowBright: 'FFE44D',
+    black: '0A0A0A',
+    blackAlt: '161616',
+    white: 'F0F3F8',
+    muted: '8E9BAE'
+};
+
+const BURGAME_BORDER = {
+    top: { style: 'thin', color: { rgb: '2A2A2A' } },
+    bottom: { style: 'thin', color: { rgb: '2A2A2A' } },
+    left: { style: 'thin', color: { rgb: '2A2A2A' } },
+    right: { style: 'thin', color: { rgb: '2A2A2A' } }
+};
+
+const styleTitle = {
+    fill: { fgColor: { rgb: BURGAME_COLORS.yellow } },
+    font: { color: { rgb: BURGAME_COLORS.black }, bold: true, sz: 16, name: 'Calibri' },
+    alignment: { horizontal: 'center', vertical: 'center' },
+    border: BURGAME_BORDER
+};
+
+const styleHeader = {
+    fill: { fgColor: { rgb: BURGAME_COLORS.yellow } },
+    font: { color: { rgb: BURGAME_COLORS.black }, bold: true, sz: 11, name: 'Calibri' },
+    alignment: { horizontal: 'center', vertical: 'center' },
+    border: BURGAME_BORDER
+};
+
+const styleSection = {
+    fill: { fgColor: { rgb: BURGAME_COLORS.yellow } },
+    font: { color: { rgb: BURGAME_COLORS.black }, bold: true, sz: 12, name: 'Calibri' },
+    alignment: { horizontal: 'left', vertical: 'center' },
+    border: BURGAME_BORDER
+};
+
+const styleDataDark = {
+    fill: { fgColor: { rgb: BURGAME_COLORS.black } },
+    font: { color: { rgb: BURGAME_COLORS.white }, sz: 11, name: 'Calibri' },
+    alignment: { vertical: 'center' },
+    border: BURGAME_BORDER
+};
+
+const styleDataLight = {
+    fill: { fgColor: { rgb: BURGAME_COLORS.blackAlt } },
+    font: { color: { rgb: BURGAME_COLORS.white }, sz: 11, name: 'Calibri' },
+    alignment: { vertical: 'center' },
+    border: BURGAME_BORDER
+};
+
+const styleTotal = {
+    fill: { fgColor: { rgb: BURGAME_COLORS.yellow } },
+    font: { color: { rgb: BURGAME_COLORS.black }, bold: true, sz: 12, name: 'Calibri' },
+    alignment: { vertical: 'center' },
+    border: BURGAME_BORDER
+};
+
+const styleEmpty = {
+    fill: { fgColor: { rgb: BURGAME_COLORS.black } },
+    font: { color: { rgb: BURGAME_COLORS.white }, sz: 11, name: 'Calibri' },
+    border: BURGAME_BORDER
+};
+
+function _rowIsEmpty(ws, row, range, XLSX) {
+    for (let col = range.s.c; col <= range.e.c; col++) {
+        const cell = ws[XLSX.utils.encode_cell({ r: row, c: col })];
+        if (cell && cell.v != null && cell.v !== '') return false;
+    }
+    return true;
+}
+
+function _rowHasExact(ws, row, range, XLSX, text) {
+    const upper = text.toUpperCase();
+    for (let col = range.s.c; col <= range.e.c; col++) {
+        const cell = ws[XLSX.utils.encode_cell({ r: row, c: col })];
+        if (cell && cell.v && String(cell.v).toUpperCase().trim() === upper) return true;
+    }
+    return false;
+}
+
+function _rowHasSubstring(ws, row, range, XLSX, text) {
+    const upper = text.toUpperCase();
+    for (let col = range.s.c; col <= range.e.c; col++) {
+        const cell = ws[XLSX.utils.encode_cell({ r: row, c: col })];
+        if (cell && cell.v && String(cell.v).toUpperCase().includes(upper)) return true;
+    }
+    return false;
+}
+
+// Aplica estilos de Burgame a toda una hoja de forma automática
+function styleBurgameSheet(ws, XLSX, opts = {}) {
+    const { firstRowIsTitle = false } = opts;
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    let dataCount = 0;
+
+    for (let row = range.s.r; row <= range.e.r; row++) {
+        let style;
+        const isEmpty = _rowIsEmpty(ws, row, range, XLSX);
+        const isTotal = _rowHasExact(ws, row, range, XLSX, 'TOTAL') || _rowHasExact(ws, row, range, XLSX, 'TOTAL GASTOS');
+        const isSection = _rowHasSubstring(ws, row, range, XLSX, '---') || _rowHasExact(ws, row, range, XLSX, 'RESUMEN POR PRODUCTO');
+
+        if (row === 0 && firstRowIsTitle) {
+            style = styleTitle;
+        } else if (row === 0) {
+            style = styleHeader;
+        } else if (isSection) {
+            style = styleSection;
+        } else if (isTotal) {
+            style = styleTotal;
+        } else if (isEmpty) {
+            style = styleEmpty;
+            dataCount = 0;
+        } else {
+            style = (dataCount % 2 === 0) ? styleDataDark : styleDataLight;
+            dataCount++;
+        }
+
+        for (let col = range.s.c; col <= range.e.c; col++) {
+            const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+            if (!ws[cellRef]) {
+                ws[cellRef] = { t: 'z', s: style };
+            } else {
+                ws[cellRef].s = style;
+            }
+        }
+    }
 }
 
 async function exportCajaExcel(register, summary) {
@@ -233,6 +367,8 @@ async function exportCajaExcel(register, summary) {
         ];
 
         const ws = XLSX.utils.aoa_to_sheet(data);
+        ws['!cols'] = [{ wch: 30 }, { wch: 22 }];
+        styleBurgameSheet(ws, XLSX);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Cierre de Caja');
         XLSX.writeFile(wb, `Cierre_Caja_Burgame_${new Date().toISOString().slice(0, 10)}.xlsx`);
@@ -622,6 +758,7 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
         ];
         const wsResumen = XLSX.utils.aoa_to_sheet(resumenData);
         wsResumen['!cols'] = [{ wch: 30 }, { wch: 22 }];
+        styleBurgameSheet(wsResumen, XLSX, { firstRowIsTitle: true });
         XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen');
 
         // ---------- HOJA 2: Ventas Detalladas ----------
@@ -645,6 +782,7 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
 
         const wsVentas = XLSX.utils.aoa_to_sheet(ventasData);
         wsVentas['!cols'] = [{ wch: 5 }, { wch: 10 }, { wch: 8 }, { wch: 22 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 30 }];
+        styleBurgameSheet(wsVentas, XLSX);
         XLSX.utils.book_append_sheet(wb, wsVentas, 'Ventas Detalladas');
 
         // ---------- HOJA 3: Items Vendidos ----------
@@ -684,6 +822,7 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
 
         const wsItems = XLSX.utils.aoa_to_sheet(itemsData);
         wsItems['!cols'] = [{ wch: 10 }, { wch: 32 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 8 }, { wch: 22 }];
+        styleBurgameSheet(wsItems, XLSX);
         XLSX.utils.book_append_sheet(wb, wsItems, 'Items Vendidos');
 
         // ---------- HOJA 4: Gastos Detallados ----------
@@ -703,6 +842,7 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
 
         const wsGastos = XLSX.utils.aoa_to_sheet(gastosData);
         wsGastos['!cols'] = [{ wch: 5 }, { wch: 22 }, { wch: 36 }, { wch: 18 }, { wch: 14 }];
+        styleBurgameSheet(wsGastos, XLSX);
         XLSX.utils.book_append_sheet(wb, wsGastos, 'Gastos Detallados');
 
         // ---------- HOJA 5: Resumen por Categoría de Gasto ----------
@@ -721,6 +861,7 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
 
         const wsCat = XLSX.utils.aoa_to_sheet(catData);
         wsCat['!cols'] = [{ wch: 22 }, { wch: 18 }];
+        styleBurgameSheet(wsCat, XLSX);
         XLSX.utils.book_append_sheet(wb, wsCat, 'Gastos por Categoría');
 
         // ---------- Nombre del archivo ----------
