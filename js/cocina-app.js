@@ -198,16 +198,23 @@ function renderCocinaView() {
                 <div class="kds-card__body">
                     <ul class="kds-items-list">
                         ${(order.order_items || []).map(item => {
-                            const hasNote = item.product_name.includes('(');
+                            // Separar nota individual del nombre del producto
+                            const noteMatch = item.product_name.match(/\[📝\s*([^\]]+)\]/);
+                            const itemNote = noteMatch ? noteMatch[1] : '';
+                            const cleanName = item.product_name.replace(/\s*\[📝\s*[^\]]+\]/, '').trim();
+
                             return `
                                 <li class="kds-item" style="display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; padding: 0.4rem 0; border-bottom: 1px rgba(255,255,255,0.05) dashed;">
                                     <div style="display: flex; align-items: center; gap: 0.5rem;">
                                         <span class="kds-item__qty">${item.quantity}x</span>
                                         <span class="kds-item__name" style="font-weight: 700;">
-                                            ${item.product_name}
+                                            ${cleanName}
                                             ${item.is_combo ? '<span class="kds-item__tag">(COMBO)</span>' : ''}
                                         </span>
                                     </div>
+                                    ${itemNote ? `
+                                        <span style="font-size: 0.78rem; color: var(--color-warning, #FFD700); margin-left: 1.5rem; font-style: italic;">📝 ${itemNote}</span>
+                                    ` : ''}
                                 </li>
                             `;
                         }).join('')}
