@@ -1,6 +1,7 @@
 import { productService } from '../services/product-service.js';
 import { orderService } from '../services/order-service.js';
 import { cashService } from '../services/cash-service.js';
+import { appState } from '../app.js';
 import { formatGs } from '../components/currency.js';
 import { showToast } from '../components/toast.js';
 import { renderProductCard } from '../components/product-card.js';
@@ -356,7 +357,21 @@ async function sendOrderToKitchen(container) {
     const originalText = sendBtn ? sendBtn.innerHTML : null;
     if (sendBtn) { sendBtn.disabled = true; sendBtn.style.opacity = '0.6'; sendBtn.innerHTML = '⏳ ENVIANDO...'; }
 
-    const currentRegister = cashService.getCurrentRegister();
+    // Buscar el register de forma asíncrona (appState cacheado o fetch a Supabase)
+    let currentRegister = null;
+    try {
+        if (appState.cashRegister) {
+            currentRegister = appState.cashRegister;
+        } else {
+            currentRegister = await cashService.getCurrentRegister();
+        }
+    } catch (err) {
+        showToast({ message: 'Error al verificar estado de caja', type: 'error' });
+        window._isSendingOrder = false;
+        if (sendBtn) { sendBtn.disabled = false; sendBtn.style.opacity = ''; sendBtn.innerHTML = originalText; }
+        return;
+    }
+
     if (!currentRegister) {
         showToast({ message: 'Debes abrir una caja antes de tomar pedidos', type: 'error' });
         window._isSendingOrder = false;
@@ -364,8 +379,10 @@ async function sendOrderToKitchen(container) {
         return;
     }
 
-    const notesInput = container.querySelector('#order-notes');
-    const customerInput = container.querySelector('#customer-name');
+    // Los inputs están en el overlay del modal (que se appenda a document.body,
+    // no dentro del container de la página). Buscar en document.
+    const notesInput = document.querySelector('#order-notes');
+    const customerInput = document.querySelector('#customer-name');
     const notes = notesInput ? notesInput.value.trim() : '';
     const customerName = customerInput ? customerInput.value.trim() : '';
 

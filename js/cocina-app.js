@@ -175,7 +175,6 @@ function renderCocinaView() {
         const isLate = minutesElapsed >= 15;
         const statusClass = order.status === 'ordered' ? 'ordered' : order.status === 'preparing' ? 'preparing' : order.status === 'ready' ? 'ready' : 'delivered';
         const customerDisplay = order.customer_name || extractCustomerFromNotes(order.notes) || 'Mesa / Cliente';
-
         return `
             <div class="kds-card kds-card--${statusClass}">
                 <div class="kds-card__header">
@@ -216,7 +215,7 @@ function renderCocinaView() {
 
                     ${order.notes ? `
                         <div class="kds-notes">
-                            📝 <strong>NOTAS:</strong> ${order.notes}
+                            📝 <strong>NOTAS:</strong> ${cleanNotes(order.notes)}
                         </div>
                     ` : ''}
                 </div>
@@ -314,4 +313,11 @@ function extractCustomerFromNotes(notes) {
     if (!notes) return null;
     const match = notes.match(/\[Cliente:\s*([^\]]+)\]/i);
     return match ? match[1].trim() : null;
+}
+
+// Limpia el prefijo [Cliente: ...] de las notas (órdenes viejas que
+// aún tienen el nombre embebido en notes en vez de en customer_name)
+function cleanNotes(notes) {
+    if (!notes) return '';
+    return notes.replace(/\[Cliente:\s*[^\]]+\]\s*/gi, '').trim();
 }

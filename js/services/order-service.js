@@ -3,13 +3,10 @@ import { supabase } from '../supabase-client.js';
 export async function createOrder({ items, notes, customerName, cashRegisterId }) {
     const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-    // Formatear notas combinadas con el nombre del cliente
+    // El nombre del cliente va en su propia columna (customer_name),
+    // no embebido en notes. Notes queda solo para notas de cocina reales.
     let finalNotes = notes || '';
     let cName = customerName ? customerName.trim() : '';
-
-    if (cName && !finalNotes.includes(cName)) {
-        finalNotes = `[Cliente: ${cName}] ${finalNotes}`.trim();
-    }
 
     // Mapear items al formato JSON que espera la función RPC
     const rpcItems = items.map(item => {
@@ -31,7 +28,8 @@ export async function createOrder({ items, notes, customerName, cashRegisterId }
     const { data: rpcData, error: rpcError } = await supabase.rpc('create_order_with_items', {
         p_notes: finalNotes,
         p_cash_register_id: cashRegisterId || null,
-        p_items: rpcItems
+        p_items: rpcItems,
+        p_customer_name: cName
     });
 
     if (!rpcError && rpcData) {
@@ -49,7 +47,8 @@ export async function createOrder({ items, notes, customerName, cashRegisterId }
         notes: finalNotes,
         cash_register_id: cashRegisterId || null,
         status: 'ordered',
-        total: total
+        total: total,
+        customer_name: cName
     };
 
     const { data, error } = await supabase
