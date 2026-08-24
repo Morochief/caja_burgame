@@ -359,7 +359,8 @@ function styleBurgameSheet(ws, XLSX, opts = {}) {
             style = styleEmpty;
             dataCount = 0;
         } else {
-            style = (dataCount % 2 === 0) ? styleDataDark : styleDataLight;
+            // Todas las filas de datos usan el mismo negro (sin alternar)
+            style = styleDataDark;
             dataCount++;
         }
 
@@ -371,6 +372,39 @@ function styleBurgameSheet(ws, XLSX, opts = {}) {
                 ws[cellRef].s = style;
             }
         }
+    }
+}
+
+// Auto-ajusta el ancho de cada columna al contenido real
+function autoFitColumns(ws, XLSX, opts = {}) {
+    const { skipRows = 0, minWidth = 8, maxWidth = 60, padding = 3 } = opts;
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    const colWidths = {};
+
+    // Inicializa con minimo
+    for (let col = range.s.c; col <= range.e.c; col++) {
+        colWidths[col] = minWidth;
+    }
+
+    // Recorre filas (saltando las reservadas para imagenes) midiendo el contenido
+    for (let row = range.s.r + skipRows; row <= range.e.r; row++) {
+        for (let col = range.s.c; col <= range.e.c; col++) {
+            const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+            const cell = ws[cellRef];
+            if (!cell || cell.v == null) continue;
+            // Multi-line: toma la linea mas larga
+            const lines = String(cell.v).split('\n');
+            let maxLine = 0;
+            for (const line of lines) maxLine = Math.max(maxLine, line.length);
+            const w = maxLine + padding;
+            if (w > colWidths[col]) colWidths[col] = w;
+        }
+    }
+
+    // Aplica con tope de maxWidth
+    ws['!cols'] = [];
+    for (let col = range.s.c; col <= range.e.c; col++) {
+        ws['!cols'][col] = { wch: Math.min(colWidths[col], maxWidth) };
     }
 }
 
@@ -491,7 +525,7 @@ async function exportCajaExcel(register, summary) {
         ];
 
         const ws = XLSX.utils.aoa_to_sheet(data);
-        ws['!cols'] = [{ wch: 30 }, { wch: 22 }];
+        autoFitColumns(ws, XLSX, { skipRows: 5 });
         styleBurgameSheet(ws, XLSX, { imageRows: 5 });
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Cierre de Caja');
@@ -885,7 +919,7 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
             ['Observaciones', register.notes || '—']
         ];
         const wsResumen = XLSX.utils.aoa_to_sheet(resumenData);
-        wsResumen['!cols'] = [{ wch: 30 }, { wch: 22 }];
+        autoFitColumns(wsResumen, XLSX, { skipRows: 5, maxWidth: 50 });
         styleBurgameSheet(wsResumen, XLSX, { firstRowIsTitle: true, imageRows: 5 });
         XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen');
 
@@ -909,7 +943,7 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
         ventasData.push(['', '', '', '', '', 'TOTAL', totalSales, '']);
 
         const wsVentas = XLSX.utils.aoa_to_sheet(ventasData);
-        wsVentas['!cols'] = [{ wch: 5 }, { wch: 10 }, { wch: 8 }, { wch: 22 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 30 }];
+        autoFitColumns(wsVentas, XLSX, { skipRows: 5, maxWidth: 50 });
         styleBurgameSheet(wsVentas, XLSX, { imageRows: 5 });
         XLSX.utils.book_append_sheet(wb, wsVentas, 'Ventas Detalladas');
 
@@ -949,7 +983,7 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
             });
 
         const wsItems = XLSX.utils.aoa_to_sheet(itemsData);
-        wsItems['!cols'] = [{ wch: 10 }, { wch: 32 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 8 }, { wch: 22 }];
+        autoFitColumns(wsItems, XLSX, { skipRows: 5, maxWidth: 50 });
         styleBurgameSheet(wsItems, XLSX, { imageRows: 5 });
         XLSX.utils.book_append_sheet(wb, wsItems, 'Items Vendidos');
 
@@ -969,7 +1003,7 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
         gastosData.push(['', '', '', 'TOTAL GASTOS', totalExpenses]);
 
         const wsGastos = XLSX.utils.aoa_to_sheet(gastosData);
-        wsGastos['!cols'] = [{ wch: 5 }, { wch: 22 }, { wch: 36 }, { wch: 18 }, { wch: 14 }];
+        autoFitColumns(wsGastos, XLSX, { skipRows: 5, maxWidth: 50 });
         styleBurgameSheet(wsGastos, XLSX, { imageRows: 5 });
         XLSX.utils.book_append_sheet(wb, wsGastos, 'Gastos Detallados');
 
@@ -988,7 +1022,7 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
         catData.push(['TOTAL', totalExpenses]);
 
         const wsCat = XLSX.utils.aoa_to_sheet(catData);
-        wsCat['!cols'] = [{ wch: 22 }, { wch: 18 }];
+        autoFitColumns(wsCat, XLSX, { skipRows: 5 });
         styleBurgameSheet(wsCat, XLSX, { imageRows: 5 });
         XLSX.utils.book_append_sheet(wb, wsCat, 'Gastos por Categoría');
 
