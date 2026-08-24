@@ -1,5 +1,6 @@
 import { orderService } from '../services/order-service.js';
 import { cashService } from '../services/cash-service.js';
+import { appState } from '../app.js';
 import { formatGs } from '../components/currency.js';
 import { showToast } from '../components/toast.js';
 
@@ -7,6 +8,7 @@ let pendingOrders = [];
 let todaysPaidOrders = [];
 let activeTab = 'pending';
 let currentCashRegister = null;
+let realtimeChannel = null;
 
 export async function renderOrdenesPage() {
     const container = document.createElement('div');
@@ -39,30 +41,44 @@ export async function renderOrdenesPage() {
 
     setupEvents(container);
 
-    // Suscripción Realtime para actualizar la vista de Órdenes en tiempo real
-    const subscription = orderService.subscribeToOrders(async () => {
-        await loadData();
-        updateView(container);
+    // Suscripción Realtime con DEBOUNCE (evita múltiples renders por eventos agrupados)
+    let debounceTimer = null;
+    const channel = orderService.subscribeToOrders(async () => {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(async () => {
+            debounceTimer = null;
+            await loadData();
+            updateView(container);
+        }, 300);
     });
+    realtimeChannel = channel;
 
     return container;
 }
 
 async function loadData() {
     try {
-        currentCashRegister = await cashService.getCurrentRegister();
-        const [pending, today] = await Promise.all([
-            orderService.getPendingPayment(),
-            orderService.getTodaysOrders()
-        ]);
-
-        pendingOrders = pending || [];
-
-        // Filtrar cobradas por la caja abierta actual para permitir corrección segura
-        if (currentCashRegister) {
-            todaysPaidOrders = (today || []).filter(o => o.status === 'paid' && o.cash_register_id === currentCashRegister.id);
+        // OPTIMIZACIÓN: getTodaysOrders ya incluye los pendientes.
+        // Un solo fetch + uso de cashRegister cacheado de app.js.
+        if (appState.cashRegister) {
+            currentCashRegister = appState.cashRegister;
         } else {
-            todaysPaidOrders = (today || []).filter(o => o.status === 'paid');
+            currentCashRegister = await cashService.getCurrentRegister();
+        }
+
+        const today = await orderService.getTodaysOrders();
+        const allOrders = today || [];
+
+        // Pendientes = hoy y no pagados/cancelados
+        pendingOrders = allOrders.filter(o =>
+            ['ordered', 'preparing', 'ready', 'delivered'].includes(o.status)
+        );
+
+        // Cobradas = filtrar por caja actual
+        if (currentCashRegister) {
+            todaysPaidOrders = allOrders.filter(o => o.status === 'paid' && o.cash_register_id === currentCashRegister.id);
+        } else {
+            todaysPaidOrders = allOrders.filter(o => o.status === 'paid');
         }
     } catch (err) {
         showToast({ message: 'Error al cargar listado de órdenes', type: 'error' });

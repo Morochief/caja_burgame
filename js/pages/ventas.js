@@ -122,31 +122,9 @@ function setupEvents(container) {
     const fabBtn = container.querySelector('#btn-floating-cart');
     fabBtn?.addEventListener('click', () => openCartModal(container));
 
-    document.addEventListener('click', (e) => {
-        const overlay = document.querySelector('#cart-modal-overlay');
-        if (overlay && e.target === overlay) closeCartModal();
-    });
-    document.addEventListener('click', (e) => {
-        if (e.target?.id === 'btn-close-cart-modal') closeCartModal();
-    });
-
-    document.addEventListener('click', (e) => {
-        if (e.target?.id === 'btn-clear-cart' || e.target?.closest('#btn-clear-cart')) {
-            cart.clear();
-            updateTicketUI(container);
-        }
-    });
-
-    document.addEventListener('click', (e) => {
-        if (e.target?.id === 'btn-send-order' || e.target?.closest('#btn-send-order')) {
-            sendOrderToKitchen(container);
-        }
-    });
-
-    document.addEventListener('input', (e) => {
-        if (e.target?.id === 'customer-name') currentCustomerName = e.target.value;
-        if (e.target?.id === 'order-notes') currentNotes = e.target.value;
-    });
+    // Los listeners del modal (close, clear, send, inputs) se registran
+    // directamente en el overlay cuando se abre openCartModal().
+    // No usar document.addEventListener aquí: se acumularían en cada navegación.
 
     attachProductClickEvents(container);
     setupKeyboardShortcuts(container);
