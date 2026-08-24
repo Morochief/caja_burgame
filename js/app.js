@@ -87,6 +87,13 @@ async function init() {
                 if (updatedOrder && updatedOrder.status === 'ready' && (!oldOrder || oldOrder.status !== 'ready')) {
                     const cName = updatedOrder.customer_name || (updatedOrder.notes && updatedOrder.notes.match(/\[Cliente:\s*([^\]]+)\]/i)?.[1]) || 'Cliente';
                     
+                    // Sonido de alerta para el admin cuando un pedido está listo en barra
+                    try {
+                        const readySound = new Audio('assets/item_get_pokemon.mp3');
+                        readySound.volume = 0.8;
+                        readySound.play().catch(() => { /* autoplay bloqueado, ignorar */ });
+                    } catch (e) { /* sonido no disponible */ }
+                    
                     showToast({
                         message: `🔔 PEDIDO #${updatedOrder.order_number} (${cName}) — ¡LISTO EN BARRA!`,
                         type: 'success',
