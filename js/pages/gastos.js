@@ -18,8 +18,7 @@ export async function renderGastosPage() {
     const container = document.createElement('div');
     container.className = 'gastos-page';
 
-    await loadData();
-
+    // Skeleton inicial
     container.innerHTML = `
         <header class="page-header">
             <div class="page-header__info">
@@ -27,7 +26,6 @@ export async function renderGastosPage() {
                 <p>Gestiona los egresos operativos del local</p>
             </div>
         </header>
-
         <div class="gastos-layout">
             <div class="card form-card">
                 <h3>Nuevo Gasto</h3>
@@ -42,21 +40,17 @@ export async function renderGastosPage() {
                     </div>
                     <div class="form-group">
                         <label for="exp-cat">Categoría:</label>
-                        <select id="exp-cat" required>
-                            ${(categories || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
-                        </select>
+                        <select id="exp-cat" required></select>
                     </div>
                     <button type="submit" class="btn btn--primary btn--block">Registrar Gasto</button>
                 </form>
             </div>
-
             <div class="card table-card">
                 <h3>Historial de Gastos</h3>
                 <div class="gastos-toolbar" style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: center;">
                     <input type="text" id="gastos-search" placeholder="🔍 Buscar gasto..." value="${gastosFilter.search}" style="flex: 1; min-width: 150px;">
                     <select id="gastos-filter-cat" style="min-width: 140px;">
                         <option value="all">Todas las categorías</option>
-                        ${(categories || []).map(c => `<option value="${c.id}" ${gastosFilter.category === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
                     </select>
                     <select id="gastos-sort" style="min-width: 140px;">
                         <option value="created_at-desc">Fecha ↓</option>
@@ -77,19 +71,40 @@ export async function renderGastosPage() {
                         </tr>
                     </thead>
                     <tbody id="expenses-table-body">
-                        ${renderExpensesRows()}
+                        <tr><td colspan="5" class="text-center p-4">
+                            <div class="page-loading" style="padding: 1rem;"><div class="pixel-spinner"></div><p>Cargando gastos...</p></div>
+                        </td></tr>
                     </tbody>
                 </table>
-                <div id="gastos-pagination-container">
-                    ${renderPagination()}
-                </div>
+                <div id="gastos-pagination-container"></div>
             </div>
         </div>
     `;
 
+    // Cargar data en background
+    loadGastosData(container);
+
+    return container;
+}
+
+async function loadGastosData(container) {
+    await loadData();
+
+    // Llenar selects de categorías
+    const expCat = container.querySelector('#exp-cat');
+    if (expCat) {
+        expCat.innerHTML = (categories || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    }
+    const filterCat = container.querySelector('#gastos-filter-cat');
+    if (filterCat) {
+        filterCat.innerHTML = `<option value="all">Todas las categorías</option>` +
+            (categories || []).map(c => `<option value="${c.id}" ${gastosFilter.category === c.id ? 'selected' : ''}>${c.name}</option>`).join('');
+    }
+
+    // Render tabla
+    refreshTable(container);
     setupEvents(container);
     bindToolbarEvents(container);
-    return container;
 }
 
 async function loadData() {

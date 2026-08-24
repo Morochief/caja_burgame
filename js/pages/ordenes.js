@@ -14,8 +14,7 @@ export async function renderOrdenesPage() {
     const container = document.createElement('div');
     container.className = 'ordenes-page';
 
-    await loadData();
-
+    // Mostrar layout inmediatamente con skeleton
     container.innerHTML = `
         <header class="page-header">
             <div class="page-header__info">
@@ -24,24 +23,46 @@ export async function renderOrdenesPage() {
             </div>
             <div class="tab-selectors">
                 <button class="tab-btn ${activeTab === 'pending' ? 'active' : ''}" id="tab-pending">
-                    ⚡ Pendientes de Cobro (${pendingOrders.length})
+                    ⚡ Pendientes de Cobro (...)
                 </button>
                 <button class="tab-btn ${activeTab === 'history' ? 'active' : ''}" id="tab-history">
-                    ✅ Cobradas en Turno (${todaysPaidOrders.length})
+                    ✅ Cobradas en Turno (...)
                 </button>
             </div>
         </header>
 
         <section class="ordenes-content">
             <div class="orders-grid" id="orders-grid">
-                ${renderOrdersList()}
+                <div class="page-loading">
+                    <div class="pixel-spinner"></div>
+                    <p>Cargando órdenes...</p>
+                </div>
             </div>
         </section>
     `;
 
+    // Cargar data en background
+    loadOrdenesData(container);
+
+    return container;
+}
+
+async function loadOrdenesData(container) {
+    await loadData();
+
+    // Llenar tabs con conteos reales
+    const tabPending = container.querySelector('#tab-pending');
+    const tabHistory = container.querySelector('#tab-history');
+    if (tabPending) tabPending.innerHTML = `⚡ Pendientes de Cobro (${pendingOrders.length})`;
+    if (tabHistory) tabHistory.innerHTML = `✅ Cobradas en Turno (${todaysPaidOrders.length})`;
+
+    // Render lista
+    const grid = container.querySelector('#orders-grid');
+    if (grid) grid.innerHTML = renderOrdersList();
+
     setupEvents(container);
 
-    // Suscripción Realtime con DEBOUNCE (evita múltiples renders por eventos agrupados)
+    // Suscripción Realtime con DEBOUNCE
     let debounceTimer = null;
     const channel = orderService.subscribeToOrders(async () => {
         if (debounceTimer) clearTimeout(debounceTimer);
@@ -52,8 +73,6 @@ export async function renderOrdenesPage() {
         }, 300);
     });
     realtimeChannel = channel;
-
-    return container;
 }
 
 async function loadData() {

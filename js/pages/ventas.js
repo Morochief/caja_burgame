@@ -18,17 +18,7 @@ export async function renderVentasPage() {
     const container = document.createElement('div');
     container.className = 'ventas-page';
 
-    try {
-        const [prodData, catData] = await Promise.all([
-            productService.getAll(),
-            productService.getCategories()
-        ]);
-        products = prodData || [];
-        categories = catData || [];
-    } catch (err) {
-        showToast({ message: 'Error al cargar productos', type: 'error' });
-    }
-
+    // Mostrar layout inmediatamente (sin esperar data de Supabase)
     container.innerHTML = `
         <div class="ventas-layout-full">
             <section class="ventas-catalog">
@@ -42,19 +32,15 @@ export async function renderVentasPage() {
                             <input type="text" id="pos-search" placeholder="Buscar producto por nombre..." value="${searchQuery}">
                         </div>
                     </header>
-                    <nav class="categories-bar">
-                        <button class="category-tab ${currentCategory === 'all' ? 'active' : ''}" data-cat="all">
-                            ⚡ Todos
-                        </button>
-                        ${categories.map(cat => `
-                            <button class="category-tab ${currentCategory === cat.id ? 'active' : ''}" data-cat="${cat.id}">
-                                ${cat.icon || '🍔'} ${cat.name}
-                            </button>
-                        `).join('')}
+                    <nav class="categories-bar" id="categories-bar">
+                        <div class="page-loading" style="padding: 1rem;"><div class="pixel-spinner"></div></div>
                     </nav>
                 </div>
                 <div class="products-grid" id="products-grid">
-                    ${renderProductsGrid()}
+                    <div class="page-loading">
+                        <div class="pixel-spinner"></div>
+                        <p>Cargando productos...</p>
+                    </div>
                 </div>
             </section>
 
@@ -66,8 +52,47 @@ export async function renderVentasPage() {
         </div>
     `;
 
-    setupEvents(container);
+    // Cargar data en background (no bloquea el render)
+    loadVentasData(container);
+
     return container;
+}
+
+async function loadVentasData(container) {
+    try {
+        const [prodData, catData] = await Promise.all([
+            productService.getAll(),
+            productService.getCategories()
+        ]);
+        products = prodData || [];
+        categories = catData || [];
+    } catch (err) {
+        showToast({ message: 'Error al cargar productos', type: 'error' });
+    }
+
+    // Render categorías
+    const catBar = container.querySelector('#categories-bar');
+    if (catBar) {
+        catBar.innerHTML = `
+            <button class="category-tab ${currentCategory === 'all' ? 'active' : ''}" data-cat="all">
+                ⚡ Todos
+            </button>
+            ${categories.map(cat => `
+                <button class="category-tab ${currentCategory === cat.id ? 'active' : ''}" data-cat="${cat.id}">
+                    ${cat.icon || '🍔'} ${cat.name}
+                </button>
+            `).join('')}
+        `;
+    }
+
+    // Render productos
+    const grid = container.querySelector('#products-grid');
+    if (grid) {
+        grid.innerHTML = renderProductsGrid();
+    }
+
+    setupEvents(container);
+    if (window.lucide) window.lucide.createIcons();
 }
 
 // ============================================================

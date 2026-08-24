@@ -8,6 +8,21 @@ export async function renderCajaPage() {
     const container = document.createElement('div');
     container.className = 'caja-page';
 
+    // Skeleton inicial
+    container.innerHTML = `
+        <div class="page-loading" style="padding: 4rem;">
+            <div class="pixel-spinner"></div>
+            <p>Cargando estado de caja...</p>
+        </div>
+    `;
+
+    // Cargar data en background
+    loadCajaData(container);
+
+    return container;
+}
+
+async function loadCajaData(container) {
     const currentRegister = appState.cashRegister || await cashService.getCurrentRegister();
 
     if (!currentRegister) {
@@ -40,7 +55,6 @@ export async function renderCajaPage() {
             const amount = parseInt(container.querySelector('#initial-amount').value, 10) || 0;
             try {
                 await cashService.openRegister(amount);
-                // Invalidar caché para que el resto de la app vea la caja abierta
                 appState.cashRegister = null;
                 appState._registerFetchedAt = 0;
                 showToast({ message: '¡Caja abierta con éxito!', type: 'success' });
@@ -50,12 +64,10 @@ export async function renderCajaPage() {
             }
         });
 
-        return container;
+        return;
     }
 
-    // Vista para CAJA ABIERTA / CIERRE DE CAJA
-    const summary = await cashService.getRegisterSummary(currentRegister.id);
-
+    // Vista CAJA ABIERTA: mostrar skeleton del summary mientras carga
     container.innerHTML = `
         <header class="page-header">
             <div class="page-header__info">
@@ -64,71 +76,73 @@ export async function renderCajaPage() {
             </div>
             <div class="status-badge badge badge--green">CAJA ABIERTA</div>
         </header>
-
-        <div class="caja-grid">
-            <!-- Summary Stats -->
-            <div class="caja-stats-grid">
-                <div class="stat-card">
-                    <span class="stat-card__title">Monto Inicial</span>
-                    <span class="stat-card__value">${formatGs(currentRegister.initial_amount)}</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-card__title">Ventas Totales</span>
-                    <span class="stat-card__value stat-card__value--green">${formatGs(summary.totalSales)}</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-card__title">Gastos del Turno</span>
-                    <span class="stat-card__value stat-card__value--red">${formatGs(summary.totalExpenses)}</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-card__title">Efectivo Esperado</span>
-                    <span class="stat-card__value stat-card__value--yellow">${formatGs(summary.expectedCash)}</span>
-                </div>
-            </div>
-
-            <!-- Desglose por método de pago -->
-            <div class="caja-breakdown-card">
-                <h3>💳 Desglose por Método de Pago</h3>
-                <ul class="breakdown-list">
-                    <li><span>💵 Efectivo:</span> <strong>${formatGs(summary.payments.efectivo || 0)}</strong></li>
-                    <li><span>📱 Transferencia:</span> <strong>${formatGs(summary.payments.transferencia || 0)}</strong></li>
-                    <li><span>💳 Débito:</span> <strong>${formatGs(summary.payments.debito || 0)}</strong></li>
-                    <li><span>💳 Crédito:</span> <strong>${formatGs(summary.payments.credito || 0)}</strong></li>
-                </ul>
-            </div>
-
-            <!-- Form Cierre de Caja -->
-            <div class="caja-close-card">
-                <h3>🔒 Cierre de Caja</h3>
-                <form id="form-close-cash">
-                    <div class="form-group">
-                        <label for="counted-amount">Monto Contado en Efectivo (Gs.):</label>
-                        <input type="number" id="counted-amount" value="${summary.expectedCash || 0}" placeholder="Monto contado real" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="close-notes">Observaciones:</label>
-                        <textarea id="close-notes" placeholder="Notas sobre diferencias, billetes incompletos, etc."></textarea>
-                    </div>
-
-                    <div class="caja-actions">
-                        <button type="button" id="btn-export-excel" class="btn btn--secondary">
-                            📥 Descargar Excel del Día
-                        </button>
-                        <button type="button" id="btn-send-email" class="btn btn--secondary">
-                            📧 Enviar Reporte por Mail
-                        </button>
-                        <button type="submit" class="btn btn--danger">
-                            🔒 CERRAR CAJA
-                        </button>
-                    </div>
-                </form>
-            </div>
+        <div id="caja-content">
+            <div class="page-loading" style="padding: 3rem;"><div class="pixel-spinner"></div><p>Calculando resumen...</p></div>
         </div>
     `;
 
-    setupCloseEvents(container, currentRegister, summary);
-    return container;
+    // Cargar summary en background
+    try {
+        const summary = await cashService.getRegisterSummary(currentRegister.id);
+        const contentEl = container.querySelector('#caja-content');
+        if (contentEl) {
+            contentEl.innerHTML = `
+                <div class="caja-grid">
+                    <div class="caja-stats-grid">
+                        <div class="stat-card">
+                            <span class="stat-card__title">Monto Inicial</span>
+                            <span class="stat-card__value">${formatGs(currentRegister.initial_amount)}</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-card__title">Ventas Totales</span>
+                            <span class="stat-card__value stat-card__value--green">${formatGs(summary.totalSales)}</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-card__title">Gastos del Turno</span>
+                            <span class="stat-card__value stat-card__value--red">${formatGs(summary.totalExpenses)}</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-card__title">Efectivo Esperado</span>
+                            <span class="stat-card__value stat-card__value--yellow">${formatGs(summary.expectedCash)}</span>
+                        </div>
+                    </div>
+                    <div class="caja-breakdown-card">
+                        <h3>💳 Desglose por Método de Pago</h3>
+                        <ul class="breakdown-list">
+                            <li><span>💵 Efectivo:</span> <strong>${formatGs(summary.payments.efectivo || 0)}</strong></li>
+                            <li><span>📱 Transferencia:</span> <strong>${formatGs(summary.payments.transferencia || 0)}</strong></li>
+                            <li><span>💳 Débito:</span> <strong>${formatGs(summary.payments.debito || 0)}</strong></li>
+                            <li><span>💳 Crédito:</span> <strong>${formatGs(summary.payments.credito || 0)}</strong></li>
+                        </ul>
+                    </div>
+                    <div class="caja-close-card">
+                        <h3>🔒 Cierre de Caja</h3>
+                        <form id="form-close-cash">
+                            <div class="form-group">
+                                <label for="counted-amount">Monto Contado en Efectivo (Gs.):</label>
+                                <input type="number" id="counted-amount" value="${summary.expectedCash || 0}" placeholder="Monto contado real" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="close-notes">Observaciones:</label>
+                                <textarea id="close-notes" placeholder="Notas sobre diferencias, billetes incompletos, etc."></textarea>
+                            </div>
+                            <div class="caja-actions">
+                                <button type="button" id="btn-export-excel" class="btn btn--secondary">📥 Descargar Excel del Día</button>
+                                <button type="button" id="btn-send-email" class="btn btn--secondary">📧 Enviar Reporte por Mail</button>
+                                <button type="submit" class="btn btn--danger">🔒 CERRAR CAJA</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+            setupCloseEvents(container, currentRegister, summary);
+        }
+    } catch (err) {
+        const contentEl = container.querySelector('#caja-content');
+        if (contentEl) {
+            contentEl.innerHTML = `<div class="card p-4" style="color: #FF5252; text-align: center;"><p>Error al cargar resumen: ${err.message}</p></div>`;
+        }
+    }
 }
 
 function setupCloseEvents(container, register, summary) {

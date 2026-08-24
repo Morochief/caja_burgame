@@ -16,8 +16,7 @@ export async function renderMenuPage() {
     const container = document.createElement('div');
     container.className = 'menu-page';
 
-    await loadData();
-
+    // Mostrar layout inmediatamente con skeletons
     container.innerHTML = `
         <header class="page-header">
             <div class="page-header__info">
@@ -34,15 +33,14 @@ export async function renderMenuPage() {
                 <input type="text" id="menu-search" placeholder="🔍 Buscar producto..." value="${menuFilter.search}" style="flex: 1; min-width: 180px;">
                 <select id="menu-filter-category" style="min-width: 140px;">
                     <option value="all">Todas las categorías</option>
-                    ${categoriesList.map(c => `<option value="${c.id}" ${menuFilter.category === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
                 </select>
                 <select id="menu-filter-type" style="min-width: 120px;">
                     <option value="all">Todos los tipos</option>
-                    <option value="standard" ${menuFilter.type === 'standard' ? 'selected' : ''}>Standard</option>
-                    <option value="burger" ${menuFilter.type === 'burger' ? 'selected' : ''}>Burger</option>
-                    <option value="cheat" ${menuFilter.type === 'cheat' ? 'selected' : ''}>Cheat</option>
-                    <option value="bowser" ${menuFilter.type === 'bowser' ? 'selected' : ''}>Bowser</option>
-                    <option value="chopp" ${menuFilter.type === 'chopp' ? 'selected' : ''}>Chopp</option>
+                    <option value="standard">Standard</option>
+                    <option value="burger">Burger</option>
+                    <option value="cheat">Cheat</option>
+                    <option value="bowser">Bowser</option>
+                    <option value="chopp">Chopp</option>
                 </select>
                 <select id="menu-sort" style="min-width: 140px;">
                     <option value="name-asc">Nombre ↑</option>
@@ -68,14 +66,26 @@ export async function renderMenuPage() {
                     </tr>
                 </thead>
                 <tbody id="menu-table-body">
-                    ${renderTableRows()}
+                    <tr><td colspan="9" class="text-center p-4">
+                        <div class="page-loading" style="padding: 1rem;"><div class="pixel-spinner"></div><p>Cargando productos...</p></div>
+                    </td></tr>
                 </tbody>
             </table>
-            <div id="menu-pagination-container">
-                ${renderPagination()}
-            </div>
+            <div id="menu-pagination-container"></div>
         </div>
 
+        ${renderProductModal()}
+    `;
+
+    setupEvents(container);
+    bindToolbarEvents(container);
+    loadMenuData(container);
+
+    return container;
+}
+
+function renderProductModal() {
+    return `
         <!-- Modal Formulario de Producto -->
         <div id="product-modal" class="modal-overlay hidden">
             <div class="modal-card card">
@@ -105,7 +115,6 @@ export async function renderMenuPage() {
                     <div class="form-group">
                         <label for="prod-category">Categoría:</label>
                         <select id="prod-category" required>
-                            ${categoriesList.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
                         </select>
                     </div>
 
@@ -172,11 +181,24 @@ export async function renderMenuPage() {
             </div>
         </div>
     `;
+}
 
-    setupEvents(container);       // Modal + form (una sola vez)
-    bindRowEvents(container);     // Botones editar/toggle de las filas
-    bindToolbarEvents(container); // Filtros, ordenamiento y paginación
-    return container;
+async function loadMenuData(container) {
+    await loadData();
+
+    // Render categorías en los selects
+    const catFilter = container.querySelector('#menu-filter-category');
+    if (catFilter) {
+        catFilter.innerHTML = `<option value="all">Todas las categorías</option>` +
+            categoriesList.map(c => `<option value="${c.id}" ${menuFilter.category === c.id ? 'selected' : ''}>${c.name}</option>`).join('');
+    }
+    const catSelect = container.querySelector('#prod-category');
+    if (catSelect) {
+        catSelect.innerHTML = categoriesList.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    }
+
+    // Render tabla y paginación
+    refreshTable(container);
 }
 
 async function loadData() {
