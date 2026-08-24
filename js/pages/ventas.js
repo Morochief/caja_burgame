@@ -6,6 +6,7 @@ import { formatGs } from '../components/currency.js';
 import { showToast } from '../components/toast.js';
 import { renderProductCard } from '../components/product-card.js';
 import { createCart } from '../components/cart.js';
+import { navigate } from '../router.js';
 
 let currentCategory = 'all';
 let searchQuery = '';
@@ -413,6 +414,11 @@ async function sendOrderToKitchen(container) {
 
         container.querySelector('#ticket-panel')?.classList.remove('open');
         updateTicketUI(container);
+
+        // Cerrar el modal del carrito y llevar al cajero al módulo Órdenes
+        // para que procese el pago del cliente.
+        closeCartModal();
+        navigate('#/ordenes');
     } catch (err) {
         showToast({ message: 'Error enviando orden: ' + err.message, type: 'error' });
     } finally {
