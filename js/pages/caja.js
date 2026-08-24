@@ -204,21 +204,7 @@ function setupCloseEvents(container, register, summary) {
     });
 }
 
-// Carga lazy de xlsx-js-style (fork de SheetJS con soporte de estilos de celda)
-function loadXLSX() {
-    return new Promise((resolve, reject) => {
-        // xlsx-js-style expone style_version; la community edition no
-        if (window.XLSX && window.XLSX.style_version) { resolve(window.XLSX); return; }
-        window.XLSX = undefined;
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js';
-        script.onload = () => resolve(window.XLSX);
-        script.onerror = () => reject(new Error('No se pudo cargar la librería Excel'));
-        document.head.appendChild(script);
-    });
-}
-
-// Carga lazy de ExcelJS (para incrustar logo y banner en Excel)
+// Carga lazy de ExcelJS (estilos + imágenes embebidas en un solo motor)
 function loadExcelJS() {
     return new Promise((resolve, reject) => {
         if (window.ExcelJS) { resolve(window.ExcelJS); return; }
@@ -231,180 +217,149 @@ function loadExcelJS() {
 }
 
 // ============================================================
-// Estilos Burgame para Excel (amarillo/negro/blanco)
+// Estilos Burgame para Excel (formato nativo ExcelJS / ARGB)
 // ============================================================
 const BURGAME_COLORS = {
-    yellow: 'FFD700',
-    yellowBright: 'FFE44D',
-    black: '0A0A0A',
-    blackAlt: '161616',
-    white: 'F0F3F8',
-    muted: '8E9BAE'
+    yellow: 'FFFFD700',
+    yellowBright: 'FFFFE44D',
+    black: 'FF0A0A0A',
+    blackAlt: 'FF161616',
+    white: 'FFF0F3F8',
+    muted: 'FF8E9BAE',
+    border: 'FF2A2A2A'
 };
 
 const BURGAME_BORDER = {
-    top: { style: 'thin', color: { rgb: '2A2A2A' } },
-    bottom: { style: 'thin', color: { rgb: '2A2A2A' } },
-    left: { style: 'thin', color: { rgb: '2A2A2A' } },
-    right: { style: 'thin', color: { rgb: '2A2A2A' } }
+    top: { style: 'thin', color: { argb: BURGAME_COLORS.border } },
+    bottom: { style: 'thin', color: { argb: BURGAME_COLORS.border } },
+    left: { style: 'thin', color: { argb: BURGAME_COLORS.border } },
+    right: { style: 'thin', color: { argb: BURGAME_COLORS.border } }
 };
 
-const styleTitle = {
-    fill: { fgColor: { rgb: BURGAME_COLORS.yellow } },
-    font: { color: { rgb: BURGAME_COLORS.black }, bold: true, sz: 16, name: 'Calibri' },
-    alignment: { horizontal: 'center', vertical: 'center' },
-    border: BURGAME_BORDER
-};
-
-const styleHeader = {
-    fill: { fgColor: { rgb: BURGAME_COLORS.yellow } },
-    font: { color: { rgb: BURGAME_COLORS.black }, bold: true, sz: 11, name: 'Calibri' },
-    alignment: { horizontal: 'center', vertical: 'center' },
-    border: BURGAME_BORDER
-};
-
-const styleSection = {
-    fill: { fgColor: { rgb: BURGAME_COLORS.yellow } },
-    font: { color: { rgb: BURGAME_COLORS.black }, bold: true, sz: 12, name: 'Calibri' },
-    alignment: { horizontal: 'left', vertical: 'center' },
-    border: BURGAME_BORDER
-};
-
-const styleDataDark = {
-    fill: { fgColor: { rgb: BURGAME_COLORS.black } },
-    font: { color: { rgb: BURGAME_COLORS.white }, sz: 11, name: 'Calibri' },
-    alignment: { vertical: 'center' },
-    border: BURGAME_BORDER
-};
-
-const styleDataLight = {
-    fill: { fgColor: { rgb: BURGAME_COLORS.blackAlt } },
-    font: { color: { rgb: BURGAME_COLORS.white }, sz: 11, name: 'Calibri' },
-    alignment: { vertical: 'center' },
-    border: BURGAME_BORDER
-};
-
-const styleTotal = {
-    fill: { fgColor: { rgb: BURGAME_COLORS.yellow } },
-    font: { color: { rgb: BURGAME_COLORS.black }, bold: true, sz: 12, name: 'Calibri' },
-    alignment: { vertical: 'center' },
-    border: BURGAME_BORDER
-};
-
-const styleEmpty = {
-    fill: { fgColor: { rgb: BURGAME_COLORS.black } },
-    font: { color: { rgb: BURGAME_COLORS.white }, sz: 11, name: 'Calibri' },
-    border: BURGAME_BORDER
-};
-
-function _rowIsEmpty(ws, row, range, XLSX) {
-    for (let col = range.s.c; col <= range.e.c; col++) {
-        const cell = ws[XLSX.utils.encode_cell({ r: row, c: col })];
-        if (cell && cell.v != null && cell.v !== '') return false;
+// Estilos en formato nativo ExcelJS
+const BURGAME_STYLES = {
+    title: {
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: BURGAME_COLORS.yellow } },
+        font: { color: { argb: BURGAME_COLORS.black }, bold: true, size: 16, name: 'Calibri' },
+        alignment: { horizontal: 'center', vertical: 'middle' },
+        border: BURGAME_BORDER
+    },
+    header: {
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: BURGAME_COLORS.yellow } },
+        font: { color: { argb: BURGAME_COLORS.black }, bold: true, size: 11, name: 'Calibri' },
+        alignment: { horizontal: 'center', vertical: 'middle' },
+        border: BURGAME_BORDER
+    },
+    section: {
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: BURGAME_COLORS.yellow } },
+        font: { color: { argb: BURGAME_COLORS.black }, bold: true, size: 12, name: 'Calibri' },
+        alignment: { horizontal: 'left', vertical: 'middle' },
+        border: BURGAME_BORDER
+    },
+    data: {
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: BURGAME_COLORS.black } },
+        font: { color: { argb: BURGAME_COLORS.white }, size: 11, name: 'Calibri' },
+        alignment: { vertical: 'middle' },
+        border: BURGAME_BORDER
+    },
+    total: {
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: BURGAME_COLORS.yellow } },
+        font: { color: { argb: BURGAME_COLORS.black }, bold: true, size: 12, name: 'Calibri' },
+        alignment: { vertical: 'middle' },
+        border: BURGAME_BORDER
+    },
+    empty: {
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: BURGAME_COLORS.black } },
+        font: { color: { argb: BURGAME_COLORS.white }, size: 11, name: 'Calibri' },
+        border: BURGAME_BORDER
     }
-    return true;
-}
+};
 
-function _rowHasExact(ws, row, range, XLSX, text) {
-    const upper = text.toUpperCase();
-    for (let col = range.s.c; col <= range.e.c; col++) {
-        const cell = ws[XLSX.utils.encode_cell({ r: row, c: col })];
-        if (cell && cell.v && String(cell.v).toUpperCase().trim() === upper) return true;
+function _rowIsNotEmpty(values, numCols) {
+    for (let col = 0; col < numCols; col++) {
+        const v = values[col];
+        if (v != null && v !== '') return true;
     }
     return false;
 }
 
-function _rowHasSubstring(ws, row, range, XLSX, text) {
+function _rowHasExact(values, numCols, text) {
     const upper = text.toUpperCase();
-    for (let col = range.s.c; col <= range.e.c; col++) {
-        const cell = ws[XLSX.utils.encode_cell({ r: row, c: col })];
-        if (cell && cell.v && String(cell.v).toUpperCase().includes(upper)) return true;
+    for (let col = 0; col < numCols; col++) {
+        const v = values[col];
+        if (v != null && String(v).toUpperCase().trim() === upper) return true;
     }
     return false;
 }
 
-// Aplica estilos de Burgame a toda una hoja de forma automática
-function styleBurgameSheet(ws, XLSX, opts = {}) {
+function _rowHasSubstring(values, numCols, text) {
+    const upper = text.toUpperCase();
+    for (let col = 0; col < numCols; col++) {
+        const v = values[col];
+        if (v != null && String(v).toUpperCase().includes(upper)) return true;
+    }
+    return false;
+}
+
+// Pinta una hoja de ExcelJS con estilos Burgame y agrega datos.
+// rows: array de arrays (valores puros). imageRows: nro de filas reservadas.
+// firstRowIsTitle: si la primera fila (tras imageRows) es titulo en vez de header.
+function buildBurgameSheet(ws, rows, opts = {}) {
     const { firstRowIsTitle = false, imageRows = 0 } = opts;
-    const range = XLSX.utils.decode_range(ws['!ref']);
+    const numCols = rows.reduce((m, r) => Math.max(m, r.length), 0);
     let dataCount = 0;
 
-    for (let row = range.s.r; row <= range.e.r; row++) {
+    rows.forEach((rowValues, i) => {
+        const excelRow = ws.getRow(i + 1);
         let style;
 
-        // Filas reservadas para imágenes (logo/banner): siempre fondo negro
-        if (row < imageRows) {
-            style = styleEmpty;
-            for (let col = range.s.c; col <= range.e.c; col++) {
-                const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
-                if (!ws[cellRef]) ws[cellRef] = { t: 'z', s: style };
-                else ws[cellRef].s = style;
-            }
-            continue;
-        }
-
-        const isEmpty = _rowIsEmpty(ws, row, range, XLSX);
-        const isTotal = _rowHasExact(ws, row, range, XLSX, 'TOTAL') || _rowHasExact(ws, row, range, XLSX, 'TOTAL GASTOS');
-        const isSection = _rowHasSubstring(ws, row, range, XLSX, '---') || _rowHasExact(ws, row, range, XLSX, 'RESUMEN POR PRODUCTO');
-
-        if (row === imageRows && firstRowIsTitle) {
-            style = styleTitle;
-        } else if (row === imageRows) {
-            style = styleHeader;
-        } else if (isSection) {
-            style = styleSection;
-        } else if (isTotal) {
-            style = styleTotal;
-        } else if (isEmpty) {
-            style = styleEmpty;
-            dataCount = 0;
+        if (i < imageRows) {
+            style = BURGAME_STYLES.empty;
         } else {
-            // Todas las filas de datos usan el mismo negro (sin alternar)
-            style = styleDataDark;
-            dataCount++;
-        }
+            const isEmpty = !_rowIsNotEmpty(rowValues, numCols);
+            const isTotal = _rowHasExact(rowValues, numCols, 'TOTAL') || _rowHasExact(rowValues, numCols, 'TOTAL GASTOS');
+            const isSection = _rowHasSubstring(rowValues, numCols, '---') || _rowHasExact(rowValues, numCols, 'RESUMEN POR PRODUCTO');
 
-        for (let col = range.s.c; col <= range.e.c; col++) {
-            const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
-            if (!ws[cellRef]) {
-                ws[cellRef] = { t: 'z', s: style };
+            if (i === imageRows && firstRowIsTitle) {
+                style = BURGAME_STYLES.title;
+            } else if (i === imageRows) {
+                style = BURGAME_STYLES.header;
+            } else if (isSection) {
+                style = BURGAME_STYLES.section;
+            } else if (isTotal) {
+                style = BURGAME_STYLES.total;
+            } else if (isEmpty) {
+                style = BURGAME_STYLES.empty;
+                dataCount = 0;
             } else {
-                ws[cellRef].s = style;
+                style = BURGAME_STYLES.data;
+                dataCount++;
             }
         }
-    }
-}
 
-// Auto-ajusta el ancho de cada columna al contenido real
-function autoFitColumns(ws, XLSX, opts = {}) {
-    const { skipRows = 0, minWidth = 8, maxWidth = 60, padding = 3 } = opts;
-    const range = XLSX.utils.decode_range(ws['!ref']);
-    const colWidths = {};
+        for (let col = 0; col < numCols; col++) {
+            const cell = excelRow.getCell(col + 1);
+            const v = rowValues[col];
+            if (v != null && v !== '') cell.value = v;
+            cell.style = style;
+        }
+    });
 
-    // Inicializa con minimo
-    for (let col = range.s.c; col <= range.e.c; col++) {
-        colWidths[col] = minWidth;
-    }
-
-    // Recorre filas (saltando las reservadas para imagenes) midiendo el contenido
-    for (let row = range.s.r + skipRows; row <= range.e.r; row++) {
-        for (let col = range.s.c; col <= range.e.c; col++) {
-            const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
-            const cell = ws[cellRef];
-            if (!cell || cell.v == null) continue;
-            // Multi-line: toma la linea mas larga
-            const lines = String(cell.v).split('\n');
+    // Auto-ajustar columnas midiendo el contenido (sin contar filas de imagen)
+    const colWidths = new Array(numCols).fill(8);
+    rows.forEach((rowValues, i) => {
+        if (i < imageRows) return;
+        rowValues.forEach((v, col) => {
+            if (v == null) return;
+            const lines = String(v).split('\n');
             let maxLine = 0;
             for (const line of lines) maxLine = Math.max(maxLine, line.length);
-            const w = maxLine + padding;
+            const w = maxLine + 3;
             if (w > colWidths[col]) colWidths[col] = w;
-        }
-    }
-
-    // Aplica con tope de maxWidth
-    ws['!cols'] = [];
-    for (let col = range.s.c; col <= range.e.c; col++) {
-        ws['!cols'][col] = { wch: Math.min(colWidths[col], maxWidth) };
+        });
+    });
+    for (let col = 0; col < numCols; col++) {
+        ws.getColumn(col + 1).width = Math.min(colWidths[col], 50);
     }
 }
 
@@ -432,23 +387,11 @@ function getImageNaturalSize(url) {
     });
 }
 
-async function downloadBurgameExcel(wb, XLSX, filename, opts = {}) {
+// Agrega logo y banner a un workbook ExcelJS ya construido y descarga el archivo
+async function downloadBurgameExcel(exceljsWb, filename, opts = {}) {
     const { logoSheets = [], bannerSheet = null } = opts;
 
-    // Sin imágenes: descarga directo con xlsx-js-style
-    if (logoSheets.length === 0 && !bannerSheet) {
-        XLSX.writeFile(wb, filename);
-        return;
-    }
-
     try {
-        const ExcelJS = await loadExcelJS();
-
-        // Convertir workbook de xlsx-js-style a buffer y cargar en ExcelJS
-        const xlsxBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
-        const exceljsWb = new ExcelJS.Workbook();
-        await exceljsWb.xlsx.load(xlsxBuffer);
-
         // --- Logo en hojas especificadas ---
         if (logoSheets.length > 0) {
             const logoBase64 = await fetchImageBase64('BurgameLogoTrazoAmarillo.png');
@@ -502,16 +445,19 @@ async function downloadBurgameExcel(wb, XLSX, filename, opts = {}) {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
     } catch (err) {
-        // Fallback: descargar sin imágenes si ExcelJS falla
-        console.warn('ExcelJS fallback, descargando sin imágenes:', err);
-        XLSX.writeFile(wb, filename);
+        console.warn('Error al exportar Excel con imágenes:', err);
+        throw err;
     }
 }
 
 async function exportCajaExcel(register, summary) {
     try {
-        const XLSX = await loadXLSX();
+        const ExcelJS = await loadExcelJS();
+        const wb = new ExcelJS.Workbook();
+        const ws = wb.addWorksheet('Cierre de Caja');
+
         const data = [
+            [''], [''], [''], [''], [''],
             ['CONCEPTO', 'MONTO (Gs.)'],
             ['Fecha / Hora', new Date().toLocaleString()],
             ['Monto Inicial', register.initial_amount],
@@ -523,13 +469,9 @@ async function exportCajaExcel(register, summary) {
             ['Gastos Totales', summary.totalExpenses],
             ['Efectivo Esperado', summary.expectedCash]
         ];
+        buildBurgameSheet(ws, data, { imageRows: 5 });
 
-        const ws = XLSX.utils.aoa_to_sheet(data);
-        autoFitColumns(ws, XLSX, { skipRows: 5 });
-        styleBurgameSheet(ws, XLSX, { imageRows: 5 });
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Cierre de Caja');
-        await downloadBurgameExcel(wb, XLSX, `Cierre_Caja_Burgame_${new Date().toISOString().slice(0, 10)}.xlsx`, {
+        await downloadBurgameExcel(wb, `Cierre_Caja_Burgame_${new Date().toISOString().slice(0, 10)}.xlsx`, {
             logoSheets: ['Cierre de Caja'],
             bannerSheet: 'Cierre de Caja'
         });
@@ -879,17 +821,18 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
     }
 
     try {
-        const XLSX = await loadXLSX();
+        const ExcelJS = await loadExcelJS();
         const details = await cashService.getRegisterFullDetails(registerId);
         const { register, paidOrders, orders, expenses, totalSales, totalExpenses, payments, expectedCash, counted, difference } = details;
 
-        const wb = XLSX.utils.book_new();
+        const wb = new ExcelJS.Workbook();
         const fmtDate = (d) => new Date(d).toLocaleString('es-PY');
         const paymentLabels = { efectivo: 'Efectivo', transferencia: 'Transferencia', debito: 'Débito', credito: 'Crédito' };
 
         // ---------- HOJA 1: Resumen ----------
+        const wsResumen = wb.addWorksheet('Resumen');
         const resumenData = [
-            [''], [''], [''], [''], [''],  // filas reservadas para logo (filas 0-1) + banner (filas 2-3) + espaciador (fila 4)
+            [''], [''], [''], [''], [''],
             ['CIERRE DE CAJA - BURGAME'],
             [''],
             ['Fecha de apertura', fmtDate(register.opened_at)],
@@ -918,12 +861,10 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
             [''],
             ['Observaciones', register.notes || '—']
         ];
-        const wsResumen = XLSX.utils.aoa_to_sheet(resumenData);
-        autoFitColumns(wsResumen, XLSX, { skipRows: 5, maxWidth: 50 });
-        styleBurgameSheet(wsResumen, XLSX, { firstRowIsTitle: true, imageRows: 5 });
-        XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen');
+        buildBurgameSheet(wsResumen, resumenData, { firstRowIsTitle: true, imageRows: 5 });
 
         // ---------- HOJA 2: Ventas Detalladas ----------
+        const wsVentas = wb.addWorksheet('Ventas Detalladas');
         const ventasHeader = ['#', 'Pedido Nº', 'Hora', 'Cliente', 'Método de Pago', 'Estado', 'Total (Gs.)', 'Notas'];
         const ventasData = [[''], [''], [''], [''], [''], ventasHeader];
         paidOrders.forEach((o, i) => {
@@ -938,16 +879,12 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
                 o.notes || ''
             ]);
         });
-        // Fila de total
         ventasData.push([]);
         ventasData.push(['', '', '', '', '', 'TOTAL', totalSales, '']);
-
-        const wsVentas = XLSX.utils.aoa_to_sheet(ventasData);
-        autoFitColumns(wsVentas, XLSX, { skipRows: 5, maxWidth: 50 });
-        styleBurgameSheet(wsVentas, XLSX, { imageRows: 5 });
-        XLSX.utils.book_append_sheet(wb, wsVentas, 'Ventas Detalladas');
+        buildBurgameSheet(wsVentas, ventasData, { imageRows: 5 });
 
         // ---------- HOJA 3: Items Vendidos ----------
+        const wsItems = wb.addWorksheet('Items Vendidos');
         const itemsHeader = ['Pedido Nº', 'Producto', 'Cantidad', 'Precio Unit. (Gs.)', 'Subtotal (Gs.)', '¿Combo?', 'Cliente'];
         const itemsData = [[''], [''], [''], [''], [''], itemsHeader];
         paidOrders.forEach(o => {
@@ -963,7 +900,6 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
                 ]);
             });
         });
-        // Resumen de items
         const itemTotals = {};
         paidOrders.forEach(o => {
             (o.order_items || []).forEach(it => {
@@ -981,13 +917,10 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
             .forEach(([name, t]) => {
                 itemsData.push(['', name, t.qty, '', t.subtotal, '', '']);
             });
-
-        const wsItems = XLSX.utils.aoa_to_sheet(itemsData);
-        autoFitColumns(wsItems, XLSX, { skipRows: 5, maxWidth: 50 });
-        styleBurgameSheet(wsItems, XLSX, { imageRows: 5 });
-        XLSX.utils.book_append_sheet(wb, wsItems, 'Items Vendidos');
+        buildBurgameSheet(wsItems, itemsData, { imageRows: 5 });
 
         // ---------- HOJA 4: Gastos Detallados ----------
+        const wsGastos = wb.addWorksheet('Gastos Detallados');
         const gastosHeader = ['#', 'Fecha/Hora', 'Descripción', 'Categoría', 'Monto (Gs.)'];
         const gastosData = [[''], [''], [''], [''], [''], gastosHeader];
         expenses.forEach((e, i) => {
@@ -1001,13 +934,10 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
         });
         gastosData.push([]);
         gastosData.push(['', '', '', 'TOTAL GASTOS', totalExpenses]);
-
-        const wsGastos = XLSX.utils.aoa_to_sheet(gastosData);
-        autoFitColumns(wsGastos, XLSX, { skipRows: 5, maxWidth: 50 });
-        styleBurgameSheet(wsGastos, XLSX, { imageRows: 5 });
-        XLSX.utils.book_append_sheet(wb, wsGastos, 'Gastos Detallados');
+        buildBurgameSheet(wsGastos, gastosData, { imageRows: 5 });
 
         // ---------- HOJA 5: Resumen por Categoría de Gasto ----------
+        const wsCat = wb.addWorksheet('Gastos por Categoría');
         const gastosPorCat = {};
         expenses.forEach(e => {
             const cat = (e.expense_categories && e.expense_categories.name) || 'Sin categoría';
@@ -1020,15 +950,11 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
             .forEach(([cat, monto]) => catData.push([cat, monto]));
         catData.push([]);
         catData.push(['TOTAL', totalExpenses]);
-
-        const wsCat = XLSX.utils.aoa_to_sheet(catData);
-        autoFitColumns(wsCat, XLSX, { skipRows: 5 });
-        styleBurgameSheet(wsCat, XLSX, { imageRows: 5 });
-        XLSX.utils.book_append_sheet(wb, wsCat, 'Gastos por Categoría');
+        buildBurgameSheet(wsCat, catData, { imageRows: 5 });
 
         // ---------- Nombre del archivo ----------
         const dateStr = new Date(register.opened_at).toISOString().slice(0, 10);
-        await downloadBurgameExcel(wb, XLSX, `Caja_Burgame_${dateStr}.xlsx`, {
+        await downloadBurgameExcel(wb, `Caja_Burgame_${dateStr}.xlsx`, {
             logoSheets: ['Resumen', 'Ventas Detalladas', 'Items Vendidos', 'Gastos Detallados', 'Gastos por Categoría'],
             bannerSheet: 'Resumen'
         });
