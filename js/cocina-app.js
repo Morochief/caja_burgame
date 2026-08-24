@@ -44,9 +44,10 @@ async function initCocina() {
     renderCocinaView();
     setupRealtimeSubscription();
 
-    // Actualizar temporizador en pantalla cada 30 segundos
+    // Actualizar SOLO los temporizadores cada 30s (sin reconstruir todo el DOM)
+    // El DOM completo se reconstruye solo cuando llegan eventos realtime.
     setInterval(() => {
-        renderCocinaView();
+        updateTimers();
     }, 30000);
 }
 
@@ -75,15 +76,48 @@ function updateTabButtons() {
 
 async function loadActiveOrders() {
     try {
-        const [active, today] = await Promise.all([
-            orderService.getActiveOrders(),
-            orderService.getTodaysOrders()
-        ]);
-        activeOrders = active || [];
+        // OPTIMIZACIÓN: getTodaysOrders ya incluye las activas.
+        // Un solo fetch en lugar de dos, ahorrando un round-trip a Supabase.
+        const today = await orderService.getTodaysOrders();
         allTodayOrders = today || [];
+        activeOrders = allTodayOrders.filter(o => !['paid', 'cancelled'].includes(o.status));
     } catch (err) {
         console.error('Error cargando comandas:', err);
         showToast({ message: 'Error cargando comandas de cocina: ' + err.message, type: 'error' });
+    }
+}
+
+// ============================================================
+// Actualizar SOLO los temporizadores de las tarjetas existentes
+// Sin reconstruir todo el innerHTML (evita fl...
+// ============================================================
+function updateTimers() {
+    const cards = document.querySelectorAll('.kds-card');
+    cards.forEach(card => {
+        const orderId = card.querySelector('.btn-advance')?.dataset.id
+            || card.querySelector('.btn-hide-delivered')?.dataset.id;
+        if (!orderId) return;
+        const order = activeOrders.find(o => o.id === orderId)
+            || allTodayOrders.find(o => o.id === orderId);
+        if (!order) return;
+
+        const minutesElapsed = Math.floor((new Date() - new Date(order.created_at)) / 60000);
+        const isLate = minutesElapsed >= 15;
+        const timerEl = card.querySelector('.kds-card__timer');
+        if (timerEl) {
+            timerEl.textContent = `⏱️ ${minutesElapsed}m ${isLate && order.status !== 'delivered' ? '⚠️' : ''}`;
+            timerEl.classList.toggle('kds-card__timer--late', isLate && order.status !== 'delivered');
+        }
+    });
+
+    // Actualizar el contador total de items SIN recorrer todos los items de nuevo
+    const totalBurgersCountEl = document.getElementById('total-burgers-count');
+    if (totalBurgersCountEl) {
+        let total = 0;
+        allTodayOrders.forEach(o => {
+            (o.order_items || []).forEach(item => { total += item.quantity || 1; });
+        });
+        totalBurgersCountEl.textContent = total;
     }
 }
 
@@ -91,7 +125,6 @@ function renderCocinaView() {
     const grid = document.getElementById('cocina-grid');
     const activeCountEl = document.getElementById('active-count');
     const readyCountEl = document.getElementById('ready-count');
-    const totalBurgersCountEl = document.getElementById('total-burgers-count');
     const activeTabCountEl = document.getElementById('active-tab-count');
     const historyTabCountEl = document.getElementById('history-tab-count');
 
@@ -111,18 +144,15 @@ function renderCocinaView() {
     if (activeCountEl) activeCountEl.textContent = ordered.length + preparing.length;
     if (readyCountEl) readyCountEl.textContent = ready.length;
 
-    // Calcular desglose de hamburguesas hoy
-    const productCounts = {};
-    let grandTotalItems = 0;
-    allTodayOrders.forEach(o => {
-        (o.order_items || []).forEach(item => {
-            const name = item.product_name;
-            const qty = item.quantity || 1;
-            productCounts[name] = (productCounts[name] || 0) + qty;
-            grandTotalItems += qty;
+    // Contador total de items (una sola pasada)
+    const totalBurgersCountEl = document.getElementById('total-burgers-count');
+    if (totalBurgersCountEl) {
+        let grandTotalItems = 0;
+        allTodayOrders.forEach(o => {
+            (o.order_items || []).forEach(item => { grandTotalItems += item.quantity || 1; });
         });
-    });
-    if (totalBurgersCountEl) totalBurgersCountEl.textContent = grandTotalItems;
+        totalBurgersCountEl.textContent = grandTotalItems;
+    }
 
     // Determinar listado a renderizar en el Grid
     const displayList = cocinaActiveTab === 'active' ? pendingActive : deliveredToday;

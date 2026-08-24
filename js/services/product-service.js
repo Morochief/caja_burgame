@@ -52,7 +52,9 @@ export async function getAll() {
     const cached = readCache();
     if (cached) return cached;
 
-    const { data, error } = await supabase.from('products').select('*, categories(*)').eq('active', true).order('name');
+    // OPTIMIZACIÓN: select solo de products sin el join categories(*).
+    // Las categorías ya se cachean por separado en getCategories().
+    const { data, error } = await supabase.from('products').select('*').eq('active', true).order('name');
     if (error) throw error;
     writeCache(data);
     return data;

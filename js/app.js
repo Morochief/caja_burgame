@@ -5,17 +5,36 @@ import { renderSidebar } from './components/sidebar.js';
 import { showToast } from './components/toast.js';
 
 export const appState = {
-    cashRegister: null
+    cashRegister: null,
+    _registerFetchedAt: 0,
+    _registerFetchPromise: null
 };
+
+// Cache de cashRegister: refresca como mucho cada 30s, no en cada navegación
+async function getCachedRegister(force = false) {
+    const now = Date.now();
+    if (!force && appState.cashRegister && (now - appState._registerFetchedAt) < 30000) {
+        return appState.cashRegister;
+    }
+    // Evita fetch duplicado concurrente
+    if (appState._registerFetchPromise) return appState._registerFetchPromise;
+    appState._registerFetchPromise = cashService.getCurrentRegister()
+        .then(reg => {
+            appState.cashRegister = reg || null;
+            appState._registerFetchedAt = now;
+            return appState.cashRegister;
+        })
+        .finally(() => { appState._registerFetchPromise = null; });
+    return appState._registerFetchPromise;
+}
 
 async function init() {
     try {
-        const register = await cashService.getCurrentRegister();
-        appState.cashRegister = register || null;
+        await getCachedRegister();
         
         const updateSidebar = async (route) => {
-            appState.cashRegister = await cashService.getCurrentRegister();
-            renderSidebar('sidebar-nav', route || currentRoute, appState.cashRegister ? 'open' : 'closed');
+            const reg = await getCachedRegister();
+            renderSidebar('sidebar-nav', route || currentRoute, reg ? 'open' : 'closed');
         };
 
         initRouter((route) => {
