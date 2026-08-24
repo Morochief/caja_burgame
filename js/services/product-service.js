@@ -115,7 +115,6 @@ async function _updateProduct(productData) {
             price_libre: productData.price_libre || null,
             product_type: productData.product_type || 'standard',
             ingredients: productData.ingredients || [],
-            stock: productData.stock || 0,
             image_url: productData.image_url,
             active: productData.active !== undefined ? productData.active : true
         })
@@ -139,7 +138,7 @@ async function _insertProduct(productData) {
             price_libre: productData.price_libre || null,
             product_type: productData.product_type || 'standard',
             ingredients: productData.ingredients || [],
-            stock: productData.stock || 0,
+            stock: 0,
             image_url: productData.image_url,
             active: true
         }])

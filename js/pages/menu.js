@@ -47,8 +47,6 @@ export async function renderMenuPage() {
                     <option value="name-desc">Nombre ↓</option>
                     <option value="price-asc">Precio ↑</option>
                     <option value="price-desc">Precio ↓</option>
-                    <option value="stock-asc">Stock ↑</option>
-                    <option value="stock-desc">Stock ↓</option>
                 </select>
             </div>
             <table class="table">
@@ -60,13 +58,12 @@ export async function renderMenuPage() {
                         <th>Categoría</th>
                         <th>Precio Base</th>
                         <th>Precio Combo</th>
-                        <th>Stock</th>
                         <th>Estado</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="menu-table-body">
-                    <tr><td colspan="9" class="text-center p-4">
+                    <tr><td colspan="8" class="text-center p-4">
                         <div class="page-loading" style="padding: 1rem;"><div class="pixel-spinner"></div><p>Cargando productos...</p></div>
                     </td></tr>
                 </tbody>
@@ -149,13 +146,6 @@ function renderProductModal() {
                                 <label for="prod-v3" style="font-size: 0.75rem;">LIBRE (Gs.):</label>
                                 <input type="number" id="prod-v3" placeholder="55000" value="55000" min="0">
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="form-row" style="display: flex; gap: 1rem;">
-                        <div class="form-group" style="flex: 1;">
-                            <label for="prod-stock">Stock Disponible:</label>
-                            <input type="number" id="prod-stock" value="50" min="0" required>
                         </div>
                     </div>
 
@@ -255,7 +245,7 @@ function renderTableRows() {
     const pageItems = filtered.slice(start, start + MENU_PAGE_SIZE);
 
     if (filtered.length === 0) {
-        return `<tr><td colspan="9" class="text-center p-4">No se encontraron productos con los filtros aplicados</td></tr>`;
+        return `<tr><td colspan="8" class="text-center p-4">No se encontraron productos con los filtros aplicados</td></tr>`;
     }
 
     const typeLabels = {
@@ -278,7 +268,6 @@ function renderTableRows() {
             <td>${p.categories ? p.categories.name : '-'}</td>
             <td>${formatGs(p.price)}</td>
             <td>${p.combo_price ? formatGs(p.combo_price) : '-'}</td>
-            <td>${p.stock}</td>
             <td>
                 <span class="badge badge--${p.active ? 'green' : 'red'}">
                     ${p.active ? 'Activo' : 'Inactivo'}
@@ -368,7 +357,6 @@ function setupEvents(container) {
         const price = parseInt(container.querySelector('#prod-price').value, 10);
         const combo_price = container.querySelector('#prod-combo').value ? parseInt(container.querySelector('#prod-combo').value, 10) : null;
         const promo_price = container.querySelector('#prod-promo').value ? parseInt(container.querySelector('#prod-promo').value, 10) : null;
-        const stock = parseInt(container.querySelector('#prod-stock').value, 10);
         const price_1x = container.querySelector('#prod-v1').value ? parseInt(container.querySelector('#prod-v1').value, 10) : 15000;
         const price_2x1 = container.querySelector('#prod-v2').value ? parseInt(container.querySelector('#prod-v2').value, 10) : 25000;
         const price_libre = container.querySelector('#prod-v3').value ? parseInt(container.querySelector('#prod-v3').value, 10) : 55000;
@@ -400,7 +388,6 @@ function setupEvents(container) {
                 price_1x,
                 price_2x1,
                 price_libre,
-                stock,
                 ingredients,
                 image_url
             });
@@ -445,7 +432,6 @@ function bindRowEvents(container) {
             container.querySelector('#prod-price').value = p.price;
             container.querySelector('#prod-combo').value = p.combo_price || '';
             container.querySelector('#prod-promo').value = p.promo_price || '';
-            container.querySelector('#prod-stock').value = p.stock || 0;
             container.querySelector('#prod-ingredients').value = (p.ingredients || []).join(', ');
             container.querySelector('#prod-image-url').value = p.image_url || '';
             container.querySelector('#prod-v1').value = p.price_1x || 15000;
