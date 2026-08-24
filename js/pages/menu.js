@@ -6,6 +6,12 @@ import { showToast } from '../components/toast.js';
 let productsList = [];
 let categoriesList = [];
 
+// Estados de paginación, filtro y ordenamiento
+let menuFilter = { search: '', category: 'all', type: 'all' };
+let menuSort = { field: 'name', dir: 'asc' };
+let menuPage = 1;
+const MENU_PAGE_SIZE = 10;
+
 export async function renderMenuPage() {
     const container = document.createElement('div');
     container.className = 'menu-page';
@@ -24,11 +30,35 @@ export async function renderMenuPage() {
         </header>
 
         <div class="menu-table-container card">
+            <div class="menu-toolbar" style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: center;">
+                <input type="text" id="menu-search" placeholder="🔍 Buscar producto..." value="${menuFilter.search}" style="flex: 1; min-width: 180px;">
+                <select id="menu-filter-category" style="min-width: 140px;">
+                    <option value="all">Todas las categorías</option>
+                    ${categoriesList.map(c => `<option value="${c.id}" ${menuFilter.category === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+                </select>
+                <select id="menu-filter-type" style="min-width: 120px;">
+                    <option value="all">Todos los tipos</option>
+                    <option value="standard" ${menuFilter.type === 'standard' ? 'selected' : ''}>Standard</option>
+                    <option value="burger" ${menuFilter.type === 'burger' ? 'selected' : ''}>Burger</option>
+                    <option value="cheat" ${menuFilter.type === 'cheat' ? 'selected' : ''}>Cheat</option>
+                    <option value="bowser" ${menuFilter.type === 'bowser' ? 'selected' : ''}>Bowser</option>
+                    <option value="chopp" ${menuFilter.type === 'chopp' ? 'selected' : ''}>Chopp</option>
+                </select>
+                <select id="menu-sort" style="min-width: 140px;">
+                    <option value="name-asc">Nombre ↑</option>
+                    <option value="name-desc">Nombre ↓</option>
+                    <option value="price-asc">Precio ↑</option>
+                    <option value="price-desc">Precio ↓</option>
+                    <option value="stock-asc">Stock ↑</option>
+                    <option value="stock-desc">Stock ↓</option>
+                </select>
+            </div>
             <table class="table">
                 <thead>
                     <tr>
                         <th>Imagen</th>
                         <th>Nombre</th>
+                        <th>Tipo</th>
                         <th>Categoría</th>
                         <th>Precio Base</th>
                         <th>Precio Combo</th>
@@ -41,6 +71,9 @@ export async function renderMenuPage() {
                     ${renderTableRows()}
                 </tbody>
             </table>
+            <div id="menu-pagination-container">
+                ${renderPagination()}
+            </div>
         </div>
 
         <!-- Modal Formulario de Producto -->
@@ -56,6 +89,17 @@ export async function renderMenuPage() {
                     <div class="form-group">
                         <label for="prod-name">Nombre del Producto:</label>
                         <input type="text" id="prod-name" placeholder="Ej: Mega Hadouken" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="prod-type">Tipo de Producto (define botones en POS):</label>
+                        <select id="prod-type">
+                            <option value="standard">Standard (un solo botón)</option>
+                            <option value="burger">Hamburguesa (Solo + Combo)</option>
+                            <option value="cheat">Cheat Burger (Solo + Combo + Promo 3x)</option>
+                            <option value="bowser">Bowser (Solo + Combo + Promo Viernes)</option>
+                            <option value="chopp">Chopp (3 variantes: 1x, 2x1, Libre)</option>
+                        </select>
                     </div>
 
                     <div class="form-group">
@@ -129,7 +173,9 @@ export async function renderMenuPage() {
         </div>
     `;
 
-    setupEvents(container);
+    setupEvents(container);       // Modal + form (una sola vez)
+    bindRowEvents(container);     // Botones editar/toggle de las filas
+    bindToolbarEvents(container); // Filtros, ordenamiento y paginación
     return container;
 }
 
@@ -146,17 +192,67 @@ async function loadData() {
     }
 }
 
-function renderTableRows() {
-    if (productsList.length === 0) {
-        return `<tr><td colspan="8" class="text-center p-4">No hay productos registrados</td></tr>`;
+function getFilteredSortedProducts() {
+    let list = [...productsList];
+
+    // Filtro por búsqueda
+    if (menuFilter.search.trim()) {
+        const q = menuFilter.search.toLowerCase();
+        list = list.filter(p => p.name.toLowerCase().includes(q));
     }
 
-    return productsList.map(p => `
+    // Filtro por categoría
+    if (menuFilter.category !== 'all') {
+        list = list.filter(p => p.category_id === menuFilter.category);
+    }
+
+    // Filtro por tipo
+    if (menuFilter.type !== 'all') {
+        list = list.filter(p => (p.product_type || 'standard') === menuFilter.type);
+    }
+
+    // Ordenamiento
+    const { field, dir } = menuSort;
+    list.sort((a, b) => {
+        let va = a[field], vb = b[field];
+        if (typeof va === 'string') va = va.toLowerCase();
+        if (typeof vb === 'string') vb = vb.toLowerCase();
+        if (va < vb) return dir === 'asc' ? -1 : 1;
+        if (va > vb) return dir === 'asc' ? 1 : -1;
+        return 0;
+    });
+
+    return list;
+}
+
+function renderTableRows() {
+    const filtered = getFilteredSortedProducts();
+    const totalPages = Math.max(1, Math.ceil(filtered.length / MENU_PAGE_SIZE));
+    if (menuPage > totalPages) menuPage = totalPages;
+    const start = (menuPage - 1) * MENU_PAGE_SIZE;
+    const pageItems = filtered.slice(start, start + MENU_PAGE_SIZE);
+
+    if (filtered.length === 0) {
+        return `<tr><td colspan="9" class="text-center p-4">No se encontraron productos con los filtros aplicados</td></tr>`;
+    }
+
+    const typeLabels = {
+        standard: { label: 'Standard', cls: 'gray' },
+        burger:   { label: 'Burger', cls: 'yellow' },
+        cheat:    { label: 'Cheat', cls: 'orange' },
+        bowser:   { label: 'Bowser', cls: 'red' },
+        chopp:    { label: 'Chopp', cls: 'blue' }
+    };
+
+    return pageItems.map(p => {
+        const t = typeLabels[p.product_type || 'standard'] || typeLabels.standard;
+        return `
         <tr class="${!p.active ? 'opacity-50' : ''}">
             <td>
                 <img src="${p.image_url || 'assets/placeholders/burger-placeholder.svg'}" class="table-thumb" style="width: 44px; height: 44px; object-fit: cover; border-radius: 8px;">
             </td>
             <td><strong>${p.name}</strong></td>
+            <td><span class="badge badge--${t.cls}">${t.label}</span></td>
             <td>${p.categories ? p.categories.name : '-'}</td>
             <td>${formatGs(p.price)}</td>
             <td>${p.combo_price ? formatGs(p.combo_price) : '-'}</td>
@@ -177,9 +273,30 @@ function renderTableRows() {
                 </div>
             </td>
         </tr>
-    `).join('');
+        `;
+    }).join('');
 }
 
+function renderPagination() {
+    const filtered = getFilteredSortedProducts();
+    const totalPages = Math.max(1, Math.ceil(filtered.length / MENU_PAGE_SIZE));
+    if (menuPage > totalPages) menuPage = totalPages;
+
+    return `
+        <div class="menu-pagination" style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+            <span style="font-size: 0.85rem; color: var(--text-muted);">
+                ${filtered.length} producto(s) · Página ${menuPage} de ${totalPages}
+            </span>
+            <div style="display: flex; gap: 0.5rem;">
+                <button class="btn btn--secondary btn--sm" id="btn-menu-prev" ${menuPage <= 1 ? 'disabled style="opacity:0.4"' : ''}>← Anterior</button>
+                <button class="btn btn--secondary btn--sm" id="btn-menu-next" ${menuPage >= totalPages ? 'disabled style="opacity:0.4"' : ''}>Siguiente →</button>
+            </div>
+        </div>
+    `;
+}
+
+// Eventos estáticos del modal y formulario: se vinculan UNA sola vez.
+// Re-llamarlos acumularía listeners de submit y causaría inserciones duplicadas.
 function setupEvents(container) {
     const modal = container.querySelector('#product-modal');
     const form = container.querySelector('#form-product');
@@ -219,6 +336,78 @@ function setupEvents(container) {
         }
     });
 
+    // Guardar Producto (Form Submit) — listener único, no se re-vincula
+    form?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = container.querySelector('#prod-id').value;
+        const name = container.querySelector('#prod-name').value;
+        const product_type = container.querySelector('#prod-type').value;
+        const category_id = container.querySelector('#prod-category').value;
+        const price = parseInt(container.querySelector('#prod-price').value, 10);
+        const combo_price = container.querySelector('#prod-combo').value ? parseInt(container.querySelector('#prod-combo').value, 10) : null;
+        const promo_price = container.querySelector('#prod-promo').value ? parseInt(container.querySelector('#prod-promo').value, 10) : null;
+        const stock = parseInt(container.querySelector('#prod-stock').value, 10);
+        const price_1x = container.querySelector('#prod-v1').value ? parseInt(container.querySelector('#prod-v1').value, 10) : 15000;
+        const price_2x1 = container.querySelector('#prod-v2').value ? parseInt(container.querySelector('#prod-v2').value, 10) : 25000;
+        const price_libre = container.querySelector('#prod-v3').value ? parseInt(container.querySelector('#prod-v3').value, 10) : 55000;
+        const rawIngredients = container.querySelector('#prod-ingredients').value;
+        const ingredients = rawIngredients.split(',').map(s => s.trim()).filter(Boolean);
+
+        let image_url = container.querySelector('#prod-image-url').value;
+
+        // Subir archivo a Supabase Storage si seleccionó uno
+        const file = fileInput.files[0];
+        if (file) {
+            try {
+                showToast({ message: 'Subiendo imagen...', type: 'info' });
+                image_url = await storageService.uploadProductImage(file);
+            } catch (uploadErr) {
+                console.error('Error subiendo imagen:', uploadErr);
+            }
+        }
+
+        try {
+            await productService.saveProduct({
+                id: id || undefined,
+                name,
+                product_type,
+                category_id,
+                price,
+                combo_price,
+                promo_price,
+                price_1x,
+                price_2x1,
+                price_libre,
+                stock,
+                ingredients,
+                image_url
+            });
+
+            showToast({
+                message: id ? '✏️ Producto actualizado' : '🏆 Producto creado exitosamente',
+                type: 'success'
+            });
+
+            modal.classList.add('hidden');
+            await loadData();
+            container.querySelector('#menu-table-body').innerHTML = renderTableRows();
+            container.querySelector('#menu-pagination-container').innerHTML = renderPagination();
+            bindRowEvents(container);
+            bindToolbarEvents(container);
+        } catch (err) {
+            showToast({ message: 'Error al guardar producto: ' + err.message, type: 'error' });
+        }
+    });
+}
+
+// Eventos de las filas de la tabla (editar/toggle): se re-vinculan tras refrescar
+// las filas con innerHTML. Los nodos viejos se destruyen, por lo que no acumulan.
+function bindRowEvents(container) {
+    const modal = container.querySelector('#product-modal');
+    const form = container.querySelector('#form-product');
+    const previewBox = container.querySelector('#image-preview');
+    const previewTag = container.querySelector('#img-preview-tag');
+
     // Editar Producto existente
     container.querySelectorAll('.btn-edit-prod').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -229,6 +418,7 @@ function setupEvents(container) {
             container.querySelector('#modal-title').textContent = `✏️ Editar: ${p.name}`;
             container.querySelector('#prod-id').value = p.id;
             container.querySelector('#prod-name').value = p.name;
+            container.querySelector('#prod-type').value = p.product_type || 'standard';
             container.querySelector('#prod-category').value = p.category_id;
             container.querySelector('#prod-price').value = p.price;
             container.querySelector('#prod-combo').value = p.combo_price || '';
@@ -266,69 +456,66 @@ function setupEvents(container) {
                 });
                 await loadData();
                 container.querySelector('#menu-table-body').innerHTML = renderTableRows();
-                setupEvents(container);
+                container.querySelector('#menu-pagination-container').innerHTML = renderPagination();
+                bindRowEvents(container);
+                bindToolbarEvents(container);
             } catch (err) {
                 showToast({ message: 'Error al cambiar estado: ' + err.message, type: 'error' });
             }
         });
     });
+}
 
-    // Guardar Producto (Form Submit)
-    form?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const id = container.querySelector('#prod-id').value;
-        const name = container.querySelector('#prod-name').value;
-        const category_id = container.querySelector('#prod-category').value;
-        const price = parseInt(container.querySelector('#prod-price').value, 10);
-        const combo_price = container.querySelector('#prod-combo').value ? parseInt(container.querySelector('#prod-combo').value, 10) : null;
-        const promo_price = container.querySelector('#prod-promo').value ? parseInt(container.querySelector('#prod-promo').value, 10) : null;
-        const stock = parseInt(container.querySelector('#prod-stock').value, 10);
-        const price_1x = container.querySelector('#prod-v1').value ? parseInt(container.querySelector('#prod-v1').value, 10) : 15000;
-        const price_2x1 = container.querySelector('#prod-v2').value ? parseInt(container.querySelector('#prod-v2').value, 10) : 25000;
-        const price_libre = container.querySelector('#prod-v3').value ? parseInt(container.querySelector('#prod-v3').value, 10) : 55000;
-        const rawIngredients = container.querySelector('#prod-ingredients').value;
-        const ingredients = rawIngredients.split(',').map(s => s.trim()).filter(Boolean);
-
-        let image_url = container.querySelector('#prod-image-url').value;
-
-        // Subir archivo a Supabase Storage si seleccionó uno
-        const file = fileInput.files[0];
-        if (file) {
-            try {
-                showToast({ message: 'Subiendo imagen...', type: 'info' });
-                image_url = await storageService.uploadProductImage(file);
-            } catch (uploadErr) {
-                console.error('Error subiendo imagen:', uploadErr);
-            }
-        }
-
-        try {
-            await productService.saveProduct({
-                id: id || undefined,
-                name,
-                category_id,
-                price,
-                combo_price,
-                promo_price,
-                price_1x,
-                price_2x1,
-                price_libre,
-                stock,
-                ingredients,
-                image_url
-            });
-
-            showToast({
-                message: id ? '✏️ Producto actualizado' : '🏆 Producto creado exitosamente',
-                type: 'success'
-            });
-
-            modal.classList.add('hidden');
-            await loadData();
-            container.querySelector('#menu-table-body').innerHTML = renderTableRows();
-            setupEvents(container);
-        } catch (err) {
-            showToast({ message: 'Error al guardar producto: ' + err.message, type: 'error' });
-        }
+// ============================================================
+// Eventos de filtros, ordenamiento y paginación
+// ============================================================
+function bindToolbarEvents(container) {
+    // Búsqueda con debounce
+    let searchTimer = null;
+    container.querySelector('#menu-search')?.addEventListener('input', (e) => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+            menuFilter.search = e.target.value;
+            menuPage = 1;
+            refreshTable(container);
+        }, 250);
     });
+
+    // Filtro por categoría
+    container.querySelector('#menu-filter-category')?.addEventListener('change', (e) => {
+        menuFilter.category = e.target.value;
+        menuPage = 1;
+        refreshTable(container);
+    });
+
+    // Filtro por tipo
+    container.querySelector('#menu-filter-type')?.addEventListener('change', (e) => {
+        menuFilter.type = e.target.value;
+        menuPage = 1;
+        refreshTable(container);
+    });
+
+    // Ordenamiento
+    container.querySelector('#menu-sort')?.addEventListener('change', (e) => {
+        const [field, dir] = e.target.value.split('-');
+        menuSort = { field, dir };
+        menuPage = 1;
+        refreshTable(container);
+    });
+
+    // Paginación
+    container.querySelector('#btn-menu-prev')?.addEventListener('click', () => {
+        if (menuPage > 1) { menuPage--; refreshTable(container); }
+    });
+    container.querySelector('#btn-menu-next')?.addEventListener('click', () => {
+        menuPage++;
+        refreshTable(container);
+    });
+}
+
+function refreshTable(container) {
+    container.querySelector('#menu-table-body').innerHTML = renderTableRows();
+    container.querySelector('#menu-pagination-container').innerHTML = renderPagination();
+    bindRowEvents(container);
+    bindToolbarEvents(container);
 }

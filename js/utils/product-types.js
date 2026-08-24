@@ -1,32 +1,29 @@
 // ============================================================
-// product-types.js — Detección unificada de tipo de producto
-// Reemplaza las cadenas de .includes('burger'), .includes('cheat')...
-// que estaban duplicadas en ventas.js y cliente.js
+// product-types.js — Detección de tipo de producto
+// Prioriza el campo product_type de la DB. Si no existe (productos
+// viejos sin migrar), hace fallback por nombre como antes.
 // ============================================================
 
 const BURGER_NAMES = ['burger', 'classic', 'bowser', 'cheat', 'fatality', 'ronin', 'yoshi'];
 const CHOPP_NAMES = ['pilsen', 'chopp'];
 
 /**
- * Devuelve el tipo de producto basado en su nombre/categoría.
- * @param {Object} product - Producto de la DB
+ * Devuelve el tipo de producto.
+ * @param {Object} product - Producto de la DB (con campo product_type)
  * @returns {'cheat'|'bowser'|'burger'|'chopp'|'standard'}
  */
 export function getProductType(product) {
+    // Priorizar el campo de la DB si existe
+    if (product.product_type && product.product_type !== 'standard') {
+        return product.product_type;
+    }
+
+    // Fallback por nombre (productos sin migrar)
     const name = (product.name || '').toLowerCase();
-
-    // Chopp se detecta primero porque "Chopp" no contiene "burger"
     if (CHOPP_NAMES.some(k => name.includes(k))) return 'chopp';
-
-    // Cheat: hamburguesa con promo especial (excluir "doble" para no matchear "Doble Cheat" como promo cheat)
     if (name.includes('cheat') && !name.includes('doble')) return 'cheat';
-
-    // Bowser: hamburguesa con promo viernes
     if (name.includes('bowser')) return 'bowser';
-
-    // Burger: cualquier hamburguesa (por nombre o categoría)
     if (product.category_id === 'burgers' || BURGER_NAMES.some(k => name.includes(k))) return 'burger';
-
     return 'standard';
 }
 

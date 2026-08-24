@@ -3,13 +3,47 @@ import { supabase } from '../supabase-client.js';
 export async function createOrder({ items, notes, customerName, cashRegisterId }) {
     const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-    // Formatear notas combinadas con el nombre del cliente para compatibilidad total de esquema Supabase
+    // Formatear notas combinadas con el nombre del cliente
     let finalNotes = notes || '';
     let cName = customerName ? customerName.trim() : '';
 
     if (cName && !finalNotes.includes(cName)) {
         finalNotes = `[Cliente: ${cName}] ${finalNotes}`.trim();
     }
+
+    // Mapear items al formato JSON que espera la función RPC
+    const rpcItems = items.map(item => {
+        let pName = item.productName;
+        const note = item.customNotes ? item.customNotes.trim() : '';
+        if (note) {
+            pName = `${pName} [📝 ${note}]`;
+        }
+        return {
+            product_id: item.productId || null,
+            product_name: pName,
+            price: item.price,
+            quantity: item.quantity,
+            is_combo: item.isCombo || false
+        };
+    });
+
+    // INTENTO 1: usar la función RPC atómica (1 solo round-trip)
+    const { data: rpcData, error: rpcError } = await supabase.rpc('create_order_with_items', {
+        p_notes: finalNotes,
+        p_cash_register_id: cashRegisterId || null,
+        p_items: rpcItems
+    });
+
+    if (!rpcError && rpcData) {
+        return rpcData;
+    }
+
+    // FALLBACK: si la RPC no existe (no migrada), usar los 2 INSERTs secuenciales
+    if (rpcError && !rpcError.message.includes('Could not find the function')) {
+        throw new Error(rpcError.message || 'Error al guardar pedido');
+    }
+
+    console.warn('RPC create_order_with_items no disponible, usando fallback de 2 INSERTs');
 
     const basePayload = {
         notes: finalNotes,
@@ -18,9 +52,6 @@ export async function createOrder({ items, notes, customerName, cashRegisterId }
         total: total
     };
 
-    let order = null;
-
-    // Intentar inserción segura básica (garantizada en cualquier esquema de Supabase)
     const { data, error } = await supabase
         .from('orders')
         .insert([basePayload])
@@ -31,7 +62,7 @@ export async function createOrder({ items, notes, customerName, cashRegisterId }
         throw new Error(error.message || 'Error al guardar pedido en base de datos');
     }
 
-    order = data;
+    const order = data;
 
     const orderItems = items.map(item => {
         let pName = item.productName;
