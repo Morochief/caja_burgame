@@ -97,8 +97,10 @@ export async function updateStatus(orderId, newStatus) {
 }
 
 export async function processPayment(orderId, paymentMethod) {
+    // El pago NO cambia el status de cocina (ordered→preparing→ready→delivered).
+    // Se trackea con paid_at + payment_method, independientes del flujo de cocina.
+    // Así la comanda sigue visible en cocina aunque el cliente ya haya pagado.
     const { data, error } = await supabase.from('orders').update({
-        status: 'paid',
         payment_method: paymentMethod,
         paid_at: new Date().toISOString()
     }).eq('id', orderId).select().single();
@@ -139,13 +141,16 @@ export async function getDistinctCustomers() {
 }
 
 export async function getActiveOrders() {
-    const { data, error } = await supabase.from('orders').select(`*, order_items(*)`).not('status', 'in', '("paid","cancelled")').order('created_at');
+    // Comandas activas en cocina: todo lo que no esté cancelado.
+    // El pago (paid_at) es independiente del status de preparación.
+    const { data, error } = await supabase.from('orders').select(`*, order_items(*)`).neq('status', 'cancelled').order('created_at');
     if (error) throw error;
     return data;
 }
 
 export async function getPendingPayment() {
-    const { data, error } = await supabase.from('orders').select(`*, order_items(*)`).in('status', ['ordered', 'preparing', 'ready', 'delivered']).order('created_at');
+    // Pedidos pendientes de cobro: los que no tienen paid_at y no están cancelados.
+    const { data, error } = await supabase.from('orders').select(`*, order_items(*)`).is('paid_at', null).neq('status', 'cancelled').order('created_at');
     if (error) throw error;
     return data;
 }

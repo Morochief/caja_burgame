@@ -85,7 +85,7 @@ async function loadReportData(container) {
 
         // Cargar órdenes del período (se cachean para filtros sin re-fetch)
         const orders = await orderService.getOrdersByDateRange(fromIso, nowIso);
-        cachedPaidOrders = (orders || []).filter(o => o.status === 'paid');
+        cachedPaidOrders = (orders || []).filter(o => o.paid_at);
 
         renderReport(container);
     } catch (err) {

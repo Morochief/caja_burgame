@@ -34,7 +34,7 @@ export async function getRegisterHistory() {
 
 export async function getRegisterSummary(registerId) {
     const [ordersRes, expensesRes, registerRes] = await Promise.all([
-        supabase.from('orders').select('*').eq('cash_register_id', registerId).eq('status', 'paid'),
+        supabase.from('orders').select('*').eq('cash_register_id', registerId).not('paid_at', 'is', null),
         supabase.from('expenses').select('*').eq('cash_register_id', registerId),
         supabase.from('cash_registers').select('*').eq('id', registerId).single()
     ]);
@@ -90,8 +90,8 @@ export async function getRegisterFullDetails(registerId) {
     const expenses = expensesRes.data || [];
     const register = registerRes.data;
 
-    // Solo las pagas cuentan para ventas
-    const paidOrders = orders.filter(o => o.status === 'paid');
+    // Solo las pagas cuentan para ventas (paid_at != null)
+    const paidOrders = orders.filter(o => o.paid_at);
 
     const totalSales = paidOrders.reduce((sum, o) => sum + (o.total || 0), 0);
     const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);

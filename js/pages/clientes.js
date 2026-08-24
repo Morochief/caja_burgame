@@ -618,7 +618,7 @@ function openHistoryModal(container, customer) {
                             </span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            <span class="badge badge--${o.status === 'paid' ? 'green' : o.status === 'cancelled' ? 'red' : 'yellow'}" style="font-size: 0.72rem;">${o.status.toUpperCase()}</span>
+                            <span class="badge badge--${o.paid_at ? 'green' : o.status === 'cancelled' ? 'red' : 'yellow'}" style="font-size: 0.72rem;">${o.paid_at ? 'COBRADO' : o.status.toUpperCase()}</span>
                             <span style="font-family: var(--font-mono); font-weight: 700;">${formatGs(o.total)}</span>
                         </div>
                     </div>

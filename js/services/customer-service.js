@@ -76,7 +76,7 @@ export async function getStatsByName() {
         if (!stats[name]) {
             stats[name] = { total_spent: 0, order_count: 0, last_order: null, orders: [] };
         }
-        if (order.status === 'paid') {
+        if (order.paid_at) {
             stats[name].total_spent += order.total || 0;
         }
         stats[name].order_count++;

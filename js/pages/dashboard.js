@@ -92,7 +92,7 @@ async function loadDashboardData(container) {
             orderService.getTodaysOrders()
         ]);
 
-        const activeOrders = (todaysOrders || []).filter(o => !['paid', 'cancelled'].includes(o.status));
+        const activeOrders = (todaysOrders || []).filter(o => o.status !== 'cancelled');
 
         // Llenar stats
         const setText = (id, val) => { const el = container.querySelector(id); if (el) el.textContent = val; };
@@ -122,7 +122,7 @@ async function loadDashboardData(container) {
         // Productos preparados en el turno
         const breakdownEl = container.querySelector('#dashboard-product-breakdown');
         if (breakdownEl) {
-            const shiftOrders = currentRegister ? (todaysOrders || []).filter(o => o.cash_register_id === currentRegister.id && o.status === 'paid') : [];
+            const shiftOrders = currentRegister ? (todaysOrders || []).filter(o => o.cash_register_id === currentRegister.id && o.paid_at) : [];
             const counts = {};
             shiftOrders.forEach(o => {
                 (o.order_items || []).forEach(item => {

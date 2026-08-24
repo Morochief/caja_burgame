@@ -80,7 +80,7 @@ async function loadActiveOrders() {
         // Un solo fetch en lugar de dos, ahorrando un round-trip a Supabase.
         const today = await orderService.getTodaysOrders();
         allTodayOrders = today || [];
-        activeOrders = allTodayOrders.filter(o => !['paid', 'cancelled'].includes(o.status));
+        activeOrders = allTodayOrders.filter(o => o.status !== 'cancelled');
     } catch (err) {
         console.error('Error cargando comandas:', err);
         showToast({ message: 'Error cargando comandas de cocina: ' + err.message, type: 'error' });
@@ -132,7 +132,7 @@ function renderCocinaView() {
 
     // Filtrar comandas según pestaña activa
     const pendingActive = activeOrders.filter(o => ['ordered', 'preparing', 'ready'].includes(o.status));
-    const deliveredToday = allTodayOrders.filter(o => ['delivered', 'paid'].includes(o.status) && !hiddenDeliveredIds.has(o.id));
+    const deliveredToday = allTodayOrders.filter(o => o.status === 'delivered' && !hiddenDeliveredIds.has(o.id));
 
     if (activeTabCountEl) activeTabCountEl.textContent = pendingActive.length;
     if (historyTabCountEl) historyTabCountEl.textContent = deliveredToday.length;

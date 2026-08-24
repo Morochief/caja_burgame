@@ -11,7 +11,7 @@ export async function getCurrentShiftSummary(cashRegisterId) {
     }
 
     const [ordersRes, expensesRes] = await Promise.all([
-        supabase.from('orders').select('*').eq('cash_register_id', cashRegisterId).eq('status', 'paid'),
+        supabase.from('orders').select('*').eq('cash_register_id', cashRegisterId).not('paid_at', 'is', null),
         supabase.from('expenses').select('*').eq('cash_register_id', cashRegisterId)
     ]);
 
@@ -34,7 +34,7 @@ export async function getWeeklySales() {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const { data, error } = await supabase.from('orders').select('*').gte('created_at', sevenDaysAgo.toISOString()).eq('status', 'paid');
+    const { data, error } = await supabase.from('orders').select('*').gte('created_at', sevenDaysAgo.toISOString()).not('paid_at', 'is', null);
     if (error) throw error;
     return data || [];
 }
@@ -46,7 +46,7 @@ export async function getTopProducts(limit = 10) {
 }
 
 export async function getPaymentBreakdown() {
-    const { data, error } = await supabase.from('orders').select('payment_method, total').eq('status', 'paid');
+    const { data, error } = await supabase.from('orders').select('payment_method, total').not('paid_at', 'is', null);
     if (error) throw error;
     return data || [];
 }
@@ -64,9 +64,9 @@ export async function getDailySalesSummary(days = 30) {
 
     const { data, error } = await supabase
         .from('orders')
-        .select('total, status, payment_method, created_at')
+        .select('total, status, payment_method, created_at, paid_at')
         .gte('created_at', fromDate.toISOString())
-        .eq('status', 'paid')
+        .not('paid_at', 'is', null)
         .order('created_at', { ascending: true });
 
     if (error) throw error;

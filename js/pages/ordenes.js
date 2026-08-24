@@ -88,16 +88,16 @@ async function loadData() {
         const today = await orderService.getTodaysOrders();
         const allOrders = today || [];
 
-        // Pendientes = hoy y no pagados/cancelados
+        // Pendientes = hoy, no cancelados y sin pagar (paid_at null)
         pendingOrders = allOrders.filter(o =>
-            ['ordered', 'preparing', 'ready', 'delivered'].includes(o.status)
+            o.status !== 'cancelled' && !o.paid_at
         );
 
-        // Cobradas = filtrar por caja actual
+        // Cobradas = las que tienen paid_at, filtrar por caja actual
         if (currentCashRegister) {
-            todaysPaidOrders = allOrders.filter(o => o.status === 'paid' && o.cash_register_id === currentCashRegister.id);
+            todaysPaidOrders = allOrders.filter(o => o.paid_at && o.cash_register_id === currentCashRegister.id);
         } else {
-            todaysPaidOrders = allOrders.filter(o => o.status === 'paid');
+            todaysPaidOrders = allOrders.filter(o => o.paid_at);
         }
     } catch (err) {
         showToast({ message: 'Error al cargar listado de órdenes', type: 'error' });
@@ -129,7 +129,7 @@ function renderOrdersList() {
             </div>
 
             <div class="order-card__badge badge badge--${getStatusBadgeClass(order.status)}">
-                ${order.status.toUpperCase()}
+                ${getStatusLabel(order.status, order.paid_at)}
             </div>
 
             <div class="order-card__body">
@@ -184,15 +184,27 @@ function renderOrdersList() {
     `).join('');
 }
 
-function getStatusBadgeClass(status) {
+function getStatusBadgeClass(status, paidAt) {
+    // Si ya está pagado, mostrar verde sin importar el estado de cocina
+    if (paidAt) return 'green';
     switch (status) {
         case 'ordered': return 'yellow';
         case 'preparing': return 'orange';
-        case 'ready': return 'green';
-        case 'delivered': return 'blue';
-        case 'paid': return 'dark';
+        case 'ready': return 'blue';
+        case 'delivered': return 'dark';
         default: return 'gray';
     }
+}
+
+function getStatusLabel(status, paidAt) {
+    const kitchenLabel = {
+        ordered: 'NUEVO',
+        preparing: 'PREPARANDO',
+        ready: 'LISTO',
+        delivered: 'ENTREGADO',
+        cancelled: 'CANCELADO'
+    }[status] || status.toUpperCase();
+    return paidAt ? `✓ COBRADO · ${kitchenLabel}` : kitchenLabel;
 }
 
 function setupEvents(container) {

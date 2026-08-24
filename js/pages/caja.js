@@ -868,7 +868,7 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
             ['Total de pedidos (todas)', orders.length],
             ['Pedidos pagos', paidOrders.length],
             ['Pedidos cancelados', orders.filter(o => o.status === 'cancelled').length],
-            ['Pedidos pendientes', orders.filter(o => !['paid', 'cancelled'].includes(o.status)).length],
+            ['Pedidos pendientes', orders.filter(o => o.status !== 'cancelled' && !o.paid_at).length],
             ['Gastos registrados', expenses.length],
             [''],
             ['Observaciones', register.notes || '—']
