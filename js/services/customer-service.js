@@ -25,6 +25,17 @@ export async function create(customerData) {
     return data;
 }
 
+// Busca un cliente por nombre (case-insensitive). Devuelve null si no existe.
+export async function findByName(name) {
+    const { data, error } = await supabase
+        .from('customers')
+        .select('id, name, phone, notes, created_at, last_order_at')
+        .ilike('name', name.trim())
+        .limit(1);
+    if (error) throw error;
+    return (data && data.length > 0) ? data[0] : null;
+}
+
 export async function update(id, customerData) {
     const { data, error } = await supabase
         .from('customers')
@@ -79,6 +90,7 @@ export async function getStatsByName() {
 
 export const customerService = {
     getAll,
+    findByName,
     create,
     update,
     remove,

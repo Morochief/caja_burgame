@@ -114,6 +114,20 @@ export async function renderClientesPage() {
                 </div>
             </div>
         </div>
+
+        <!-- Modal Fusionar Duplicado -->
+        <div id="cli-merge-modal" class="modal-overlay hidden">
+            <div class="modal-card card" style="max-width: 480px;">
+                <div class="modal-header">
+                    <h2>🔀 Cliente Existente</h2>
+                </div>
+                <div id="cli-merge-body" style="margin-bottom: 1.5rem;"></div>
+                <div style="display:flex; gap:0.75rem;">
+                    <button class="btn btn--primary btn--block" id="cli-btn-confirm-merge">✅ Sí, Fusionar</button>
+                    <button class="btn btn--secondary" id="cli-btn-cancel-merge">Cancelar</button>
+                </div>
+            </div>
+        </div>
     `;
 
     loadClientesData(container);
@@ -184,6 +198,12 @@ function setupEvents(container) {
         container.querySelector('#cli-delete-modal')?.classList.add('hidden');
     });
     container.querySelector('#cli-btn-confirm-delete')?.addEventListener('click', () => handleDelete(container));
+
+    // Modal Fusionar
+    container.querySelector('#cli-btn-cancel-merge')?.addEventListener('click', () => {
+        container.querySelector('#cli-merge-modal')?.classList.add('hidden');
+    });
+    container.querySelector('#cli-btn-confirm-merge')?.addEventListener('click', () => handleMerge(container));
 
     // Cerrar modales clickeando el overlay
     container.querySelectorAll('.modal-overlay').forEach(overlay => {
@@ -420,9 +440,29 @@ async function handleSubmitForm(e, container) {
 
     try {
         if (id) {
+            // --- EDITAR ---
+            // Si cambió el nombre, verificar que el nuevo nombre no exista ya en OTRO cliente
+            if (name !== allCustomers.find(c => c.id === id)?.name) {
+                const existing = await customerService.findByName(name);
+                if (existing && existing.id !== id) {
+                    pendingMerge = { mode: 'edit-rename', existingId: existing.id, currentId: id, name, phone, notes };
+                    closeFormModal(container);
+                    openMergeModal(container, existing, name, phone, notes);
+                    return;
+                }
+            }
             await customerService.update(id, { name, phone, notes });
             showToast({ message: `✅ Cliente "${name}" actualizado`, type: 'success' });
         } else {
+            // --- CREAR ---
+            const existing = await customerService.findByName(name);
+            if (existing) {
+                // Ya existe → abrir modal de fusión
+                pendingMerge = { mode: 'create', existingId: existing.id, name, phone, notes };
+                closeFormModal(container);
+                openMergeModal(container, existing, name, phone, notes);
+                return;
+            }
             await customerService.create({ name, phone, notes });
             showToast({ message: `✅ Cliente "${name}" creado`, type: 'success' });
         }
@@ -432,7 +472,7 @@ async function handleSubmitForm(e, container) {
         showToast({ message: 'Error: ' + err.message, type: 'error' });
     } finally {
         saveBtn.disabled = false;
- saveBtn.innerHTML = originalText;
+        saveBtn.innerHTML = originalText;
     }
 }
 
@@ -457,6 +497,80 @@ async function handleDelete(container) {
         await reload(container);
     } catch (err) {
         showToast({ message: 'Error: ' + err.message, type: 'error' });
+    }
+}
+
+// ============================================================
+// Modal Fusionar Duplicado
+// ============================================================
+let pendingMerge = null; // { mode, existingId, name, phone, notes, currentId? }
+
+function openMergeModal(container, existing, name, phone, notes) {
+    const modal = container.querySelector('#cli-merge-modal');
+    if (!modal) return;
+
+    const existingPhone = existing.phone ? `📞 ${existing.phone}` : '<span style="color: var(--text-dim);">Sin teléfono</span>';
+    const existingNotes = existing.notes ? `<br>📝 ${existing.notes}` : '';
+    const newPhone = phone ? `📞 ${phone}` : '<span style="color: var(--text-dim);">Sin teléfono</span>';
+    const newNotes = notes ? `<br>📝 ${notes}` : '';
+
+    container.querySelector('#cli-merge-body').innerHTML = `
+        <p style="color: var(--text-main); margin-bottom: 1rem;">
+            Ya existe un cliente con el nombre <strong style="color: var(--color-primary);">${existing.name}</strong>.
+        </p>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
+            <div style="padding: 0.8rem; background: var(--bg-elevated); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+                <span style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted);">Existente</span>
+                <p style="font-weight: 700; margin-top: 0.3rem;">${existing.name}</p>
+                <p style="font-size: 0.82rem; color: var(--text-muted);">${existingPhone}${existingNotes}</p>
+            </div>
+            <div style="padding: 0.8rem; background: var(--bg-elevated); border-radius: var(--radius-sm); border: 1px solid var(--color-primary); border-color: var(--color-primary);">
+                <span style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: var(--color-primary);">Nuevo</span>
+                <p style="font-weight: 700; margin-top: 0.3rem;">${name}</p>
+                <p style="font-size: 0.82rem; color: var(--text-muted);">${newPhone}${newNotes}</p>
+            </div>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted);">
+            Al fusionar, se <strong>actualizará el cliente existente</strong> con los datos nuevos (teléfono y notas
+            ${pendingMerge.mode === 'edit-rename' ? ', y el cliente actual será eliminado' : ''}).
+            El historial de pedidos se mantiene intacto.
+        </p>
+    `;
+
+    modal.classList.remove('hidden');
+}
+
+async function handleMerge(container) {
+    if (!pendingMerge) return;
+
+    const mergeBtn = container.querySelector('#cli-btn-confirm-merge');
+    const originalText = mergeBtn.innerHTML;
+    mergeBtn.disabled = true;
+    mergeBtn.innerHTML = '⏳ Fusionando...';
+
+    try {
+        const { mode, existingId, name, phone, notes, currentId } = pendingMerge;
+
+        if (mode === 'create') {
+            // Fusionar: actualizar el existente con los datos nuevos
+            await customerService.update(existingId, { name, phone, notes });
+            showToast({ message: `✅ Datos fusionados con "${name}"`, type: 'success' });
+        } else if (mode === 'edit-rename') {
+            // El usuario renombró un cliente a un nombre que ya existe
+            // Fusionar: pasar datos al existente y eliminar el actual
+            await customerService.update(existingId, { name, phone, notes });
+            await customerService.remove(currentId);
+            showToast({ message: `✅ Clientes fusionados en "${name}"`, type: 'success' });
+        }
+
+        container.querySelector('#cli-merge-modal')?.classList.add('hidden');
+        pendingMerge = null;
+        await reload(container);
+    } catch (err) {
+        showToast({ message: 'Error al fusionar: ' + err.message, type: 'error' });
+    } finally {
+        mergeBtn.disabled = false;
+        mergeBtn.innerHTML = originalText;
     }
 }
 
