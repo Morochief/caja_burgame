@@ -28,7 +28,7 @@ CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name);
 
 -- 4. Backfill: migrar nombres únicos de orders a customers
 INSERT INTO customers (name, last_order_at, created_at)
-SELECT DISTINCT ON (LOWER(TRIM(customer_name))
+SELECT
     TRIM(customer_name),
     MAX(created_at),
     MIN(created_at)
