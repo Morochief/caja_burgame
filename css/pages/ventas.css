@@ -419,6 +419,41 @@
     border-top: 2px dashed #222222;
 }
 
+/* Campos del resumen: Cliente/Mesa y Notas de Cocina */
+.ticket-notes {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.ticket-notes label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.ticket-notes input {
+    background: #1A1A1A;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 0.6rem 0.7rem;
+    color: var(--text-main);
+    font-size: 0.9rem;
+    font-family: var(--font-body);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.ticket-notes input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.15);
+}
+
 .ticket-row--total {
     display: flex;
     justify-content: space-between;

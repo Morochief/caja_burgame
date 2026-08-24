@@ -113,14 +113,17 @@ export async function getDistinctCustomers() {
             .select('name')
             .order('name');
         if (error) throw error;
+        console.log('[customers] cargados desde tabla customers:', (data || []).length);
         return (data || []).map(c => c.name);
-    } catch {
-        // Fallback: si la tabla customers no existe, leer de orders
-        const { data } = await supabase
+    } catch (err) {
+        console.warn('[customers] falló query a customers, usando fallback de orders:', err.message || err);
+        // Fallback: si la tabla customers no existe o falla, leer de orders
+        const { data, error: fallbackErr } = await supabase
             .from('orders')
             .select('customer_name')
             .not('customer_name', 'eq', '')
             .order('customer_name');
+        if (fallbackErr) console.warn('[customers] fallback también falló:', fallbackErr.message);
         const seen = new Set();
         const unique = [];
         (data || []).forEach(row => {
@@ -130,6 +133,7 @@ export async function getDistinctCustomers() {
                 unique.push(name);
             }
         });
+        console.log('[customers] cargados desde fallback (orders):', unique.length);
         return unique;
     }
 }
