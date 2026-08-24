@@ -12,6 +12,8 @@ const routes = {
     '#/caja': () => import('./pages/caja.js').then(m => m.renderCajaPage()),
     '#/gastos': () => import('./pages/gastos.js').then(m => m.renderGastosPage()),
     '#/reportes': () => import('./pages/reportes.js').then(m => m.renderReportesPage()),
+    '#/inventario': () => import('./pages/inventario.js').then(m => m.renderInventarioPage()),
+    '#/clientes': () => import('./pages/clientes.js').then(m => m.renderClientesPage()),
     '#/ajustes': () => import('./pages/ajustes.js').then(m => m.renderAjustesPage()),
     '#/cliente': () => {
         window.location.href = 'cliente.html';

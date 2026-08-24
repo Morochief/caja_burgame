@@ -134,8 +134,19 @@ async function loadCajaData(container) {
                         </form>
                     </div>
                 </div>
+
+                <!-- Historial de cajas por día -->
+                <div class="card" style="margin-top: 1.5rem;">
+                    <h3 style="font-family: var(--font-title); font-size: 0.9rem; color: var(--color-primary); margin-bottom: 1rem;">
+                        📅 HISTORIAL DE CAJAS POR DÍA
+                    </h3>
+                    <div id="caja-history-container">
+                        <div class="page-loading" style="padding: 1rem;"><div class="pixel-spinner"></div><p>Cargando historial...</p></div>
+                    </div>
+                </div>
             `;
             setupCloseEvents(container, currentRegister, summary);
+            loadCajaHistory(container);
         }
     } catch (err) {
         const contentEl = container.querySelector('#caja-content');
@@ -227,5 +238,57 @@ async function exportCajaExcel(register, summary) {
         XLSX.writeFile(wb, `Cierre_Caja_Burgame_${new Date().toISOString().slice(0, 10)}.xlsx`);
     } catch (err) {
         showToast({ message: 'Error al exportar Excel: ' + err.message, type: 'error' });
+    }
+}
+
+// ============================================================
+// Historial de cajas cerradas por día
+// ============================================================
+async function loadCajaHistory(container) {
+    const historyEl = container.querySelector('#caja-history-container');
+    if (!historyEl) return;
+
+    try {
+        const registers = await cashService.getRegisterHistory();
+        const closed = registers.filter(r => r.status === 'closed');
+
+        if (closed.length === 0) {
+            historyEl.innerHTML = '<p class="empty-text">No hay cajas cerradas todavía. El historial aparecerá aquí cuando cierres el primer turno.</p>';
+            return;
+        }
+
+        historyEl.innerHTML = `
+            <table class="table" style="font-size: 0.85rem;">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Apertura</th>
+                        <th>Cierre</th>
+                        <th>Monto Inicial</th>
+                        <th>Efectivo Contado</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${closed.slice(0, 15).map(r => {
+                        const openedDate = new Date(r.opened_at).toLocaleDateString('es-PY', { day: '2-digit', month: 'short', year: 'numeric' });
+                        const openedTime = new Date(r.opened_at).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' });
+                        const closedTime = r.closed_at ? new Date(r.closed_at).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' }) : '—';
+                        return `
+                            <tr>
+                                <td style="font-weight: 700;">${openedDate}</td>
+                                <td style="color: var(--text-muted);">${openedTime}</td>
+                                <td style="color: var(--text-muted);">${closedTime}</td>
+                                <td style="font-family: var(--font-mono);">${formatGs(r.initial_amount)}</td>
+                                <td style="font-family: var(--font-mono); font-weight: 700; color: var(--color-primary);">${r.counted_amount ? formatGs(r.counted_amount) : '—'}</td>
+                                <td><span class="badge badge--dark">🔒 CERRADA</span></td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (err) {
+        historyEl.innerHTML = `<p class="empty-text">Error al cargar historial: ${err.message}</p>`;
     }
 }

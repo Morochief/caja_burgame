@@ -11,6 +11,8 @@ export function renderSidebar(containerId, currentRoute, cashRegisterStatus) {
         { path: '#/menu', icon: 'utensils', label: 'Menú' },
         { path: '#/caja', icon: 'wallet', label: 'Caja' },
         { path: '#/gastos', icon: 'arrow-down-right', label: 'Gastos' },
+        { path: '#/inventario', icon: 'package', label: 'Inventario' },
+        { path: '#/clientes', icon: 'users', label: 'Clientes' },
         { path: '#/reportes', icon: 'trending-up', label: 'Reportes' },
         { path: '#/ajustes', icon: 'settings', label: 'Ajustes' }
     ];
