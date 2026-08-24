@@ -6,6 +6,66 @@ let allTodayOrders = [];
 let cocinaActiveTab = 'active'; // 'active' | 'history'
 let hiddenDeliveredIds = new Set(); // IDs de comandas entregadas ocultadas manualmente
 
+// ============================================================
+// Alerta sonora de nuevas comandas (Item Get - Zelda OoT)
+// Suena al llegar una comanda nueva y repite hasta 3 veces si
+// el cocinero no le da "Iniciar preparación".
+// ============================================================
+const ALERT_SOUND_SRC = 'assets/item-get.mp3';
+const ALERT_MAX_PLAYS = 3;
+const ALERT_INTERVAL_MS = 8000; // separación entre repeticiones
+const alertAudio = new Audio(ALERT_SOUND_SRC);
+alertAudio.volume = 0.8;
+
+// Map orderId -> { plays: number, timer: intervalId, acknowledged: boolean }
+const alertTimers = new Map();
+
+function playAlertOnce() {
+    // El Audio solo puede reproducirse tras interacción del usuario.
+    // Si el navegador lo bloquea, no rompe nada.
+    alertAudio.currentTime = 0;
+    alertAudio.play().catch(() => { /* autoplay bloqueado, ignorar */ });
+}
+
+function startAlertForOrder(orderId) {
+    if (alertTimers.has(orderId)) return; // ya está sonando
+    const state = { plays: 0, timer: null, acknowledged: false };
+
+    const play = () => {
+        if (state.acknowledged) return;
+        state.plays++;
+        playAlertOnce();
+        if (state.plays < ALERT_MAX_PLAYS) {
+            state.timer = setTimeout(play, ALERT_INTERVAL_MS);
+        } else {
+            // Después de 3 sonidos sin atención, limpiar el registro
+            alertTimers.delete(orderId);
+        }
+    };
+
+    alertTimers.set(orderId, state);
+    play();
+}
+
+function acknowledgeOrder(orderId) {
+    const state = alertTimers.get(orderId);
+    if (state) {
+        state.acknowledged = true;
+        if (state.timer) clearTimeout(state.timer);
+        alertTimers.delete(orderId);
+    }
+}
+
+function isOrderedInsert(payload) {
+    // Realtime INSERT de una orden nueva con status 'ordered'
+    return payload.eventType === 'INSERT' && payload.new?.status === 'ordered';
+}
+
+function isPreparingUpdate(payload) {
+    // UPDATE que pasó a 'preparing' (el cocinero inició preparación)
+    return payload.eventType === 'UPDATE' && payload.new?.status === 'preparing' && payload.old?.status !== 'preparing';
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     await initCocina();
 });
@@ -277,6 +337,11 @@ function attachEvents() {
             const orderId = btn.dataset.id;
             const nextStatus = btn.dataset.next;
 
+            // Si el cocinero inicia la preparación, detener el sonido de alerta
+            if (nextStatus === 'preparing') {
+                acknowledgeOrder(orderId);
+            }
+
             try {
                 await orderService.updateStatus(orderId, nextStatus);
                 showToast({ 
@@ -306,7 +371,16 @@ function setupRealtimeSubscription() {
     // DEBOUNCE: si llegan varios eventos realtime juntos (ej: 3 pedidos simultáneos),
     // agruparlos en un solo fetch + render en lugar de N renders.
     let debounceTimer = null;
-    orderService.subscribeToOrders(async (payload) => {
+    orderService.subscribeToOrders((payload) => {
+        // Alerta sonora: nueva comanda -> empezar a sonar (hasta 3 veces)
+        if (isOrderedInsert(payload)) {
+            startAlertForOrder(payload.new.id);
+        }
+        // El cocinero inició preparación -> detener repeticiones del sonido
+        if (isPreparingUpdate(payload)) {
+            acknowledgeOrder(payload.new.id);
+        }
+
         if (debounceTimer) clearTimeout(debounceTimer);
         debounceTimer = setTimeout(async () => {
             debounceTimer = null;
