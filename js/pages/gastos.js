@@ -8,6 +8,12 @@ let expenses = [];
 let categories = [];
 let currentRegister = null;
 
+// Estados de filtro, ordenamiento y paginación
+let gastosFilter = { search: '', category: 'all' };
+let gastosSort = { field: 'created_at', dir: 'desc' };
+let gastosPage = 1;
+const GASTOS_PAGE_SIZE = 10;
+
 export async function renderGastosPage() {
     const container = document.createElement('div');
     container.className = 'gastos-page';
@@ -46,6 +52,20 @@ export async function renderGastosPage() {
 
             <div class="card table-card">
                 <h3>Historial de Gastos</h3>
+                <div class="gastos-toolbar" style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: center;">
+                    <input type="text" id="gastos-search" placeholder="🔍 Buscar gasto..." value="${gastosFilter.search}" style="flex: 1; min-width: 150px;">
+                    <select id="gastos-filter-cat" style="min-width: 140px;">
+                        <option value="all">Todas las categorías</option>
+                        ${(categories || []).map(c => `<option value="${c.id}" ${gastosFilter.category === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+                    </select>
+                    <select id="gastos-sort" style="min-width: 140px;">
+                        <option value="created_at-desc">Fecha ↓</option>
+                        <option value="created_at-asc">Fecha ↑</option>
+                        <option value="amount-desc">Monto ↓</option>
+                        <option value="amount-asc">Monto ↑</option>
+                        <option value="description-asc">Descripción A-Z</option>
+                    </select>
+                </div>
                 <table class="table">
                     <thead>
                         <tr>
@@ -60,11 +80,15 @@ export async function renderGastosPage() {
                         ${renderExpensesRows()}
                     </tbody>
                 </table>
+                <div id="gastos-pagination-container">
+                    ${renderPagination()}
+                </div>
             </div>
         </div>
     `;
 
     setupEvents(container);
+    bindToolbarEvents(container);
     return container;
 }
 
@@ -82,12 +106,46 @@ async function loadData() {
     }
 }
 
-function renderExpensesRows() {
-    if (expenses.length === 0) {
-        return `<tr><td colspan="5" class="text-center p-4">No hay gastos registrados</td></tr>`;
+function getFilteredSortedExpenses() {
+    let list = [...expenses];
+
+    if (gastosFilter.search.trim()) {
+        const q = gastosFilter.search.toLowerCase();
+        list = list.filter(e => e.description.toLowerCase().includes(q));
     }
 
-    return expenses.map(e => `
+    if (gastosFilter.category !== 'all') {
+        list = list.filter(e => e.category_id === gastosFilter.category);
+    }
+
+    const { field, dir } = gastosSort;
+    list.sort((a, b) => {
+        let va = a[field], vb = b[field];
+        if (field === 'created_at') {
+            va = new Date(va).getTime();
+            vb = new Date(vb).getTime();
+        }
+        if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase(); }
+        if (va < vb) return dir === 'asc' ? -1 : 1;
+        if (va > vb) return dir === 'asc' ? 1 : -1;
+        return 0;
+    });
+
+    return list;
+}
+
+function renderExpensesRows() {
+    const filtered = getFilteredSortedExpenses();
+    const totalPages = Math.max(1, Math.ceil(filtered.length / GASTOS_PAGE_SIZE));
+    if (gastosPage > totalPages) gastosPage = totalPages;
+    const start = (gastosPage - 1) * GASTOS_PAGE_SIZE;
+    const pageItems = filtered.slice(start, start + GASTOS_PAGE_SIZE);
+
+    if (filtered.length === 0) {
+        return `<tr><td colspan="5" class="text-center p-4">No se encontraron gastos con los filtros aplicados</td></tr>`;
+    }
+
+    return pageItems.map(e => `
         <tr>
             <td>${new Date(e.created_at).toLocaleDateString()} ${new Date(e.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
             <td><strong>${e.description}</strong></td>
@@ -100,6 +158,64 @@ function renderExpensesRows() {
             </td>
         </tr>
     `).join('');
+}
+
+function renderPagination() {
+    const filtered = getFilteredSortedExpenses();
+    const totalPages = Math.max(1, Math.ceil(filtered.length / GASTOS_PAGE_SIZE));
+    if (gastosPage > totalPages) gastosPage = totalPages;
+
+    return `
+        <div class="gastos-pagination" style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+            <span style="font-size: 0.85rem; color: var(--text-muted);">
+                ${filtered.length} gasto(s) · Página ${gastosPage} de ${totalPages}
+            </span>
+            <div style="display: flex; gap: 0.5rem;">
+                <button class="btn btn--secondary btn--sm" id="btn-gastos-prev" ${gastosPage <= 1 ? 'disabled style="opacity:0.4"' : ''}>← Anterior</button>
+                <button class="btn btn--secondary btn--sm" id="btn-gastos-next" ${gastosPage >= totalPages ? 'disabled style="opacity:0.4"' : ''}>Siguiente →</button>
+            </div>
+        </div>
+    `;
+}
+
+function refreshTable(container) {
+    container.querySelector('#expenses-table-body').innerHTML = renderExpensesRows();
+    container.querySelector('#gastos-pagination-container').innerHTML = renderPagination();
+    attachDeleteEvents(container);
+    bindToolbarEvents(container);
+}
+
+function bindToolbarEvents(container) {
+    let searchTimer = null;
+    container.querySelector('#gastos-search')?.addEventListener('input', (e) => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+            gastosFilter.search = e.target.value;
+            gastosPage = 1;
+            refreshTable(container);
+        }, 250);
+    });
+
+    container.querySelector('#gastos-filter-cat')?.addEventListener('change', (e) => {
+        gastosFilter.category = e.target.value;
+        gastosPage = 1;
+        refreshTable(container);
+    });
+
+    container.querySelector('#gastos-sort')?.addEventListener('change', (e) => {
+        const [field, dir] = e.target.value.split('-');
+        gastosSort = { field, dir };
+        gastosPage = 1;
+        refreshTable(container);
+    });
+
+    container.querySelector('#btn-gastos-prev')?.addEventListener('click', () => {
+        if (gastosPage > 1) { gastosPage--; refreshTable(container); }
+    });
+    container.querySelector('#btn-gastos-next')?.addEventListener('click', () => {
+        gastosPage++;
+        refreshTable(container);
+    });
 }
 
 function setupEvents(container) {
@@ -126,10 +242,8 @@ function setupEvents(container) {
             showToast({ message: '💸 Gasto registrado correctamente', type: 'success' });
             form.reset();
 
-            // Re-renderizado reactivo en tiempo real sin F5
             await loadData();
-            container.querySelector('#expenses-table-body').innerHTML = renderExpensesRows();
-            attachDeleteEvents(container);
+            refreshTable(container);
         } catch (err) {
             showToast({ message: 'Error al guardar gasto: ' + err.message, type: 'error' });
         }
@@ -148,8 +262,7 @@ function attachDeleteEvents(container) {
                 await expenseService.deleteExpense(id);
                 showToast({ message: 'Gasto eliminado', type: 'success' });
                 await loadData();
-                container.querySelector('#expenses-table-body').innerHTML = renderExpensesRows();
-                attachDeleteEvents(container);
+                refreshTable(container);
             } catch (err) {
                 showToast({ message: 'Error al eliminar gasto: ' + err.message, type: 'error' });
             }
