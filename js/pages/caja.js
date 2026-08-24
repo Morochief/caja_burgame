@@ -378,54 +378,66 @@ async function fetchImageBase64(url) {
     });
 }
 
-function getImageNaturalSize(url) {
-    return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
-        img.onerror = () => resolve({ w: 200, h: 60 });
-        img.src = url;
-    });
-}
-
 // Agrega logo y banner a un workbook ExcelJS ya construido y descarga el archivo
 async function downloadBurgameExcel(exceljsWb, filename, opts = {}) {
     const { logoSheets = [], bannerSheet = null } = opts;
 
+    // Dimensiones exactas en cm → píxeles (96 DPI estándar de Excel)
+    const CM_TO_PX = 37.7953;
+    const logoW = Math.round(3.86 * CM_TO_PX);   // ≈ 146 px
+    const logoH = Math.round(3.47 * CM_TO_PX);   // ≈ 131 px
+    const bannerW = Math.round(7.78 * CM_TO_PX); // ≈ 294 px
+    const bannerH = Math.round(2.84 * CM_TO_PX); // ≈ 107 px
+
+    // Ancho mínimo de columna (en "caracteres" de Calibri 11) para que no se solapen
+    const logoColChars = Math.ceil(logoW / 7) + 1;     // ≈ 22
+    const bannerColChars = Math.ceil(bannerW / 7) + 1; // ≈ 43
+
+    // Altura de filas 1-5: el logo es el más alto (3.47 cm), repartir en 5 filas
+    const CM_TO_PT = 28.3465;
+    const imgRowHeight = Math.ceil(3.47 * CM_TO_PT / 5); // ≈ 20 pt por fila
+
     try {
-        // --- Logo en hojas especificadas ---
+        // --- Logo en hojas especificadas (columna A, filas 1-5) ---
         if (logoSheets.length > 0) {
             const logoBase64 = await fetchImageBase64('BurgameLogoTrazoAmarillo.png');
-            const logoSize = await getImageNaturalSize('BurgameLogoTrazoAmarillo.png');
-            const logoH = 35;
-            const logoW = logoSize.w * (logoH / logoSize.h);
             const logoId = exceljsWb.addImage({ base64: logoBase64, extension: 'png' });
 
             for (const sheetName of logoSheets) {
                 const ws = exceljsWb.getWorksheet(sheetName);
                 if (!ws) continue;
-                ws.getRow(1).height = logoH + 8;
+
+                // Columna A: ancho suficiente para el logo
+                const colA = ws.getColumn(1);
+                colA.width = Math.max(colA.width || 8, logoColChars);
+
+                // Filas 1-5: altura suficiente para el logo
+                for (let r = 1; r <= 5; r++) {
+                    ws.getRow(r).height = imgRowHeight;
+                }
+
+                // Logo en esquina superior izquierda
                 ws.addImage(logoId, {
-                    tl: { col: 0.3, row: 0.2 },
+                    tl: { col: 0, row: 0 },
                     ext: { width: logoW, height: logoH }
                 });
             }
         }
 
-        // --- Banner (solo hoja principal) ---
+        // --- Banner al lado del logo (columna B, filas 1-5) ---
         if (bannerSheet) {
             const bannerBase64 = await fetchImageBase64('banner.png');
-            const bannerSize = await getImageNaturalSize('banner.png');
-            const bannerH = 60;
-            const bannerW = bannerSize.w * (bannerH / bannerSize.h);
             const bannerId = exceljsWb.addImage({ base64: bannerBase64, extension: 'png' });
 
             const ws = exceljsWb.getWorksheet(bannerSheet);
             if (ws) {
-                ws.getRow(2).height = 32;
-                ws.getRow(3).height = 32;
-                ws.getRow(4).height = 6;
+                // Columna B: ancho suficiente para el banner
+                const colB = ws.getColumn(2);
+                colB.width = Math.max(colB.width || 8, bannerColChars);
+
+                // Banner a la derecha del logo, centrado verticalmente en las 5 filas
                 ws.addImage(bannerId, {
-                    tl: { col: 0.5, row: 1 },
+                    tl: { col: 1, row: 0.5 },
                     ext: { width: bannerW, height: bannerH }
                 });
             }
