@@ -14,6 +14,7 @@ let currentNotes = '';
 let currentCustomerName = '';
 let products = [];
 let categories = [];
+let customers = [];
 
 export async function renderVentasPage() {
     const container = document.createElement('div');
@@ -61,12 +62,14 @@ export async function renderVentasPage() {
 
 async function loadVentasData(container) {
     try {
-        const [prodData, catData] = await Promise.all([
+        const [prodData, catData, custData] = await Promise.all([
             productService.getAll(),
-            productService.getCategories()
+            productService.getCategories(),
+            orderService.getDistinctCustomers().catch(() => [])
         ]);
         products = prodData || [];
         categories = catData || [];
+        customers = custData || [];
     } catch (err) {
         showToast({ message: 'Error al cargar productos', type: 'error' });
     }
@@ -178,8 +181,11 @@ function openCartModal(container) {
                 </div>
                 <div class="ticket-summary">
                     <div class="ticket-notes" style="margin-bottom:0.5rem">
-                        <label for="customer-name"><i data-lucide="user"></i> Nombre / Mesa:</label>
-                        <input type="text" id="customer-name" placeholder="Ej: Juan Pérez, Mesa 4..." value="${currentCustomerName}">
+                        <label for="customer-name"><i data-lucide="user"></i> Cliente / Mesa:</label>
+                        <input type="text" id="customer-name" list="customer-list" placeholder="Elegir o escribir nuevo..." value="${currentCustomerName}" autocomplete="off">
+                        <datalist id="customer-list">
+                            ${customers.map(c => `<option value="${c}">`).join('')}
+                        </datalist>
                     </div>
                     <div class="ticket-notes">
                         <label for="order-notes"><i data-lucide="file-text"></i> Notas Cocina:</label>

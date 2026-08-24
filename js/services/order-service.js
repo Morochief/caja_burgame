@@ -106,6 +106,34 @@ export async function processPayment(orderId, paymentMethod) {
     return data;
 }
 
+export async function getDistinctCustomers() {
+    try {
+        const { data, error } = await supabase
+            .from('customers')
+            .select('name')
+            .order('name');
+        if (error) throw error;
+        return (data || []).map(c => c.name);
+    } catch {
+        // Fallback: si la tabla customers no existe, leer de orders
+        const { data } = await supabase
+            .from('orders')
+            .select('customer_name')
+            .not('customer_name', 'eq', '')
+            .order('customer_name');
+        const seen = new Set();
+        const unique = [];
+        (data || []).forEach(row => {
+            const name = (row.customer_name || '').trim();
+            if (name && !seen.has(name.toLowerCase())) {
+                seen.add(name.toLowerCase());
+                unique.push(name);
+            }
+        });
+        return unique;
+    }
+}
+
 export async function getActiveOrders() {
     const { data, error } = await supabase.from('orders').select(`*, order_items(*)`).not('status', 'in', '("paid","cancelled")').order('created_at');
     if (error) throw error;
@@ -185,6 +213,7 @@ export const orderService = {
     getOrdersByDateRange,
     cancelOrder,
     subscribeToOrders,
-    unsubscribeAllOrders
+    unsubscribeAllOrders,
+    getDistinctCustomers
 };
 
