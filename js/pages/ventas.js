@@ -3,10 +3,12 @@ import { orderService } from '../services/order-service.js';
 import { cashService } from '../services/cash-service.js';
 import { formatGs } from '../components/currency.js';
 import { showToast } from '../components/toast.js';
+import { renderProductCard } from '../components/product-card.js';
+import { createCart } from '../components/cart.js';
 
 let currentCategory = 'all';
 let searchQuery = '';
-let cartItems = [];
+const cart = createCart();
 let currentNotes = '';
 let currentCustomerName = '';
 let products = [];
@@ -16,7 +18,6 @@ export async function renderVentasPage() {
     const container = document.createElement('div');
     container.className = 'ventas-page';
 
-    // Cargar datos iniciales
     try {
         const [prodData, catData] = await Promise.all([
             productService.getAll(),
@@ -30,7 +31,6 @@ export async function renderVentasPage() {
 
     container.innerHTML = `
         <div class="ventas-layout-full">
-            <!-- Sección de Selección de Productos (Full Width) -->
             <section class="ventas-catalog">
                 <div class="ventas-sticky-header">
                     <div class="pos-banner-container">
@@ -42,8 +42,6 @@ export async function renderVentasPage() {
                             <input type="text" id="pos-search" placeholder="Buscar producto por nombre..." value="${searchQuery}">
                         </div>
                     </header>
-
-                    <!-- Categorías -->
                     <nav class="categories-bar">
                         <button class="category-tab ${currentCategory === 'all' ? 'active' : ''}" data-cat="all">
                             ⚡ Todos
@@ -55,61 +53,16 @@ export async function renderVentasPage() {
                         `).join('')}
                     </nav>
                 </div>
-
-                <!-- Grid de Productos -->
                 <div class="products-grid" id="products-grid">
                     ${renderProductsGrid()}
                 </div>
             </section>
 
-            <!-- Botón Flotante Carrito -->
             <button id="btn-floating-cart" class="fab-cart" aria-label="Ver Pedido">
                 <span class="fab-cart__icon">🛒</span>
-                <span class="fab-cart__badge" id="fab-badge">${cartItems.reduce((a,b)=>a+b.quantity,0) || ''}</span>
-                <span class="fab-cart__total" id="fab-total">${calculateTotal() > 0 ? formatGs(calculateTotal()) : 'Pedido'}</span>
+                <span class="fab-cart__badge" id="fab-badge">${cart.count || ''}</span>
+                <span class="fab-cart__total" id="fab-total">${cart.total > 0 ? formatGs(cart.total) : 'Pedido'}</span>
             </button>
-        </div>
-
-        <!-- Modal Carrito -->
-        <div class="cart-modal-overlay" id="cart-modal-overlay">
-            <div class="cart-modal" id="cart-modal">
-                <div class="cart-modal__header">
-                    <h2><i data-lucide="shopping-bag"></i> PEDIDO ACTUAL</h2>
-                    <button id="btn-close-cart-modal" class="cart-modal__close" aria-label="Cerrar">&times;</button>
-                </div>
-
-                <div class="cart-modal__body">
-                    <div class="ticket-items" id="ticket-items">
-                        ${renderCartItems()}
-                    </div>
-
-                    <div class="ticket-summary">
-                        <div class="ticket-notes" style="margin-bottom: 0.5rem;">
-                            <label for="customer-name"><i data-lucide="user"></i> Nombre del Cliente / Mesa:</label>
-                            <input type="text" id="customer-name" placeholder="Ej: Juan Pérez, Mesa 4..." value="${currentCustomerName}">
-                        </div>
-
-                        <div class="ticket-notes">
-                            <label for="order-notes"><i data-lucide="file-text"></i> Notas para Cocina:</label>
-                            <input type="text" id="order-notes" placeholder="Ej: Sin cebolla, extra salsa..." value="${currentNotes}">
-                        </div>
-
-                        <div class="ticket-row ticket-row--total">
-                            <span>TOTAL</span>
-                            <span class="ticket-total-val" id="ticket-total">${formatGs(calculateTotal())}</span>
-                        </div>
-
-                        <div class="ticket-actions">
-                            <button id="btn-clear-cart" class="btn btn--danger btn--ghost">
-                                <i data-lucide="trash-2"></i> Limpiar
-                            </button>
-                            <button id="btn-send-order" class="btn btn--primary btn--block">
-                                ⌨️ ORDENAR PEDIDO
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
     `;
 
@@ -117,6 +70,10 @@ export async function renderVentasPage() {
     return container;
 }
 
+// ============================================================
+// Catálogo: filtra por categoría + búsqueda y delega el render
+// de cada tarjeta a renderProductCard (componente compartido)
+// ============================================================
 function renderProductsGrid() {
     let filtered = products;
 
@@ -138,152 +95,13 @@ function renderProductsGrid() {
         `;
     }
 
-    return filtered.map(product => {
-        const imageSrc = product.image_url || 'assets/placeholders/burger-placeholder.svg';
-        const comboPrice = product.combo_price || (product.price + 10000);
-        const isBurger = product.category_id === 'burgers' || (product.name.toLowerCase().includes('burger') || product.name.toLowerCase().includes('classic') || product.name.toLowerCase().includes('bowser') || product.name.toLowerCase().includes('cheat') || product.name.toLowerCase().includes('fatality') || product.name.toLowerCase().includes('ronin') || product.name.toLowerCase().includes('yoshi'));
-        const isChopp = product.name.toLowerCase().includes('pilsen') || product.name.toLowerCase().includes('chopp');
-        const isCheat = product.name.toLowerCase().includes('cheat') && !product.name.toLowerCase().includes('doble');
-        const isBowser = product.name.toLowerCase().includes('bowser');
-
-        return `
-            <div class="product-card" data-id="${product.id}">
-                <div class="product-card__image">
-                    <img src="${imageSrc}" alt="${product.name}">
-                </div>
-                <div class="product-card__content">
-                    <h3 class="product-card__title">${product.name}</h3>
-                    <p class="product-card__ingredients">${(product.ingredients || []).join(', ')}</p>
-                    
-                    <div class="product-card__actions" style="margin-top: 0.4rem;">
-                        ${isCheat ? `
-                            <div style="display: flex; flex-direction: column; gap: 0.25rem; width: 100%;">
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem; width: 100%;">
-                                    <button class="btn btn-add-single" data-id="${product.id}" style="padding: 0.35rem 0.15rem; font-size: 0.68rem; font-weight: 700; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-main); border-radius: 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px;">
-                                        <span>🍔 Solo</span><span style="color: var(--color-primary); font-size: 0.66rem; font-weight: 800;">${formatGs(product.price)}</span>
-                                    </button>
-                                    <button class="btn btn-add-combo" data-id="${product.id}" style="padding: 0.35rem 0.15rem; font-size: 0.68rem; font-weight: 800; background: var(--color-primary); border: none; color: #000; border-radius: 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px;">
-                                        <span>🍟 Combo</span><span style="font-size: 0.66rem; font-weight: 900;">${formatGs(comboPrice)}</span>
-                                    </button>
-                                </div>
-                                <button class="btn btn-add-promo" data-id="${product.id}" data-vname="Promo Jueves Cheat" data-vprice="${product.promo_price || 50000}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0.5rem; font-size: 0.7rem; font-weight: 900; background: linear-gradient(135deg, #FFD700, #FF9100); border: none; color: #000; border-radius: 4px; cursor: pointer;">
-                                    <span>🔥 PROMO JUEVES</span>
-                                    <span style="font-weight: 900; white-space: nowrap;">${formatGs(product.promo_price || 50000)}</span>
-                                </button>
-                            </div>
-                        ` : isBowser ? `
-                            <div style="display: flex; flex-direction: column; gap: 0.25rem; width: 100%;">
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem; width: 100%;">
-                                    <button class="btn btn-add-single" data-id="${product.id}" style="padding: 0.35rem 0.15rem; font-size: 0.68rem; font-weight: 700; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-main); border-radius: 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px;">
-                                        <span>🍔 Solo</span><span style="color: var(--color-primary); font-size: 0.66rem; font-weight: 800;">${formatGs(product.price)}</span>
-                                    </button>
-                                    <button class="btn btn-add-combo" data-id="${product.id}" style="padding: 0.35rem 0.15rem; font-size: 0.68rem; font-weight: 800; background: var(--color-primary); border: none; color: #000; border-radius: 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px;">
-                                        <span>🍟 Combo</span><span style="font-size: 0.66rem; font-weight: 900;">${formatGs(comboPrice)}</span>
-                                    </button>
-                                </div>
-                                <button class="btn btn-add-promo" data-id="${product.id}" data-vname="Promo Viernes Bowser" data-vprice="${product.promo_price || 35000}" style="display: flex; justify-content: space-between; align-items: center; gap: 0.25rem; padding: 0.35rem 0.4rem; font-size: 0.65rem; font-weight: 900; background: rgba(255,82,82,0.15); border: 1px solid #FF5252; color: #FF5252; border-radius: 4px; cursor: pointer; overflow: hidden;">
-                                    <span style="white-space: nowrap; flex-shrink: 0;">🔥 VIERNES</span>
-                                    <span style="font-weight: 900; white-space: nowrap; flex-shrink: 0;">${formatGs(product.promo_price || 35000)}</span>
-                                </button>
-                            </div>
-                        ` : isBurger ? `
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem; width: 100%;">
-                                <button class="btn btn-add-single" data-id="${product.id}" style="padding: 0.35rem 0.15rem; font-size: 0.68rem; font-weight: 700; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-main); border-radius: 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px;">
-                                    <span>🍔 Solo</span><span style="color: var(--color-primary); font-size: 0.66rem; font-weight: 800;">${formatGs(product.price)}</span>
-                                </button>
-                                <button class="btn btn-add-combo" data-id="${product.id}" style="padding: 0.35rem 0.15rem; font-size: 0.68rem; font-weight: 800; background: var(--color-primary); border: none; color: #000; border-radius: 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px;">
-                                    <span>🍟 Combo</span><span style="font-size: 0.66rem; font-weight: 900;">${formatGs(comboPrice)}</span>
-                                </button>
-                            </div>
-                        ` : isChopp ? `
-                            <div style="display: flex; flex-direction: column; gap: 0.25rem; width: 100%;">
-                                <button class="btn btn-add-variant" data-id="${product.id}" data-vname="1 Chopp" data-vprice="${product.price_1x || 15000}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0.5rem; font-size: 0.7rem; font-weight: 700; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-main); border-radius: 4px; cursor: pointer;">
-                                    <span>🍺 1 Chopp</span>
-                                    <span style="color: var(--color-primary); font-weight: 800;">${formatGs(product.price_1x || 15000)}</span>
-                                </button>
-                                <button class="btn btn-add-variant" data-id="${product.id}" data-vname="2x1 Chopp" data-vprice="${product.price_2x1 || 25000}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0.5rem; font-size: 0.7rem; font-weight: 800; background: rgba(255,215,0,0.12); border: 1px solid var(--color-primary); color: var(--color-primary); border-radius: 4px; cursor: pointer;">
-                                    <span>🍻 2x1</span>
-                                    <span style="font-weight: 900;">${formatGs(product.price_2x1 || 25000)}</span>
-                                </button>
-                                <button class="btn btn-add-variant" data-id="${product.id}" data-vname="Chopp LIBRE" data-vprice="${product.price_libre || 55000}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.38rem 0.5rem; font-size: 0.72rem; font-weight: 900; background: var(--color-primary); border: none; color: #000; border-radius: 4px; cursor: pointer;">
-                                    <span>♾️ LIBRE</span>
-                                    <span style="font-weight: 900;">${formatGs(product.price_libre || 55000)}</span>
-                                </button>
-                            </div>
-                        ` : `
-                            <button class="btn btn-add-single" data-id="${product.id}" style="width: 100%; padding: 0.4rem 0.5rem; font-size: 0.75rem; font-weight: 800; background: rgba(255,215,0,0.12); border: 1px solid var(--color-primary); color: var(--color-primary); border-radius: 4px; cursor: pointer;">
-                                ➕ ${formatGs(product.price)}
-                            </button>
-                        `}
-                    </div>
-                </div>
-            </div>
-        `;
-    }).join('');
+    return filtered.map(product => renderProductCard(product)).join('');
 }
 
-function renderCartItems() {
-    if (cartItems.length === 0) {
-        return `
-            <div class="cart-empty">
-                <i data-lucide="shopping-cart"></i>
-                <p>Selecciona productos para iniciar el pedido</p>
-            </div>
-        `;
-    }
-
-    return cartItems.map((item, idx) => {
-        const isBurger = item.isCombo !== undefined && !item.productName.includes('(');
-        const hasVariantLabel = item.productName.includes('(');
-        
-        let subtitleHtml = '';
-        if (isBurger) {
-            subtitleHtml = `
-                <button class="btn-toggle-combo" data-idx="${idx}" style="background: transparent; border: none; padding: 0; font-size: 0.75rem; cursor: pointer; color: ${item.isCombo ? 'var(--color-primary)' : 'var(--text-muted)'}; margin-top: 0.2rem; font-weight: 700;">
-                    ${item.isCombo ? '🍟 COMBO (Papas + Bebida)' : '🍔 Solo Hamburguesa (Cambiar a Combo)'}
-                </button>
-            `;
-        } else if (hasVariantLabel) {
-            const variantText = item.productName.match(/\((.*?)\)/)?.[1] || '';
-            subtitleHtml = `
-                <span style="font-size: 0.75rem; color: var(--color-primary); margin-top: 0.2rem; font-weight: 700; display: block;">
-                    ✨ Presentación: ${variantText}
-                </span>
-            `;
-        }
-
-        return `
-            <div class="cart-item" style="border-left: 3px solid ${item.isCombo ? 'var(--color-primary)' : 'var(--border-subtle)'};">
-                <div class="cart-item__info">
-                    <div>
-                        <div class="cart-item__title" style="font-weight: 700;">${item.productName}</div>
-                        ${subtitleHtml}
-                    </div>
-                    <div class="cart-item__subtotal">${formatGs(item.price * item.quantity)}</div>
-                </div>
-                
-                <!-- Nota individual por producto -->
-                <div style="margin-top: 0.4rem;">
-                    <input type="text" class="input-item-note" data-idx="${idx}" placeholder="✏️ Aclaración (ej: Sin cebolla...)" value="${item.customNotes || ''}" style="width: 100%; font-size: 0.78rem; padding: 0.35rem 0.6rem; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 4px; color: var(--color-primary);">
-                </div>
-
-                <div class="cart-item__controls" style="margin-top: 0.5rem;">
-                    <button class="btn-qty" data-action="dec" data-idx="${idx}">-</button>
-                    <span class="cart-item__qty">${item.quantity}</span>
-                    <button class="btn-qty" data-action="inc" data-idx="${idx}">+</button>
-                    <button class="btn-remove" data-action="del" data-idx="${idx}"><i data-lucide="x"></i></button>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-function calculateTotal() {
-    return cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-}
-
+// ============================================================
+// Eventos de la página
+// ============================================================
 function setupEvents(container) {
-    // Filtros de categoría
     container.querySelectorAll('.category-tab').forEach(btn => {
         btn.addEventListener('click', (e) => {
             currentCategory = e.currentTarget.dataset.cat;
@@ -294,7 +112,6 @@ function setupEvents(container) {
         });
     });
 
-    // Búsqueda
     const searchInput = container.querySelector('#pos-search');
     searchInput?.addEventListener('input', (e) => {
         searchQuery = e.target.value;
@@ -302,12 +119,9 @@ function setupEvents(container) {
         attachProductClickEvents(container);
     });
 
-    // Abrir modal carrito
     const fabBtn = container.querySelector('#btn-floating-cart');
-    const overlay = document.querySelector('#cart-modal-overlay') || container.querySelector('#cart-modal-overlay');
     fabBtn?.addEventListener('click', () => openCartModal(container));
 
-    // Cerrar modal carrito
     document.addEventListener('click', (e) => {
         const overlay = document.querySelector('#cart-modal-overlay');
         if (overlay && e.target === overlay) closeCartModal();
@@ -316,22 +130,19 @@ function setupEvents(container) {
         if (e.target?.id === 'btn-close-cart-modal') closeCartModal();
     });
 
-    // Limpiar Carrito (delegado, el modal se monta dinámicamente)
     document.addEventListener('click', (e) => {
         if (e.target?.id === 'btn-clear-cart' || e.target?.closest('#btn-clear-cart')) {
-            cartItems = [];
+            cart.clear();
             updateTicketUI(container);
         }
     });
 
-    // Enviar Pedido
     document.addEventListener('click', (e) => {
         if (e.target?.id === 'btn-send-order' || e.target?.closest('#btn-send-order')) {
             sendOrderToKitchen(container);
         }
     });
 
-    // Notas y Nombre del cliente (delegado)
     document.addEventListener('input', (e) => {
         if (e.target?.id === 'customer-name') currentCustomerName = e.target.value;
         if (e.target?.id === 'order-notes') currentNotes = e.target.value;
@@ -341,8 +152,10 @@ function setupEvents(container) {
     setupKeyboardShortcuts(container);
 }
 
+// ============================================================
+// Modal del carrito
+// ============================================================
 function openCartModal(container) {
-    // Renderizar modal fresco con datos actuales
     const existing = document.querySelector('#cart-modal-overlay');
     if (existing) existing.remove();
 
@@ -357,7 +170,7 @@ function openCartModal(container) {
             </div>
             <div class="cart-modal__body">
                 <div class="ticket-items" id="ticket-items">
-                    ${renderCartItems()}
+                    ${cart.renderItems({ showComboToggle: true, noteInputClass: 'input-item-note' })}
                 </div>
                 <div class="ticket-summary">
                     <div class="ticket-notes" style="margin-bottom:0.5rem">
@@ -370,7 +183,7 @@ function openCartModal(container) {
                     </div>
                     <div class="ticket-row ticket-row--total">
                         <span>TOTAL</span>
-                        <span class="ticket-total-val" id="ticket-total">${formatGs(calculateTotal())}</span>
+                        <span class="ticket-total-val" id="ticket-total">${formatGs(cart.total)}</span>
                     </div>
                     <div class="ticket-actions">
                         <button id="btn-clear-cart" class="btn btn--danger btn--ghost">
@@ -389,13 +202,12 @@ function openCartModal(container) {
 
     if (window.lucide) window.lucide.createIcons();
 
-    // Eventos internos del modal
     overlay.querySelector('#btn-close-cart-modal')?.addEventListener('click', closeCartModal);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) closeCartModal(); });
 
     overlay.querySelector('#btn-clear-cart')?.addEventListener('click', (e) => {
         e.stopPropagation();
-        cartItems = [];
+        cart.clear();
         updateTicketUI(container);
         closeCartModal();
         openCartModal(container);
@@ -409,7 +221,6 @@ function openCartModal(container) {
     overlay.querySelector('#customer-name')?.addEventListener('input', (e) => { currentCustomerName = e.target.value; });
     overlay.querySelector('#order-notes')?.addEventListener('input', (e) => { currentNotes = e.target.value; });
 
-    // Qty controls dentro del modal
     setupModalQtyControls(overlay, container);
 }
 
@@ -425,7 +236,7 @@ function setupModalQtyControls(overlay, container) {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const idx = parseInt(btn.dataset.idx, 10);
-            const item = cartItems[idx];
+            const item = cart.items[idx];
             if (!item) return;
             const product = products.find(p => p.id === item.productId);
             item.isCombo = !item.isCombo;
@@ -439,7 +250,7 @@ function setupModalQtyControls(overlay, container) {
     overlay.querySelectorAll('.input-item-note').forEach(input => {
         input.addEventListener('input', (e) => {
             const idx = parseInt(input.dataset.idx, 10);
-            if (cartItems[idx]) cartItems[idx].customNotes = e.target.value;
+            cart.setNote(idx, e.target.value);
         });
     });
 
@@ -448,11 +259,9 @@ function setupModalQtyControls(overlay, container) {
             e.stopPropagation();
             const action = btn.dataset.action;
             const idx = parseInt(btn.dataset.idx, 10);
-            if (action === 'inc') cartItems[idx].quantity++;
-            else if (action === 'dec') {
-                cartItems[idx].quantity--;
-                if (cartItems[idx].quantity <= 0) cartItems.splice(idx, 1);
-            } else if (action === 'del') cartItems.splice(idx, 1);
+            if (action === 'inc') cart.inc(idx);
+            else if (action === 'dec') cart.dec(idx);
+            else if (action === 'del') cart.remove(idx);
             updateTicketUI(container);
             closeCartModal();
             openCartModal(container);
@@ -460,135 +269,84 @@ function setupModalQtyControls(overlay, container) {
     });
 }
 
+// ============================================================
+// Eventos de los botones de producto (delegados desde el grid)
+// ============================================================
 function attachProductClickEvents(container) {
-    // Botón Promo Especial (ej. Cheat 3x50k, Bowser Viernes)
-    container.querySelectorAll('.btn-add-promo').forEach(btn => {
+    container.querySelectorAll('.btn-add-promo, .btn-add-variant').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const id = btn.dataset.id;
-            const vName = btn.dataset.vname;
-            const vPrice = parseInt(btn.dataset.vprice, 10);
-            addVariantToCart(id, vName, vPrice);
+            const product = products.find(p => p.id === btn.dataset.id);
+            if (!product) return;
+            cart.addVariant(product, btn.dataset.vname, parseInt(btn.dataset.vprice, 10));
             updateTicketUI(container);
         });
     });
 
-    // Botón Variante (ej. Chopp 1x, 2x1, Libre)
-    container.querySelectorAll('.btn-add-variant').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const id = btn.dataset.id;
-            const vName = btn.dataset.vname;
-            const vPrice = parseInt(btn.dataset.vprice, 10);
-            addVariantToCart(id, vName, vPrice);
-            updateTicketUI(container);
-        });
-    });
-
-    // Botón Individual
     container.querySelectorAll('.btn-add-single').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const id = btn.dataset.id;
-            addProductToCart(id, false);
+            const product = products.find(p => p.id === btn.dataset.id);
+            if (!product) return;
+            cart.addProduct(product, false);
             updateTicketUI(container);
         });
     });
 
-    // Botón Combo
     container.querySelectorAll('.btn-add-combo').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const id = btn.dataset.id;
-            addProductToCart(id, true);
+            const product = products.find(p => p.id === btn.dataset.id);
+            if (!product) return;
+            cart.addProduct(product, true);
             updateTicketUI(container);
         });
     });
 
-    // Clic general en la tarjeta (agrega Individual por defecto)
     container.querySelectorAll('.product-card').forEach(card => {
         card.addEventListener('click', () => {
-            const id = card.dataset.id;
-            addProductToCart(id, false);
+            const product = products.find(p => p.id === card.dataset.id);
+            if (!product) return;
+            cart.addProduct(product, false);
             updateTicketUI(container);
         });
     });
 }
 
-function addProductToCart(productId, isCombo) {
-    const product = products.find(p => p.id === productId);
-    if (!product) return;
-
-    const price = isCombo ? (product.combo_price || (product.price + 10000)) : product.price;
-
-    const existingIdx = cartItems.findIndex(ci => ci.productId === product.id && ci.isCombo === isCombo && (ci.customNotes || '') === '');
-    
-    if (existingIdx >= 0) {
-        cartItems[existingIdx].quantity++;
-    } else {
-        cartItems.push({
-            productId: product.id,
-            productName: product.name,
-            price: price,
-            quantity: 1,
-            isCombo: isCombo,
-            customNotes: ''
-        });
-    }
-}
-
-function addVariantToCart(productId, variantName, variantPrice) {
-    const product = products.find(p => p.id === productId);
-    if (!product) return;
-
-    const fullName = `${product.name} (${variantName})`;
-    const existingIdx = cartItems.findIndex(ci => ci.productId === product.id && ci.productName === fullName);
-
-    if (existingIdx >= 0) {
-        cartItems[existingIdx].quantity++;
-    } else {
-        cartItems.push({
-            productId: product.id,
-            productName: fullName,
-            price: variantPrice,
-            quantity: 1,
-            isCombo: false,
-            customNotes: ''
-        });
-    }
-}
-
+// ============================================================
+// Actualización parcial del UI del carrito (badge + modal)
+// ============================================================
 function updateTicketUI(container) {
-    // Actualizar badge y total del FAB
-    const totalItems = cartItems.reduce((a, b) => a + b.quantity, 0);
-    const totalGs = formatGs(calculateTotal());
+    const totalItems = cart.count;
+    const totalGs = formatGs(cart.total);
 
     const badge = container.querySelector('#fab-badge');
     if (badge) badge.textContent = totalItems > 0 ? totalItems : '';
 
     const fabTotal = container.querySelector('#fab-total');
-    if (fabTotal) fabTotal.textContent = calculateTotal() > 0 ? totalGs : 'Pedido';
+    if (fabTotal) fabTotal.textContent = cart.total > 0 ? totalGs : 'Pedido';
 
-    // Si el modal está abierto, actualizar su contenido también
     const modalItems = document.querySelector('#ticket-items');
     if (modalItems) {
-        modalItems.innerHTML = renderCartItems();
+        modalItems.innerHTML = cart.renderItems({ showComboToggle: true, noteInputClass: 'input-item-note' });
         if (window.lucide) window.lucide.createIcons();
         const modalTotal = document.querySelector('#ticket-total');
         if (modalTotal) modalTotal.textContent = totalGs;
-        // Re-attach qty controls
         const overlay = document.querySelector('#cart-modal-overlay');
         if (overlay) setupModalQtyControls(overlay, container);
     }
 }
 
+// ============================================================
+// Envío de pedido a cocina
+// ============================================================
 async function sendOrderToKitchen(container) {
-    if (cartItems.length === 0) {
+    if (cart.items.length === 0) {
         showToast({ message: 'El carrito está vacío', type: 'error' });
         return;
     }
 
-    // GUARD: prevenir doble-envío (doble click / tap)
+    // GUARD: prevenir doble-envío
     if (window._isSendingOrder) return;
     window._isSendingOrder = true;
     const sendBtn = container.querySelector('#btn-send-order');
@@ -610,7 +368,7 @@ async function sendOrderToKitchen(container) {
 
     try {
         const order = await orderService.createOrder({
-            items: cartItems,
+            items: cart.items,
             notes,
             customerName,
             cashRegisterId: currentRegister.id
@@ -621,16 +379,13 @@ async function sendOrderToKitchen(container) {
             type: 'success'
         });
 
-        // Clear cart & inputs
-        cartItems = [];
+        cart.clear();
         currentNotes = '';
         currentCustomerName = '';
         if (notesInput) notesInput.value = '';
         if (customerInput) customerInput.value = '';
 
-        // Cerrar drawer móvil si estaba abierto
         container.querySelector('#ticket-panel')?.classList.remove('open');
-
         updateTicketUI(container);
     } catch (err) {
         showToast({ message: 'Error enviando orden: ' + err.message, type: 'error' });
