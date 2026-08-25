@@ -531,9 +531,9 @@ function openMergeModal(container, existing, name, phone, notes) {
             </div>
         </div>
         <p style="font-size: 0.85rem; color: var(--text-muted);">
-            Al fusionar, se <strong>actualizará el cliente existente</strong> con los datos nuevos (teléfono y notas)
-            ${pendingMerge.mode === 'edit-rename' ? ', sus pedidos se reasignarán al cliente existente y el cliente actual será eliminado' : ''}.
-            El historial de pedidos se mantiene intacto.
+            Al fusionar, se <strong>combinarán los datos</strong> (teléfono y notas) en el cliente existente
+            ${pendingMerge.mode === 'edit-rename' ? ', los pedidos del cliente actual se reasignarán al existente y <strong>el cliente actual será eliminado</strong>' : ''}.
+            El historial de pedidos y el total gastado se suman automáticamente.
         </p>
     `;
 
@@ -561,13 +561,25 @@ async function handleMerge(container) {
         }
         const targetName = existingCustomer.name; // nombre con casing real en la DB
 
+        // Combinar datos: no pisar los del existente. Preferir el telefono del
+        // existente si ya tiene; si no, usar el nuevo. Combinar notas si ambas existen.
+        const mergedPhone = (existingCustomer.phone || '').trim() || (phone || '').trim();
+        const existingNotesTrim = (existingCustomer.notes || '').trim();
+        const newNotesTrim = (notes || '').trim();
+        let mergedNotes = existingNotesTrim;
+        if (newNotesTrim && !existingNotesTrim.includes(newNotesTrim)) {
+            mergedNotes = existingNotesTrim
+                ? `${existingNotesTrim} | ${newNotesTrim}`
+                : newNotesTrim;
+        }
+
         if (mode === 'create') {
-            // Fusionar: actualizar el existente con los datos nuevos (telefono, notas).
+            // Fusionar: actualizar el existente con los datos combinados.
             // No cambiamos el nombre del existente (targetName) para evitar UNIQUE violation.
             await customerService.update(existingId, {
                 name: targetName,
-                phone,
-                notes
+                phone: mergedPhone,
+                notes: mergedNotes
             });
 
             // Reasignar pedidos que tengan customer_name = name (lo que el usuario escribio)
@@ -579,11 +591,11 @@ async function handleMerge(container) {
             showToast({ message: `✅ Datos fusionados con "${targetName}"`, type: 'success' });
         } else if (mode === 'edit-rename') {
             // El usuario renombró un cliente a un nombre que ya existe.
-            // 1) Actualizar el existente con los datos nuevos (telefono, notas).
+            // 1) Actualizar el existente con los datos combinados.
             await customerService.update(existingId, {
                 name: targetName,
-                phone,
-                notes
+                phone: mergedPhone,
+                notes: mergedNotes
             });
 
             // 2) Reasignar los pedidos del cliente actual al existente.
