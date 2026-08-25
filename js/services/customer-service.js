@@ -52,11 +52,19 @@ export async function update(id, customerData) {
 }
 
 export async function remove(id) {
-    const { error } = await supabase
+    if (!id) throw new Error('ID de cliente no proporcionado');
+    const { error, count } = await supabase
         .from('customers')
         .delete()
         .eq('id', id);
-    if (error) throw error;
+    if (error) {
+        console.error('[customer-service] Error al eliminar cliente:', error);
+        throw new Error(`${error.message} (código: ${error.code})`);
+    }
+    if (count === 0) {
+        console.warn('[customer-service] Delete retornó 0 filas - el cliente puede no existir o RLS lo bloquea. id=', id);
+        throw new Error('No se pudo eliminar: el cliente no existe o la base de datos bloqueó la operación (RLS).');
+    }
 }
 
 // Reasigna los pedidos de un nombre de cliente a otro (para fusión de duplicados).

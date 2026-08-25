@@ -489,6 +489,12 @@ function openDeleteModal(container, id, name) {
 
 async function handleDelete(container) {
     if (!deleteTargetId) return;
+    const delBtn = container.querySelector('#cli-btn-confirm-delete');
+    const originalText = delBtn ? delBtn.innerHTML : '';
+    if (delBtn) {
+        delBtn.disabled = true;
+        delBtn.innerHTML = '⏳ Eliminando...';
+    }
     try {
         await customerService.remove(deleteTargetId);
         showToast({ message: '✅ Cliente eliminado', type: 'success' });
@@ -496,7 +502,13 @@ async function handleDelete(container) {
         deleteTargetId = null;
         await reload(container);
     } catch (err) {
-        showToast({ message: 'Error: ' + err.message, type: 'error' });
+        console.error('[clientes] Error al eliminar:', err);
+        showToast({ message: 'Error al eliminar: ' + (err.message || 'desconocido'), type: 'error' });
+    } finally {
+        if (delBtn) {
+            delBtn.disabled = false;
+            delBtn.innerHTML = originalText;
+        }
     }
 }
 
