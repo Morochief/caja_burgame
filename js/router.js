@@ -15,6 +15,7 @@ const routes = {
     '#/inventario': () => import('./pages/inventario.js').then(m => m.renderInventarioPage()),
     '#/clientes': () => import('./pages/clientes.js').then(m => m.renderClientesPage()),
     '#/ajustes': () => import('./pages/ajustes.js').then(m => m.renderAjustesPage()),
+    '#/arcade': () => import('./pages/arcade.js').then(m => m.renderArcadePage()),
     '#/cliente': () => {
         window.location.href = 'cliente.html';
         const dummy = document.createElement('div');

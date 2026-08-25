@@ -14,7 +14,8 @@ export function renderSidebar(containerId, currentRoute, cashRegisterStatus) {
         { path: '#/inventario', icon: 'package', label: 'Inventario' },
         { path: '#/clientes', icon: 'users', label: 'Clientes' },
         { path: '#/reportes', icon: 'trending-up', label: 'Reportes' },
-        { path: '#/ajustes', icon: 'settings', label: 'Ajustes' }
+        { path: '#/ajustes', icon: 'settings', label: 'Ajustes' },
+        { path: '#/arcade', icon: 'gamepad-2', label: 'Arcade' }
     ];
 
     container.innerHTML = `

@@ -1,0 +1,171 @@
+/* ==========================================================================
+   ARCADE PAGE STYLES
+   ========================================================================== */
+
+.arcade-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.arcade-layout {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+/* --- Sección del juego --- */
+.arcade-game-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.arcade-game-wrapper {
+    position: relative;
+    background: #000;
+    border: 3px solid var(--color-primary);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    aspect-ratio: 3 / 2;
+    min-height: 400px;
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.2);
+}
+
+.arcade-game-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    background: #000;
+    z-index: 2;
+}
+
+.arcade-logo {
+    font-size: 4rem;
+    line-height: 1;
+}
+
+.arcade-title {
+    font-family: var(--font-title);
+    font-size: 1.8rem;
+    color: var(--color-primary);
+    letter-spacing: 2px;
+    text-shadow: 0 0 15px var(--color-primary-glow);
+}
+
+.arcade-subtitle {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    max-width: 300px;
+    text-align: center;
+}
+
+.arcade-play-btn {
+    margin-top: 1rem;
+    font-family: var(--font-title);
+    font-size: 1rem;
+    padding: 0.8rem 2rem;
+    letter-spacing: 1px;
+}
+
+.arcade-iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: none;
+    background: #000;
+}
+
+/* --- Controles del juego --- */
+.arcade-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* --- Leaderboard --- */
+.arcade-leaderboard {
+    background: var(--bg-card);
+    border: 1px solid var(--border-gold);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+    box-shadow: var(--shadow-card);
+}
+
+.arcade-leaderboard__title {
+    font-family: var(--font-title);
+    font-size: 0.9rem;
+    color: var(--color-primary);
+    margin-bottom: 1rem;
+    text-align: center;
+    letter-spacing: 1px;
+}
+
+.arcade-scores-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.arcade-score-row {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.8rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+}
+
+.arcade-score-row--top {
+    border-color: var(--border-gold-bright);
+    background: rgba(255, 215, 0, 0.06);
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.1);
+}
+
+.arcade-score-rank {
+    font-size: 1.1rem;
+    text-align: center;
+}
+
+.arcade-score-initials {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--color-text);
+}
+
+.arcade-score-value {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    color: var(--color-primary);
+    font-size: 1rem;
+}
+
+/* --- Responsive --- */
+@media (max-width: 900px) {
+    .arcade-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 600px) {
+    .arcade-game-wrapper {
+        min-height: 300px;
+        aspect-ratio: 4 / 3;
+    }
+    .arcade-title {
+        font-size: 1.4rem;
+    }
+    .arcade-play-btn {
+        font-size: 0.85rem;
+        padding: 0.6rem 1.5rem;
+    }
+}

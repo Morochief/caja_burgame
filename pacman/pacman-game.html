@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link href='https://fonts.googleapis.com/css?family=Press+Start+2P&display=swap' rel='stylesheet'>
+    <link href='https://fonts.googleapis.com/icon?family=Material+Icons' rel='stylesheet'>
+    <link rel='stylesheet' href='build/app.css'>
+    <title>BURGAME ARCADE</title>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: #000;
+        overflow: hidden;
+        width: 100%;
+        height: 100%;
+      }
+      #overflow-mask {
+        width: 100%;
+        height: 100%;
+      }
+      /* Hide the blinking text cursor (caret) during gameplay */
+      * {
+        caret-color: transparent;
+      }
+      /* Ensure lives display is always visible */
+      .game-ui .bottom .extra-lives {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        min-height: 20px;
+      }
+      /* Hide movement buttons on desktop (mouse), show on touch/mobile */
+      @media (hover: hover) and (pointer: fine) {
+        #movement-buttons {
+          visibility: hidden !important;
+        }
+      }
+      /* Arcade-style D-pad buttons (BURGAME yellow theme) */
+      #movement-buttons button {
+        background: rgba(0, 0, 0, 0.88) !important;
+        border: 3px solid #f3e700 !important;
+        border-radius: 0 !important;
+        color: #f3e700 !important;
+        min-width: 72px !important;
+        min-height: 72px !important;
+        margin: 4px;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+        transition: background 0.1s;
+      }
+      #movement-buttons button:active {
+        background: #f3e700 !important;
+        color: #000 !important;
+      }
+      #movement-buttons button .material-icons {
+        font-size: 38px !important;
+        color: inherit !important;
+        margin: 0 !important;
+      }
+      #movement-buttons .row {
+        justify-content: center !important;
+        margin-bottom: 0 !important;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id='overflow-mask' class='overflow-mask'>
+      <img id='backdrop' class='backdrop' src='app/style/graphics/backdrop.png'>
+
+      <div id='fps-display' class='fps-display'></div>
+      <div id='preload-div' class='preload-div'></div>
+
+      <div id='main-menu-container' class='main-menu-container'>
+        <img id='logo' class='logo' src='app/style/graphics/pacman_logo.png'>
+        <button id='game-start' class='game-start'>
+          PLAY
+        </button>
+      </div>
+
+      <div class='header-buttons'>
+        <button>
+          <i id='pause-button' class='material-icons'>pause</i>
+        </button>
+        <button>
+          <i id='sound-button' class='material-icons'></i>
+        </button>
+      </div>
+
+      <div id='paused-text' class='paused-text'>
+        PAUSED
+      </div>
+
+      <div id='game-ui' class='game-ui'>
+        <div id='row-top' class='row top'>
+          <div class='column _25'>
+            <div class='one-up'>1UP</div>
+            <div id='points-display'></div>
+          </div>
+          <div class='column _50'>
+            <div>HIGH SCORE</div>
+            <div id='high-score-display'></div>
+          </div>
+        </div>
+
+        <div id='maze' class='maze'>
+          <img id='maze-img' class='maze-img' src='app/style/graphics/spriteSheets/maze/maze_blue.svg'>
+          <div id='maze-cover' class='maze-cover'></div>
+          <div id='dot-container'></div>
+          <p id='pacman' class='pacman'></p>
+          <p id='pacman-arrow' class='pacman'></p>
+          <p id='clyde' class='ghost'></p>
+          <p id='inky' class='ghost'></p>
+          <p id='pinky' class='ghost'></p>
+          <p id='blinky' class='ghost'></p>
+        </div>
+
+        <div id='left-cover' class='loading-cover left'></div>
+        <div id='right-cover' class='loading-cover right'></div>
+
+        <!-- Bottom row: lives + fruit display (required by GameCoordinator) -->
+        <div id='bottom-row' class='row bottom'>
+          <div id='extra-lives' class='extra-lives'></div>
+          <div id='fruit-display' class='fruit-display'></div>
+        </div>
+
+        <!-- Mobile movement buttons (D-pad) - visible on touch devices -->
+        <div id='movement-buttons' class='movement-buttons'>
+          <div class='row'>
+            <button id='button-up' class='button-up'><i class='material-icons'>arrow_upward</i></button>
+          </div>
+          <div class='row'>
+            <button id='button-left' class='button-left'><i class='material-icons'>arrow_back</i></button>
+            <button id='button-right' class='button-right'><i class='material-icons'>arrow_forward</i></button>
+          </div>
+          <div class='row'>
+            <button id='button-down' class='button-down'><i class='material-icons'>arrow_downward</i></button>
+          </div>
+        </div>
+
+        <div id='loading-container' class='loading-container'>
+          <div id='loading-pacman' class='loading-pacman'></div>
+          <div id='loading-dot-mask' class='loading-dot-mask'></div>
+          <div class='loading-dot _5'></div>
+          <div class='loading-dot _10'></div>
+          <div class='loading-dot _15'></div>
+          <div class='loading-dot _20'></div>
+          <div class='loading-dot _25'></div>
+          <div class='loading-dot _30'></div>
+          <div class='loading-dot _35'></div>
+          <div class='loading-dot _40'></div>
+          <div class='loading-dot _45'></div>
+          <div class='loading-dot _50'></div>
+          <div class='loading-dot _55'></div>
+          <div class='loading-dot _60'></div>
+          <div class='loading-dot _65'></div>
+          <div class='loading-dot _70'></div>
+          <div class='loading-dot _75'></div>
+          <div class='loading-dot _80'></div>
+          <div class='loading-dot _85'></div>
+          <div class='loading-dot _90'></div>
+          <div class='loading-dot _95'></div>
+        </div>
+
+        <div id='error-message' class='error-message'>
+          <div class='header'>
+            <div>OOPS!</div>
+            <div class='error-pacman'></div>
+          </div>
+          <div class='body'>
+            We were unable to load the images/sounds needed to play the game.<br><br>
+            This could be due to a poor connection, a strict network policy, or
+            by playing on an unsupported browser.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Over Score Prompt Overlay -->
+    <div id="score-prompt" style="
+      display:none;
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,0.92);
+      z-index:9999;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      font-family:'Press Start 2P',monospace;
+    ">
+      <p style="color:#f3e700;font-size:18px;margin-bottom:12px;">GAME OVER</p>
+      <p style="color:#fff;font-size:12px;margin-bottom:4px;">TU PUNTAJE</p>
+      <p id="score-display" style="color:#f3e700;font-size:28px;margin-bottom:20px;">0</p>
+      <p style="color:#fff;font-size:11px;margin-bottom:12px;">INGRESA TUS INICIALES</p>
+      <input
+        id="initials-input"
+        type="text"
+        maxlength="3"
+        autocomplete="off"
+        style="
+          text-transform:uppercase;
+          width:120px;
+          font-size:28px;
+          text-align:center;
+          border:3px solid #f3e700;
+          background:#000;
+          color:#f3e700;
+          font-family:'Press Start 2P',monospace;
+          padding:8px;
+          margin-bottom:20px;
+          outline:none;
+          letter-spacing:12px;
+        "
+        placeholder="AAA"
+      >
+      <button
+        id="save-btn"
+        style="
+          background:#f3e700;
+          color:#000;
+          font-family:'Press Start 2P',monospace;
+          font-size:14px;
+          padding:12px 24px;
+          border:none;
+          cursor:pointer;
+        "
+      >GUARDAR</button>
+    </div>
+
+    <script src='build/app.js'></script>
+    <script>
+      window.onload = () => {
+        // IMPORTANT: Patch the PROTOTYPE before creating the instance
+        // so deathSequence() -> this.gameOver() calls our version
+        GameCoordinator.prototype.gameOver = function() {
+          const score = this.points || 0;
+          const prompt = document.getElementById('score-prompt');
+          const scoreDisplay = document.getElementById('score-display');
+          const input = document.getElementById('initials-input');
+          const btn = document.getElementById('save-btn');
+
+          scoreDisplay.textContent = score;
+          input.value = '';
+          prompt.style.display = 'flex';
+
+          setTimeout(() => input.focus(), 100);
+
+          input.oninput = () => {
+            input.value = input.value.toUpperCase().replace(/[^A-Z]/g, '').substring(0, 3);
+          };
+
+          input.onkeydown = (e) => {
+            if (e.key === 'Enter' && input.value.length > 0) btn.click();
+          };
+
+          const self = this;
+          btn.onclick = () => {
+            let initials = input.value.toUpperCase() || 'AAA';
+            // Send score to parent window (index.html)
+            window.parent.postMessage({ type: 'BURGAME_SCORE', initials: initials, score: score }, '*');
+            prompt.style.display = 'none';
+            self.reset();
+            self.mainMenu.style.visibility = 'visible';
+          };
+        };
+
+        // Now create the instance (it will use our patched prototype)
+        new GameCoordinator();
+      };
+    </script>
+  </body>
+</html>
