@@ -228,6 +228,64 @@
     flex-wrap: wrap;
 }
 
+/* ==========================================================================
+   ARQUEO DE CAJA: Indicador de diferencia en vivo
+   ========================================================================== */
+.cash-diff {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.8rem 1rem;
+    border-radius: var(--radius-md);
+    margin: 0.5rem 0 1rem;
+    font-size: 0.85rem;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-elevated);
+}
+
+.cash-diff__label {
+    color: var(--text-muted);
+}
+
+.cash-diff__value {
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+
+.cash-diff__hint {
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.cash-diff--ok {
+    border-color: rgba(76, 175, 80, 0.5);
+    background: rgba(76, 175, 80, 0.1);
+}
+.cash-diff--ok .cash-diff__value,
+.cash-diff--ok .cash-diff__hint {
+    color: #4CAF50;
+}
+
+.cash-diff--short {
+    border-color: rgba(244, 67, 54, 0.5);
+    background: rgba(244, 67, 54, 0.1);
+}
+.cash-diff--short .cash-diff__value,
+.cash-diff--short .cash-diff__hint {
+    color: #F44336;
+}
+
+.cash-diff--over {
+    border-color: rgba(255, 152, 0, 0.5);
+    background: rgba(255, 152, 0, 0.1);
+}
+.cash-diff--over .cash-diff__value,
+.cash-diff--over .cash-diff__hint {
+    color: #FF9800;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
     .caja-month-grid {

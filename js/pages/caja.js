@@ -122,6 +122,11 @@ async function loadCajaData(container) {
                                 <label for="counted-amount">Monto Contado en Efectivo (Gs.):</label>
                                 <input type="number" id="counted-amount" value="${summary.expectedCash || 0}" placeholder="Monto contado real" required>
                             </div>
+                            <div id="cash-diff-indicator" class="cash-diff cash-diff--ok" style="display: none;">
+                                <span class="cash-diff__label">Diferencia (contado − esperado):</span>
+                                <span class="cash-diff__value">Gs. 0</span>
+                                <span class="cash-diff__hint">✅ Cuadrado</span>
+                            </div>
                             <div class="form-group">
                                 <label for="close-notes">Observaciones:</label>
                                 <textarea id="close-notes" placeholder="Notas sobre diferencias, billetes incompletos, etc."></textarea>
@@ -157,6 +162,42 @@ async function loadCajaData(container) {
 }
 
 function setupCloseEvents(container, register, summary) {
+    const expectedCash = summary.expectedCash || 0;
+
+    // --- #1: Indicador de diferencia (arqueo) en vivo ---
+    const countedInput = container.querySelector('#counted-amount');
+    const diffEl = container.querySelector('#cash-diff-indicator');
+
+    function updateCashDiff() {
+        if (!countedInput || !diffEl) return;
+        const counted = parseInt(countedInput.value, 10) || 0;
+        const diff = counted - expectedCash;
+        diffEl.style.display = 'flex';
+        diffEl.classList.remove('cash-diff--ok', 'cash-diff--short', 'cash-diff--over');
+
+        const valueEl = diffEl.querySelector('.cash-diff__value');
+        const hintEl = diffEl.querySelector('.cash-diff__hint');
+
+        if (diff === 0) {
+            diffEl.classList.add('cash-diff--ok');
+            valueEl.textContent = 'Gs. 0';
+            hintEl.textContent = '✅ Cuadrado';
+        } else if (diff < 0) {
+            diffEl.classList.add('cash-diff--short');
+            valueEl.textContent = `- ${formatGs(Math.abs(diff))}`;
+            hintEl.textContent = '⚠️ Faltante';
+        } else {
+            diffEl.classList.add('cash-diff--over');
+            valueEl.textContent = `+ ${formatGs(diff)}`;
+            hintEl.textContent = '⚠️ Sobrante';
+        }
+    }
+    countedInput?.addEventListener('input', updateCashDiff);
+    updateCashDiff(); // cálculo inicial
+
+    // --- #7: Confirmación de cierre ---
+    const closeBtn = container.querySelector('#form-close-cash button[type="submit"]');
+
     container.querySelector('#btn-export-excel')?.addEventListener('click', () => {
         exportCajaExcel(register, summary);
     });
@@ -183,6 +224,17 @@ function setupCloseEvents(container, register, summary) {
         e.preventDefault();
         const counted = parseInt(container.querySelector('#counted-amount').value, 10) || 0;
         const notes = container.querySelector('#close-notes').value;
+        const diff = counted - expectedCash;
+
+        // --- #7: Confirmación de cierre ---
+        const confirmed = await confirmCloseCaja(counted, expectedCash, diff);
+        if (!confirmed) {
+            // Restaurar botón si el usuario canceló
+            if (closeBtn) { closeBtn.disabled = false; closeBtn.innerHTML = '🔒 CERRAR CAJA'; }
+            return;
+        }
+
+        if (closeBtn) { closeBtn.disabled = true; closeBtn.innerHTML = '⏳ Cerrando...'; }
 
         try {
             await cashService.closeRegister(register.id, counted, notes);
@@ -200,7 +252,52 @@ function setupCloseEvents(container, register, summary) {
             }
         } catch (err) {
             showToast({ message: 'Error al cerrar caja: ' + err.message, type: 'error' });
+        } finally {
+            if (closeBtn) { closeBtn.disabled = false; closeBtn.innerHTML = '🔒 CERRAR CAJA'; }
         }
+    });
+}
+
+// ============================================================
+// #7: Modal de confirmación de cierre de caja
+// ============================================================
+function confirmCloseCaja(counted, expected, diff) {
+    return new Promise((resolve) => {
+        const diffText = diff === 0
+            ? '✅ Caja cuadrada (sin diferencia)'
+            : (diff < 0
+                ? `⚠️ FALTAN ${formatGs(Math.abs(diff))} respecto del esperado`
+                : `⚠️ SOBRAN ${formatGs(diff)} respecto del esperado`);
+
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 1rem;';
+
+        overlay.innerHTML = `
+            <div class="card" style="max-width: 420px; width: 100%; padding: 1.5rem; background: var(--bg-card); border-radius: var(--radius-md); text-align: center;">
+                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🔒</div>
+                <h3 style="font-family: var(--font-title); color: var(--color-primary); margin: 0 0 0.75rem;">¿Confirmar cierre de caja?</h3>
+                <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+                    <div>Efectivo contado: <strong style="font-family: var(--font-mono); color: var(--color-text);">${formatGs(counted)}</strong></div>
+                    <div>Efectivo esperado: <strong style="font-family: var(--font-mono); color: var(--color-text);">${formatGs(expected)}</strong></div>
+                    <div style="margin-top: 0.5rem; font-weight: bold;">${diffText}</div>
+                </div>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+                    Una vez cerrada, no se podrán agregar ventas ni gastos a este turno.
+                </p>
+                <div style="display: flex; gap: 0.75rem;">
+                    <button class="btn btn--ghost btn-cancel" style="flex: 1;">Cancelar</button>
+                    <button class="btn btn--danger btn-confirm" style="flex: 1;">🔒 Sí, cerrar caja</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        const cleanup = () => overlay.remove();
+        overlay.querySelector('.btn-cancel')?.addEventListener('click', () => { cleanup(); resolve(false); });
+        overlay.querySelector('.btn-confirm')?.addEventListener('click', () => { cleanup(); resolve(true); });
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) { cleanup(); resolve(false); } });
     });
 }
 
