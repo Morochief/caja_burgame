@@ -74,13 +74,16 @@ function setupArcade(container) {
     function startGame() {
         placeholder.style.display = 'none';
         iframe.style.display = 'block';
-        if (!iframe.src || iframe.src === window.location.href) {
-            iframe.src = iframe.dataset.src;
+        // Siempre setear el src: la comparacion anterior con window.location.href
+        // fallaba en Vercel porque src="" resuelve a about:blank, no a la URL actual.
+        const gameSrc = iframe.dataset.src;
+        if (iframe.src !== gameSrc && !iframe.src.endsWith(gameSrc)) {
+            iframe.src = gameSrc;
         }
     }
 
     function stopGame() {
-        iframe.src = '';
+        iframe.src = 'about:blank';
         iframe.style.display = 'none';
         placeholder.style.display = 'flex';
     }
