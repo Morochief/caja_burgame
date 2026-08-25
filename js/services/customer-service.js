@@ -59,6 +59,16 @@ export async function remove(id) {
     if (error) throw error;
 }
 
+// Reasigna los pedidos de un nombre de cliente a otro (para fusión de duplicados).
+// Usa match exacto (case-sensitive) para no afectar clientes con casing distinto.
+export async function reassignOrders(fromName, toName) {
+    const { error } = await supabase
+        .from('orders')
+        .update({ customer_name: toName })
+        .eq('customer_name', fromName);
+    if (error) throw error;
+}
+
 // Trae stats de compras agrupadas por customer_name desde orders
 export async function getStatsByName() {
     const { data, error } = await supabase
@@ -94,5 +104,6 @@ export const customerService = {
     create,
     update,
     remove,
+    reassignOrders,
     getStatsByName
 };

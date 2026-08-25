@@ -123,8 +123,8 @@ export async function renderClientesPage() {
                 </div>
                 <div id="cli-merge-body" style="margin-bottom: 1.5rem;"></div>
                 <div style="display:flex; gap:0.75rem;">
-                    <button class="btn btn--primary btn--block" id="cli-btn-confirm-merge">✅ Sí, Fusionar</button>
-                    <button class="btn btn--secondary" id="cli-btn-cancel-merge">Cancelar</button>
+                    <button type="button" class="btn btn--primary btn--block" id="cli-btn-confirm-merge">✅ Sí, Fusionar</button>
+                    <button type="button" class="btn btn--secondary" id="cli-btn-cancel-merge">Cancelar</button>
                 </div>
             </div>
         </div>
@@ -531,8 +531,8 @@ function openMergeModal(container, existing, name, phone, notes) {
             </div>
         </div>
         <p style="font-size: 0.85rem; color: var(--text-muted);">
-            Al fusionar, se <strong>actualizará el cliente existente</strong> con los datos nuevos (teléfono y notas
-            ${pendingMerge.mode === 'edit-rename' ? ', y el cliente actual será eliminado' : ''}).
+            Al fusionar, se <strong>actualizará el cliente existente</strong> con los datos nuevos (teléfono y notas)
+            ${pendingMerge.mode === 'edit-rename' ? ', sus pedidos se reasignarán al cliente existente y el cliente actual será eliminado' : ''}.
             El historial de pedidos se mantiene intacto.
         </p>
     `;
@@ -544,6 +544,8 @@ async function handleMerge(container) {
     if (!pendingMerge) return;
 
     const mergeBtn = container.querySelector('#cli-btn-confirm-merge');
+    if (!mergeBtn) return;
+
     const originalText = mergeBtn.innerHTML;
     mergeBtn.disabled = true;
     mergeBtn.innerHTML = '⏳ Fusionando...';
@@ -551,23 +553,56 @@ async function handleMerge(container) {
     try {
         const { mode, existingId, name, phone, notes, currentId } = pendingMerge;
 
+        // Buscar el cliente existente para saber el nombre REAL (casing exacto en DB)
+        // antes de intentar cualquier update o reasignacion de pedidos.
+        const existingCustomer = allCustomers.find(c => c.id === existingId);
+        if (!existingCustomer) {
+            throw new Error('No se encontró el cliente existente para fusionar');
+        }
+        const targetName = existingCustomer.name; // nombre con casing real en la DB
+
         if (mode === 'create') {
-            // Fusionar: actualizar el existente con los datos nuevos
-            await customerService.update(existingId, { name, phone, notes });
-            showToast({ message: `✅ Datos fusionados con "${name}"`, type: 'success' });
+            // Fusionar: actualizar el existente con los datos nuevos (telefono, notas).
+            // No cambiamos el nombre del existente (targetName) para evitar UNIQUE violation.
+            await customerService.update(existingId, {
+                name: targetName,
+                phone,
+                notes
+            });
+
+            // Reasignar pedidos que tengan customer_name = name (lo que el usuario escribio)
+            // al nombre real del cliente existente (targetName), si difieren (ej: distinto casing).
+            if (name !== targetName) {
+                await customerService.reassignOrders(name, targetName);
+            }
+
+            showToast({ message: `✅ Datos fusionados con "${targetName}"`, type: 'success' });
         } else if (mode === 'edit-rename') {
-            // El usuario renombró un cliente a un nombre que ya existe
-            // Fusionar: pasar datos al existente y eliminar el actual
-            await customerService.update(existingId, { name, phone, notes });
+            // El usuario renombró un cliente a un nombre que ya existe.
+            // 1) Actualizar el existente con los datos nuevos (telefono, notas).
+            await customerService.update(existingId, {
+                name: targetName,
+                phone,
+                notes
+            });
+
+            // 2) Reasignar los pedidos del cliente actual al existente.
+            const currentCustomer = allCustomers.find(c => c.id === currentId);
+            if (currentCustomer && currentCustomer.name !== targetName) {
+                await customerService.reassignOrders(currentCustomer.name, targetName);
+            }
+
+            // 3) Eliminar el cliente actual (ya reasignamos sus pedidos).
             await customerService.remove(currentId);
-            showToast({ message: `✅ Clientes fusionados en "${name}"`, type: 'success' });
+            showToast({ message: `✅ Clientes fusionados en "${targetName}"`, type: 'success' });
         }
 
         container.querySelector('#cli-merge-modal')?.classList.add('hidden');
         pendingMerge = null;
         await reload(container);
     } catch (err) {
-        showToast({ message: 'Error al fusionar: ' + err.message, type: 'error' });
+        console.error('[clientes] Error al fusionar:', err);
+        showToast({ message: 'Error al fusionar: ' + (err.message || 'desconocido'), type: 'error' });
     } finally {
         mergeBtn.disabled = false;
         mergeBtn.innerHTML = originalText;
