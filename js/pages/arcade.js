@@ -1,9 +1,12 @@
 // ============================================================
 // Página ARCADE - Pacman embebido + Leaderboard
 // El juego corre en un iframe aislado y envía el score vía postMessage.
+// Scores persistidos en Supabase (tabla arcade_scores) con fallback
+// a localStorage si Supabase no está disponible.
 // ============================================================
 
 import { showToast } from '../components/toast.js';
+import { arcadeService } from '../services/arcade-service.js';
 
 const SCORES_KEY = 'burgame_scores';
 
@@ -86,9 +89,13 @@ function setupArcade(container) {
 }
 
 // ============================================================
-// Leaderboard (localStorage) - compatible con burgame-web
+// Leaderboard
+// Primario: Supabase (tabla arcade_scores).
+// Fallback: localStorage (key burgame_scores) si Supabase falla.
 // ============================================================
-function getScores() {
+
+// --- Local fallback ---
+function getLocalScores() {
     let scores = JSON.parse(localStorage.getItem(SCORES_KEY) || '[]');
     if (scores.length === 0) {
         scores = [
@@ -101,20 +108,17 @@ function getScores() {
     return scores;
 }
 
-function saveScore(initials, score) {
-    let scores = getScores();
+function saveLocalScore(initials, score) {
+    let scores = getLocalScores();
     scores.push({ initials: initials.substring(0, 3), score: parseInt(score, 10) });
     scores.sort((a, b) => b.score - a.score);
     scores = scores.slice(0, 5);
     localStorage.setItem(SCORES_KEY, JSON.stringify(scores));
 }
 
-function renderScores(container) {
-    const listEl = container.querySelector('#arcade-scores-list');
-    if (!listEl) return;
-
-    const scores = getScores();
-    if (scores.length === 0) {
+// --- Renderizado ---
+function renderScoreList(listEl, scores) {
+    if (!scores || scores.length === 0) {
         listEl.innerHTML = '<p class="empty-text">Aún no hay puntajes. ¡Sé el primero!</p>';
         return;
     }
@@ -125,10 +129,42 @@ function renderScores(container) {
             <div class="arcade-score-row ${i === 0 ? 'arcade-score-row--top' : ''}">
                 <span class="arcade-score-rank">${medal}</span>
                 <span class="arcade-score-initials">${s.initials}</span>
-                <span class="arcade-score-value">${s.score.toLocaleString()}</span>
+                <span class="arcade-score-value">${(s.score || 0).toLocaleString()}</span>
             </div>
         `;
     }).join('');
+}
+
+async function renderScores(container) {
+    const listEl = container.querySelector('#arcade-scores-list');
+    if (!listEl) return;
+
+    // Intentar Supabase primero
+    try {
+        const scores = await arcadeService.getTopScores(10);
+        renderScoreList(listEl, scores);
+        return;
+    } catch (err) {
+        console.warn('[arcade] Supabase falló, usando localStorage:', err.message);
+    }
+
+    // Fallback: localStorage
+    renderScoreList(listEl, getLocalScores());
+}
+
+// --- Guardar score ---
+async function handleSaveScore(initials, score) {
+    // Guardar en Supabase
+    try {
+        await arcadeService.saveScore(initials, score);
+        showToast({ message: `¡Puntaje guardado! ${initials} - ${score}`, type: 'success' });
+        return true;
+    } catch (err) {
+        console.warn('[arcade] Supabase falló, guardando local:', err.message);
+        saveLocalScore(initials, score);
+        showToast({ message: `Puntaje guardado local: ${initials} - ${score}`, type: 'info' });
+        return true;
+    }
 }
 
 // ============================================================
@@ -141,17 +177,12 @@ function ensureScoreListener() {
     if (_scoreListenerRegistered) return;
     _scoreListenerRegistered = true;
 
-    window.addEventListener('message', (e) => {
+    window.addEventListener('message', async (e) => {
         if (e.data && e.data.type === 'BURGAME_SCORE') {
-            saveScore(e.data.initials, e.data.score);
+            await handleSaveScore(e.data.initials, e.data.score);
             // Si la página del arcade está visible, actualizar el leaderboard
-            const listEl = document.querySelector('#arcade-scores-list');
-            if (listEl) {
-                // Re-renderizar la lista desde el container actual
-                const container = document.querySelector('.arcade-page');
-                if (container) renderScores(container);
-            }
-            showToast({ message: `¡Puntaje guardado! ${e.data.initials} - ${e.data.score}`, type: 'success' });
+            const container = document.querySelector('.arcade-page');
+            if (container) renderScores(container);
         }
     });
 }
