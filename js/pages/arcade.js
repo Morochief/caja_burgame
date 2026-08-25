@@ -3,10 +3,11 @@
 // El juego corre en un iframe aislado y envía el score vía postMessage.
 // Scores persistidos en Supabase (tabla arcade_scores) con fallback
 // a localStorage si Supabase no está disponible.
+// El import del servicio es dinamico (lazy) para que si Supabase
+// falla al cargar, el juego igual funcione.
 // ============================================================
 
 import { showToast } from '../components/toast.js';
-import { arcadeService } from '../services/arcade-service.js';
 
 const SCORES_KEY = 'burgame_scores';
 
@@ -139,8 +140,9 @@ async function renderScores(container) {
     const listEl = container.querySelector('#arcade-scores-list');
     if (!listEl) return;
 
-    // Intentar Supabase primero
+    // Intentar Supabase primero (import dinamico para no romper la pagina si falla)
     try {
+        const { arcadeService } = await import('../services/arcade-service.js');
         const scores = await arcadeService.getTopScores(10);
         renderScoreList(listEl, scores);
         return;
@@ -154,8 +156,9 @@ async function renderScores(container) {
 
 // --- Guardar score ---
 async function handleSaveScore(initials, score) {
-    // Guardar en Supabase
+    // Guardar en Supabase (import dinamico)
     try {
+        const { arcadeService } = await import('../services/arcade-service.js');
         await arcadeService.saveScore(initials, score);
         showToast({ message: `¡Puntaje guardado! ${initials} - ${score}`, type: 'success' });
         return true;
