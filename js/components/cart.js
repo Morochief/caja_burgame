@@ -9,24 +9,68 @@ import { formatGs } from './currency.js';
 /**
  * Crea una nueva instancia de carrito (state aislado por página).
  * Cada página llama createCart() y obtiene su propio carrito independiente.
+ * Soporta "modo club": si está activo, los productos con club_price
+ * se cobran a ese precio (todas sus presentaciones).
  */
 export function createCart() {
     let items = [];
+    let clubMode = false;
 
     return {
         get items() { return items; },
         set items(v) { items = v; },
+        get clubMode() { return clubMode; },
+        set clubMode(v) { clubMode = !!v; },
         get count() { return items.reduce((a, b) => a + b.quantity, 0); },
         get total() { return items.reduce((acc, item) => acc + (item.price * item.quantity), 0); },
 
         /**
+         * Calcula el precio vigente según el modo club.
+         * En modo club, si el producto tiene club_price, ese precio aplica
+         * para TODAS sus presentaciones (solo/combo/variante/promo).
+         */
+        resolvePrice(product, basePrice) {
+            if (clubMode) {
+                const club = product && product.club_price;
+                if (club) return club;
+            }
+            return basePrice;
+        },
+
+        /**
+         * Activa o desactiva el modo club y re-preciifica todos los items.
+         * @param {boolean} active
+         * @param {Object} [clubLookup] - mapa productId -> producto (o club_price)
+         */
+        setClubMode(active, clubLookup) {
+            clubMode = !!active;
+            if (!clubLookup) return;
+
+            items.forEach(item => {
+                const entry = clubLookup[item.productId];
+                const product = entry && entry.club_price !== undefined ? entry : null;
+                const club = product ? product.club_price : null;
+
+                if (clubMode && club) {
+                    item.price = club;
+                    item.clubApplied = true;
+                } else if (product) {
+                    // Volver al precio normal de la presentación.
+                    item.price = resolveNormalPrice(item, product);
+                    item.clubApplied = false;
+                }
+            });
+        },
+
+        /**
          * Agrega un producto al carrito (individual o combo).
-         * Si ya existe (mismo producto + combo + sin notas), suma cantidad.
+         * Si ya existe (mismo producto + combo + sin notas + mismo precio), suma cantidad.
          */
         addProduct(product, isCombo) {
-            const price = isCombo ? (product.combo_price || (product.price + 10000)) : product.price;
+            const basePrice = isCombo ? (product.combo_price || (product.price + 10000)) : product.price;
+            const price = this.resolvePrice(product, basePrice);
             const existingIdx = items.findIndex(ci =>
-                ci.productId === product.id && ci.isCombo === isCombo && (ci.customNotes || '') === ''
+                ci.productId === product.id && ci.isCombo === isCombo && ci.price === price && (ci.customNotes || '') === ''
             );
 
             if (existingIdx >= 0) {
@@ -36,6 +80,8 @@ export function createCart() {
                     productId: product.id,
                     productName: product.name,
                     price: price,
+                    basePrice: basePrice,
+                    clubApplied: clubMode && !!product.club_price,
                     quantity: 1,
                     isCombo: isCombo,
                     customNotes: ''
@@ -45,10 +91,14 @@ export function createCart() {
 
         /**
          * Agrega una variante (ej: Chopp 1x, 2x1, Libre; Promo Cheat/Bowser).
+         * En modo club, si el producto tiene club_price, la variante pasa a ese precio.
          */
         addVariant(product, variantName, variantPrice) {
             const fullName = `${product.name} (${variantName})`;
-            const existingIdx = items.findIndex(ci => ci.productId === product.id && ci.productName === fullName);
+            const price = this.resolvePrice(product, variantPrice);
+            const existingIdx = items.findIndex(ci =>
+                ci.productId === product.id && ci.productName === fullName && ci.price === price
+            );
 
             if (existingIdx >= 0) {
                 items[existingIdx].quantity++;
@@ -56,7 +106,9 @@ export function createCart() {
                 items.push({
                     productId: product.id,
                     productName: fullName,
-                    price: variantPrice,
+                    price: price,
+                    basePrice: variantPrice,
+                    clubApplied: clubMode && !!product.club_price,
                     quantity: 1,
                     isCombo: false,
                     customNotes: ''
@@ -133,10 +185,10 @@ export function createCart() {
                 }
 
                 return `
-                    <div class="cart-item" style="border-left: 3px solid ${item.isCombo ? 'var(--color-primary)' : 'var(--border-subtle)'};">
+                    <div class="cart-item" style="border-left: 3px solid ${item.clubApplied ? '#FFD700' : (item.isCombo ? 'var(--color-primary)' : 'var(--border-subtle)')};">
                         <div class="cart-item__info">
                             <div>
-                                <div class="card-item__title" style="font-weight: 700;">${item.productName}</div>
+                                <div class="card-item__title" style="font-weight: 700;">${item.productName} ${item.clubApplied ? '<span class="badge badge--yellow" style="font-size:0.62rem; vertical-align: middle; margin-left: 0.25rem;">👑 CLUB</span>' : ''}</div>
                                 ${subtitleHtml}
                             </div>
                             <div class="cart-item__subtotal">${formatGs(item.price * item.quantity)}</div>
@@ -155,4 +207,17 @@ export function createCart() {
             }).join('');
         }
     };
+}
+
+/**
+ * Recalcula el precio NORMAL (sin club) de un item ya agregado.
+ * - Si el item es variante/promo (el nombre tiene "(...)"), se conserva
+ *   el último precio no-club conocido. Para eso guardamos el precio original
+ *   en "basePrice" al agregarlo.
+ * - Si es solo/combo, se calcula desde el producto.
+ */
+function resolveNormalPrice(item, product) {
+    if (item.basePrice) return item.basePrice;
+    if (item.isCombo) return product.combo_price || (product.price + 10000);
+    return product.price;
 }

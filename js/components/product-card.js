@@ -5,7 +5,7 @@
 // ============================================================
 
 import { formatGs } from './currency.js';
-import { getProductType, getComboPrice } from '../utils/product-types.js';
+import { getProductType, getComboPrice, getClubPrice } from '../utils/product-types.js';
 
 /**
  * Devuelve el HTML de una tarjeta de producto con sus botones de acción.
@@ -19,6 +19,7 @@ export function renderProductCard(product, opts = {}) {
     const imageSrc = product.image_url || 'assets/placeholders/burger-placeholder.svg';
     const type = getProductType(product);
     const comboPrice = getComboPrice(product);
+    const clubPrice = getClubPrice(product);
     const pad = compact ? '0.4rem 0.2rem' : '0.35rem 0.15rem';
     const fontSize = compact ? '0.75rem' : '0.68rem';
     const radius = compact ? '6px' : '4px';
@@ -26,6 +27,13 @@ export function renderProductCard(product, opts = {}) {
     const rowGap = compact ? '0.3rem' : '0.25rem';
 
     const btnActions = renderActionsByType(type, product, comboPrice, { pad, fontSize, radius, colGap, rowGap, compact });
+    const clubBadge = clubPrice ? `
+        <div style="display: flex; justify-content: center; margin-top: 0.3rem;">
+            <span style="display: inline-block; padding: 0.15rem 0.45rem; font-size: ${compact ? '0.62rem' : '0.6rem'}; font-weight: 800; color: #0A0B0E; background: linear-gradient(135deg, #FFD700, #FFB300); border-radius: 4px; font-family: var(--font-mono); letter-spacing: 0.3px;">
+                👑 CLUB: ${formatGs(clubPrice)}
+            </span>
+        </div>
+    ` : '';
 
     return `
         <div class="product-card" data-id="${product.id}">
@@ -37,6 +45,7 @@ export function renderProductCard(product, opts = {}) {
                 <p class="product-card__ingredients" ${compact ? 'style="font-size: 0.75rem; min-height: 28px;"' : ''}>${(product.ingredients || []).join(', ')}</p>
                 <div class="product-card__actions" style="margin-top: ${compact ? '0.5rem' : '0.4rem'};">
                     ${btnActions}
+                    ${clubBadge}
                 </div>
             </div>
         </div>

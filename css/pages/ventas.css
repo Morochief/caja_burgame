@@ -812,3 +812,20 @@
         padding: 0.65rem 0.8rem;
     }
 }
+
+/* ============================================================
+   CLUB BURGAME — toggle de precio socio en el modal del pedido
+   ============================================================ */
+.club-toggle-row {
+    background: rgba(255, 215, 0, 0.06);
+    border: 1px solid rgba(255, 215, 0, 0.25);
+}
+
+.club-toggle-row input[type="checkbox"] {
+    flex-shrink: 0;
+}
+
+.cart-item__title .badge--yellow {
+    font-family: var(--font-mono);
+    letter-spacing: 0.5px;
+}

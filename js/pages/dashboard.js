@@ -2,6 +2,7 @@ import { reportService } from '../services/report-service.js';
 import { productService } from '../services/product-service.js';
 import { orderService } from '../services/order-service.js';
 import { cashService } from '../services/cash-service.js';
+import { customerService } from '../services/customer-service.js';
 import { appState } from '../app.js';
 import { formatGs } from '../components/currency.js';
 
@@ -58,6 +59,14 @@ export async function renderDashboardPage() {
                     <div class="page-loading" style="padding: 1rem;"><div class="pixel-spinner"></div></div>
                 </div>
             </div>
+            <div class="card dashboard-card dashboard-card--club">
+                <h3 style="font-family: var(--font-title); font-size: 0.9rem; color: var(--color-primary); margin-bottom: 1rem;">
+                    👑 Club Burgame
+                </h3>
+                <div id="dash-club">
+                    <div class="page-loading" style="padding: 1rem;"><div class="pixel-spinner"></div></div>
+                </div>
+            </div>
         </div>
     `;
 
@@ -85,11 +94,12 @@ async function loadDashboardData(container) {
             `;
         }
 
-        // Cargar 3 queries en paralelo
-        const [shiftSummary, lowStock, todaysOrders] = await Promise.all([
+        // Cargar queries en paralelo
+        const [shiftSummary, lowStock, todaysOrders, clubStats] = await Promise.all([
             reportService.getCurrentShiftSummary(currentRegister ? currentRegister.id : null),
             productService.getLowStock(10),
-            orderService.getTodaysOrders()
+            orderService.getTodaysOrders(),
+            customerService.getMembershipStats().catch(() => null)
         ]);
 
         const activeOrders = (todaysOrders || []).filter(o => o.status !== 'cancelled');
@@ -142,6 +152,49 @@ async function loadDashboardData(container) {
                     `).join('')}
                 </ul>
             `;
+        }
+
+        // Sección Club Burgame: alertas de por vencer / vencidos
+        const clubEl = container.querySelector('#dash-club');
+        if (clubEl) {
+            const expiring = (clubStats?.members || []).filter(m => m.status === 'expiring');
+            const expired = (clubStats?.members || []).filter(m => m.status === 'expired');
+            const items = [];
+
+            if (expiring.length > 0) {
+                items.push('<p style="font-size:0.78rem; color:#FFC107; font-weight:800; margin-bottom:0.4rem;">⚠️ POR VENCER EN 5 DÍAS</p>');
+                expiring.forEach(m => {
+                    items.push(`
+                        <li style="display:flex; justify-content:space-between; align-items:center; padding:0.4rem 0; border-bottom:1px solid var(--border-subtle);">
+                            <span style="font-weight:600;">${m.name}</span>
+                            <span class="badge badge--yellow" style="font-family:var(--font-mono); font-size:0.7rem;">${m.daysLeft} día(s)</span>
+                        </li>
+                    `);
+                });
+            }
+            if (expired.length > 0) {
+                items.push(`<p style="font-size:0.78rem; color:#FF5252; font-weight:800; margin:0.6rem 0 0.4rem;">🔴 VENCIDOS</p>`);
+                expired.forEach(m => {
+                    items.push(`
+                        <li style="display:flex; justify-content:space-between; align-items:center; padding:0.4rem 0; border-bottom:1px solid var(--border-subtle);">
+                            <span style="font-weight:600;">${m.name}</span>
+                            <span class="badge badge--red" style="font-size:0.7rem;">Vencido</span>
+                        </li>
+                    `);
+                });
+            }
+
+            if (items.length === 0) {
+                clubEl.innerHTML = `
+                    <p class="empty-text">👑 Todos los socios están al día. (${clubStats?.active || 0} activos)</p>
+                    <a href="#/club" class="btn btn--secondary btn--block" style="margin-top:0.8rem; font-size:0.85rem;">Ir al Club Burgame</a>
+                `;
+            } else {
+                clubEl.innerHTML = `
+                    <ul class="stock-list">${items.join('')}</ul>
+                    <a href="#/club" class="btn btn--secondary btn--block" style="margin-top:0.8rem; font-size:0.85rem;">👑 Gestionar en Club Burgame</a>
+                `;
+            }
         }
     } catch (e) {
         console.error('Dashboard load error:', e);

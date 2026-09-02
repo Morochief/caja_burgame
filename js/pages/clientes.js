@@ -79,6 +79,10 @@ export async function renderClientesPage() {
                         <label>Notas</label>
                         <textarea id="cli-notes" maxlength="500" placeholder="Preferencias, alergias, observaciones..."></textarea>
                     </div>
+                    <div class="form-group" style="display: flex; align-items: center; gap: 0.6rem; background: rgba(255,215,0,0.06); border: 1px solid rgba(255,215,0,0.2); padding: 0.6rem 0.8rem; border-radius: var(--radius-sm);">
+                        <label for="cli-club" style="margin: 0; font-size: 0.85rem; font-weight: 800; color: var(--color-primary); cursor: pointer;">👑 Es miembro del Club Burgame</label>
+                        <input type="checkbox" id="cli-club" style="accent-color: #FFD700; width: 18px; height: 18px; cursor: pointer; margin-left: auto;">
+                    </div>
                     <div style="display:flex; gap:0.75rem; margin-top:1rem;">
                         <button type="submit" class="btn btn--primary btn--block" id="cli-btn-save">💾 Guardar</button>
                         <button type="button" class="btn btn--secondary" id="cli-btn-cancel">Cancelar</button>
@@ -305,7 +309,7 @@ function refreshTable(container) {
                 <td>
                     <div class="cliente-name-cell">
                         <span class="cliente-avatar">${(c.name || '?').charAt(0).toUpperCase()}</span>
-                        ${c.name}
+                        ${c.name} ${c.is_club_member ? '<span class="badge badge--yellow" style="font-size:0.62rem; margin-left:0.3rem;" title="Miembro del Club Burgame">👑 CLUB</span>' : ''}
                     </div>
                 </td>
                 <td>${phone}</td>
@@ -411,6 +415,8 @@ function openFormModal(container, customer) {
     container.querySelector('#cli-name').value = isEdit ? customer.name : '';
     container.querySelector('#cli-phone').value = isEdit ? (customer.phone || '') : '';
     container.querySelector('#cli-notes').value = isEdit ? (customer.notes || '') : '';
+    const clubCheck = container.querySelector('#cli-club');
+    if (clubCheck) clubCheck.checked = isEdit ? !!customer.is_club_member : false;
 
     modal.classList.remove('hidden');
     setTimeout(() => container.querySelector('#cli-name')?.focus(), 100);
@@ -427,6 +433,7 @@ async function handleSubmitForm(e, container) {
     const name = container.querySelector('#cli-name').value.trim();
     const phone = container.querySelector('#cli-phone').value.trim();
     const notes = container.querySelector('#cli-notes').value.trim();
+    const isClubMember = !!(container.querySelector('#cli-club')?.checked);
 
     if (!name) {
         showToast({ message: 'El nombre es obligatorio', type: 'error' });
@@ -445,25 +452,25 @@ async function handleSubmitForm(e, container) {
             if (name !== allCustomers.find(c => c.id === id)?.name) {
                 const existing = await customerService.findByName(name);
                 if (existing && existing.id !== id) {
-                    pendingMerge = { mode: 'edit-rename', existingId: existing.id, currentId: id, name, phone, notes };
+                    pendingMerge = { mode: 'edit-rename', existingId: existing.id, currentId: id, name, phone, notes, isClubMember };
                     closeFormModal(container);
                     openMergeModal(container, existing, name, phone, notes);
                     return;
                 }
             }
-            await customerService.update(id, { name, phone, notes });
+            await customerService.update(id, { name, phone, notes, is_club_member: isClubMember });
             showToast({ message: `✅ Cliente "${name}" actualizado`, type: 'success' });
         } else {
             // --- CREAR ---
             const existing = await customerService.findByName(name);
             if (existing) {
                 // Ya existe → abrir modal de fusión
-                pendingMerge = { mode: 'create', existingId: existing.id, name, phone, notes };
+                pendingMerge = { mode: 'create', existingId: existing.id, name, phone, notes, isClubMember };
                 closeFormModal(container);
                 openMergeModal(container, existing, name, phone, notes);
                 return;
             }
-            await customerService.create({ name, phone, notes });
+            await customerService.create({ name, phone, notes, is_club_member: isClubMember });
             showToast({ message: `✅ Cliente "${name}" creado`, type: 'success' });
         }
         closeFormModal(container);
@@ -563,7 +570,7 @@ async function handleMerge(container) {
     mergeBtn.innerHTML = '⏳ Fusionando...';
 
     try {
-        const { mode, existingId, name, phone, notes, currentId } = pendingMerge;
+        const { mode, existingId, name, phone, notes, currentId, isClubMember } = pendingMerge;
 
         // Buscar el cliente existente para saber el nombre REAL (casing exacto en DB)
         // antes de intentar cualquier update o reasignacion de pedidos.
@@ -584,6 +591,8 @@ async function handleMerge(container) {
                 ? `${existingNotesTrim} | ${newNotesTrim}`
                 : newNotesTrim;
         }
+        // Si cualquiera de los dos era miembro del Club, el fusionado lo sigue siendo
+        const mergedClub = !!(existingCustomer.is_club_member || isClubMember);
 
         if (mode === 'create') {
             // Fusionar: actualizar el existente con los datos combinados.
@@ -591,7 +600,8 @@ async function handleMerge(container) {
             await customerService.update(existingId, {
                 name: targetName,
                 phone: mergedPhone,
-                notes: mergedNotes
+                notes: mergedNotes,
+                is_club_member: mergedClub
             });
 
             // Reasignar pedidos que tengan customer_name = name (lo que el usuario escribio)
@@ -607,7 +617,8 @@ async function handleMerge(container) {
             await customerService.update(existingId, {
                 name: targetName,
                 phone: mergedPhone,
-                notes: mergedNotes
+                notes: mergedNotes,
+                is_club_member: mergedClub
             });
 
             // 2) Reasignar los pedidos del cliente actual al existente.

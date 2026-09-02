@@ -80,6 +80,12 @@ function renderMenuCatalog(appEl) {
                     </div>
                 ` : ''}
             </div>
+            <div class="club-toggle-row" style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.6rem; background: rgba(255,215,0,0.06); border: 1px solid rgba(255,215,0,0.25); border-radius: var(--radius-sm); padding: 0.55rem 0.7rem;">
+                <label for="club-self-toggle" style="font-size: 0.82rem; font-weight: 800; color: var(--color-primary); cursor: pointer; display: flex; align-items: center; gap: 0.4rem; margin: 0;">
+                    👑 Soy del Club Burgame
+                </label>
+                <input type="checkbox" id="club-self-toggle" ${cart.clubMode ? 'checked' : ''} style="accent-color: #FFD700; width: 18px; height: 18px; cursor: pointer;">
+            </div>
         </div>
 
         <nav class="categories-bar" style="margin-bottom: 1rem;">
@@ -151,6 +157,13 @@ function setupEvents(appEl) {
     // Inputs nombre / mesa
     appEl.querySelector('#cust-name')?.addEventListener('input', (e) => customerName = e.target.value);
     appEl.querySelector('#cust-table')?.addEventListener('input', (e) => tableNumber = e.target.value);
+
+    // Toggle "Soy del Club Burgame"
+    appEl.querySelector('#club-self-toggle')?.addEventListener('change', (e) => {
+        const active = e.target.checked;
+        cart.setClubMode(active, getClubLookup());
+        updateCartPanel(appEl);
+    });
 
     // Add to cart: single / combo
     appEl.querySelectorAll('.btn-add-single').forEach(btn => {
@@ -233,7 +246,8 @@ function setupEvents(appEl) {
             currentReg = await cashService.getCurrentRegister();
         } catch { }
 
-        const fullCustomerName = serviceType === 'eat_in' ? `${nameVal} (Mesa ${tableVal})` : `${nameVal} (Para Llevar)`;
+        let fullCustomerName = serviceType === 'eat_in' ? `${nameVal} (Mesa ${tableVal})` : `${nameVal} (Para Llevar)`;
+        if (cart.clubMode) fullCustomerName += ' (Club)';
 
         try {
             const order = await orderService.createOrder({
@@ -245,6 +259,7 @@ function setupEvents(appEl) {
 
             activeOrder = order;
             cart.clear();
+            cart.setClubMode(false);
             showToast({ message: '🏆 ¡Pedido recibido! Cocina ya está trabajando en tu orden.', type: 'success' });
 
             subscribeToLiveTracker(order.id, appEl);
@@ -258,6 +273,15 @@ function setupEvents(appEl) {
             btn.innerHTML = originalText;
         }
     });
+}
+
+// ============================================================
+// Mapa productId → producto para aplicar precios Club al carrito
+// ============================================================
+function getClubLookup() {
+    const lookup = {};
+    products.forEach(p => { lookup[p.id] = p; });
+    return lookup;
 }
 
 // ============================================================

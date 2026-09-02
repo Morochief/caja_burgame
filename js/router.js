@@ -14,6 +14,7 @@ const routes = {
     '#/reportes': () => import('./pages/reportes.js').then(m => m.renderReportesPage()),
     '#/inventario': () => import('./pages/inventario.js').then(m => m.renderInventarioPage()),
     '#/clientes': () => import('./pages/clientes.js').then(m => m.renderClientesPage()),
+    '#/club': () => import('./pages/club.js').then(m => m.renderClubPage()),
     '#/ajustes': () => import('./pages/ajustes.js').then(m => m.renderAjustesPage()),
     '#/arcade': () => import('./pages/arcade.js').then(m => m.renderArcadePage()),
     '#/cliente': () => {

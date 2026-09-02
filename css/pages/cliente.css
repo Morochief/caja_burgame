@@ -110,6 +110,18 @@
     text-shadow: 0 0 8px var(--color-primary-glow);
 }
 
+/* ============================================================
+   CLUB BURGAME — toggle "Soy del Club" (autopedido)
+   ============================================================ */
+.club-toggle-row {
+    background: rgba(255, 215, 0, 0.06);
+    border: 1px solid rgba(255, 215, 0, 0.25);
+}
+
+.club-toggle-row input[type="checkbox"] {
+    flex-shrink: 0;
+}
+
 @media (max-width: 480px) {
     .cliente-container {
         padding: 0.7rem;

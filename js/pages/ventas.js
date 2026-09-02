@@ -1,6 +1,7 @@
 import { productService } from '../services/product-service.js';
 import { orderService } from '../services/order-service.js';
 import { cashService } from '../services/cash-service.js';
+import { customerService } from '../services/customer-service.js';
 import { appState } from '../app.js';
 import { formatGs } from '../components/currency.js';
 import { showToast } from '../components/toast.js';
@@ -16,6 +17,8 @@ let currentCustomerName = '';
 let products = [];
 let categories = [];
 let customers = [];
+let customerLookupTimer = null;
+let isManualClubOverride = false;
 
 export async function renderVentasPage() {
     const container = document.createElement('div');
@@ -66,7 +69,7 @@ async function loadVentasData(container) {
         const [prodData, catData, custData] = await Promise.all([
             productService.getAll(),
             productService.getCategories(),
-            orderService.getDistinctCustomers().catch(() => [])
+            customerService.getAll().catch(() => [])
         ]);
         products = prodData || [];
         categories = catData || [];
@@ -185,8 +188,15 @@ function openCartModal(container) {
                         <label for="customer-name"><i data-lucide="user"></i> Cliente / Mesa:</label>
                         <input type="text" id="customer-name" list="customer-list" placeholder="Elegir o escribir nuevo..." value="${currentCustomerName}" autocomplete="off">
                         <datalist id="customer-list">
-                            ${customers.map(c => `<option value="${c}">`).join('')}
+                            ${customers.map(c => `<option value="${c.name}">`).join('')}
                         </datalist>
+                        <div id="club-member-hint" class="club-member-hint" style="display:none; margin-top:0.4rem;"></div>
+                    </div>
+                    <div class="ticket-notes club-toggle-row" style="margin-bottom:0.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; background: rgba(255,215,0,0.06); border: 1px solid rgba(255,215,0,0.25); border-radius: var(--radius-sm); padding: 0.5rem 0.7rem;">
+                        <label for="club-mode-toggle" style="font-size: 0.8rem; font-weight: 800; color: var(--color-primary); cursor: pointer; display: flex; align-items: center; gap: 0.4rem; margin: 0;">
+                            👑 Precio Club Burgame
+                        </label>
+                        <input type="checkbox" id="club-mode-toggle" ${cart.clubMode ? 'checked' : ''} style="accent-color: #FFD700; width: 18px; height: 18px; cursor: pointer;">
                     </div>
                     <div class="ticket-notes">
                         <label for="order-notes"><i data-lucide="file-text"></i> Notas Cocina:</label>
@@ -219,6 +229,8 @@ function openCartModal(container) {
     overlay.querySelector('#btn-clear-cart')?.addEventListener('click', (e) => {
         e.stopPropagation();
         cart.clear();
+        cart.setClubMode(false);
+        isManualClubOverride = false;
         updateTicketUI(container);
         closeCartModal();
         openCartModal(container);
@@ -229,10 +241,92 @@ function openCartModal(container) {
         sendOrderToKitchen(container);
     });
 
-    overlay.querySelector('#customer-name')?.addEventListener('input', (e) => { currentCustomerName = e.target.value; });
+    overlay.querySelector('#customer-name')?.addEventListener('input', (e) => {
+        currentCustomerName = e.target.value;
+        isManualClubOverride = false; // al cambiar de cliente, se re-evalúa su membresía
+        handleCustomerMembershipCheck(container);
+    });
     overlay.querySelector('#order-notes')?.addEventListener('input', (e) => { currentNotes = e.target.value; });
 
+    overlay.querySelector('#club-mode-toggle')?.addEventListener('change', (e) => {
+        const active = e.target.checked;
+        isManualClubOverride = true;
+        applyClubMode(container, active);
+    });
+
     setupModalQtyControls(overlay, container);
+}
+
+// Mapa productId → producto para aplicar precios Club al carrito.
+function getClubLookup() {
+    const lookup = {};
+    products.forEach(p => { lookup[p.id] = p; });
+    return lookup;
+}
+
+function applyClubMode(container, active) {
+    cart.setClubMode(active, getClubLookup());
+    updateTicketUI(container);
+    // Mantener el checkbox sincronizado si el modal está abierto
+    const checkbox = document.querySelector('#club-mode-toggle');
+    if (checkbox) checkbox.checked = !!active;
+}
+
+// Consulta (debounce) el estado de membresía del cliente tipeado y,
+// si es socio activo, activa el toggle automáticamente.
+function handleCustomerMembershipCheck(container) {
+    clearTimeout(customerLookupTimer);
+    const hintEl = document.querySelector('#club-member-hint');
+    const name = currentCustomerName.trim();
+    if (!name) {
+        if (hintEl) hintEl.style.display = 'none';
+        return;
+    }
+
+    customerLookupTimer = setTimeout(async () => {
+        try {
+            // Buscar en caché local de clientes primero
+            let customer = customers.find(c => c.name.toLowerCase() === name.toLowerCase());
+            if (!customer) {
+                customer = await customerService.findByName(name);
+            }
+            if (!customer) return;
+
+            const status = await customerService.getMembershipStatus(customer.id);
+            renderClubHint(hintEl, status, customer);
+
+            // Auto-aplicar precio Club solo si el socio está activo (no vencido)
+            if (status.status === 'active' || status.status === 'expiring') {
+                if (!cart.clubMode && !isManualClubOverride) {
+                    applyClubMode(container, true);
+                }
+            } else {
+                // Socio vencido/sin membresía: no aplicar precio Club
+                if (!isManualClubOverride) applyClubMode(container, false);
+            }
+        } catch (err) {
+            console.warn('No se pudo verificar membresía:', err.message);
+        }
+    }, 350);
+}
+
+function renderClubHint(hintEl, status, customer) {
+    if (!hintEl) return;
+    const name = customer ? customer.name : '';
+    const exp = status.membership ? new Date(status.membership.expires_at).toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }) : '';
+
+    if (status.status === 'active') {
+        hintEl.innerHTML = `<span style="font-size:0.75rem; color:#4CAF50; font-weight:700;">🟢 Socio Club activo · vence el ${exp}</span>`;
+        hintEl.style.display = 'block';
+    } else if (status.status === 'expiring') {
+        hintEl.innerHTML = `<span style="font-size:0.75rem; color:#FFC107; font-weight:700;">⚠️ Socio Club por vencer en ${status.daysLeft} día(s) · vence el ${exp} — renovar en Club</span>`;
+        hintEl.style.display = 'block';
+    } else if (status.status === 'expired') {
+        hintEl.innerHTML = `<span style="font-size:0.75rem; color:#FF5252; font-weight:700;">🔴 Socio vencido (vence el ${exp}) — renovar en Club para precio socio</span>`;
+        hintEl.style.display = 'block';
+    } else {
+        hintEl.style.display = 'none';
+    }
 }
 
 function closeCartModal() {
@@ -251,7 +345,14 @@ function setupModalQtyControls(overlay, container) {
             if (!item) return;
             const product = products.find(p => p.id === item.productId);
             item.isCombo = !item.isCombo;
-            if (product) item.price = item.isCombo ? (product.combo_price || (product.price + 10000)) : product.price;
+            if (product) {
+                // Respetar el modo club: si está activo y el producto participa, usar club_price
+                const base = item.isCombo ? (product.combo_price || (product.price + 10000)) : product.price;
+                const club = product.club_price;
+                item.basePrice = base;
+                item.price = (cart.clubMode && club) ? club : base;
+                item.clubApplied = !!(cart.clubMode && club);
+            }
             updateTicketUI(container);
             closeCartModal();
             openCartModal(container);
@@ -345,6 +446,10 @@ function updateTicketUI(container) {
         if (modalTotal) modalTotal.textContent = totalGs;
         const overlay = document.querySelector('#cart-modal-overlay');
         if (overlay) setupModalQtyControls(overlay, container);
+
+        // Mantener sincronizado el toggle Club si el modal está abierto
+        const clubToggle = document.querySelector('#club-mode-toggle');
+        if (clubToggle) clubToggle.checked = !!cart.clubMode;
     }
 }
 
@@ -407,6 +512,8 @@ async function sendOrderToKitchen(container) {
         });
 
         cart.clear();
+        cart.setClubMode(false);
+        isManualClubOverride = false;
         currentNotes = '';
         currentCustomerName = '';
         if (notesInput) notesInput.value = '';

@@ -34,3 +34,11 @@ export function getProductType(product) {
 export function getComboPrice(product) {
     return product.combo_price || (product.price + 10000);
 }
+
+/**
+ * Precio socio Club Burgame de un producto.
+ * Devuelve club_price si existe, o null si el producto NO participa.
+ */
+export function getClubPrice(product) {
+    return product && product.club_price ? product.club_price : null;
+}

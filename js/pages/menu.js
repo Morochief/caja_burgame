@@ -59,12 +59,13 @@ export async function renderMenuPage() {
                         <th>Categoría</th>
                         <th>Precio Base</th>
                         <th>Precio Combo</th>
+                        <th>👑 Club</th>
                         <th>Estado</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="menu-table-body">
-                    <tr><td colspan="8" class="text-center p-4">
+                    <tr><td colspan="9" class="text-center p-4">
                         <div class="page-loading" style="padding: 1rem;"><div class="pixel-spinner"></div><p>Cargando productos...</p></div>
                     </td></tr>
                 </tbody>
@@ -128,6 +129,10 @@ function renderProductModal() {
                         <div class="form-group" style="flex: 1;">
                             <label for="prod-promo">Precio Promo Especial (Gs.):</label>
                             <input type="number" id="prod-promo" placeholder="35000 / 50000" min="0">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label for="prod-club">👑 Precio Club Burgame (Gs.):</label>
+                            <input type="number" id="prod-club" placeholder="Ej: 200000" min="0">
                         </div>
                     </div>
 
@@ -263,7 +268,7 @@ function renderTableRows() {
     const pageItems = filtered.slice(start, start + MENU_PAGE_SIZE);
 
     if (filtered.length === 0) {
-        return `<tr><td colspan="8" class="text-center p-4">No se encontraron productos con los filtros aplicados</td></tr>`;
+        return `<tr><td colspan="9" class="text-center p-4">No se encontraron productos con los filtros aplicados</td></tr>`;
     }
 
     const typeLabels = {
@@ -286,6 +291,7 @@ function renderTableRows() {
             <td>${p.categories ? p.categories.name : '-'}</td>
             <td>${formatGs(p.price)}</td>
             <td>${p.combo_price ? formatGs(p.combo_price) : '-'}</td>
+            <td>${p.club_price ? `<span style="color: var(--color-primary); font-weight: 800;">👑 ${formatGs(p.club_price)}</span>` : '-'}</td>
             <td>
                 <span class="badge badge--${p.active ? 'green' : 'red'}">
                     ${p.active ? 'Activo' : 'Inactivo'}
@@ -378,6 +384,7 @@ function setupEvents(container) {
         const price = parseInt(container.querySelector('#prod-price').value, 10);
         const combo_price = container.querySelector('#prod-combo').value ? parseInt(container.querySelector('#prod-combo').value, 10) : null;
         const promo_price = container.querySelector('#prod-promo').value ? parseInt(container.querySelector('#prod-promo').value, 10) : null;
+        const club_price = container.querySelector('#prod-club').value ? parseInt(container.querySelector('#prod-club').value, 10) : null;
         const price_1x = container.querySelector('#prod-v1').value ? parseInt(container.querySelector('#prod-v1').value, 10) : 15000;
         const price_2x1 = container.querySelector('#prod-v2').value ? parseInt(container.querySelector('#prod-v2').value, 10) : 25000;
         const price_libre = container.querySelector('#prod-v3').value ? parseInt(container.querySelector('#prod-v3').value, 10) : 55000;
@@ -406,6 +413,7 @@ function setupEvents(container) {
                 price,
                 combo_price,
                 promo_price,
+                club_price,
                 price_1x,
                 price_2x1,
                 price_libre,
@@ -476,6 +484,7 @@ function bindRowEvents(container) {
             container.querySelector('#prod-price').value = p.price;
             container.querySelector('#prod-combo').value = p.combo_price || '';
             container.querySelector('#prod-promo').value = p.promo_price || '';
+            container.querySelector('#prod-club').value = p.club_price || '';
             container.querySelector('#prod-ingredients').value = (p.ingredients || []).join(', ');
             container.querySelector('#prod-image-url').value = p.image_url || '';
             container.querySelector('#prod-v1').value = p.price_1x || 15000;
