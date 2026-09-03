@@ -67,7 +67,7 @@ export async function renderVentasPage() {
 async function loadVentasData(container) {
     try {
         const [prodData, catData, custData] = await Promise.all([
-            productService.getAll(),
+            productService.getAllFresh(), // fresco: refleja cambios de precios del Menú
             productService.getCategories(),
             customerService.getAll().catch(() => [])
         ]);

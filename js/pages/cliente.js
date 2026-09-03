@@ -24,7 +24,7 @@ async function initClienteApp() {
 
     try {
         const [prodData, catData] = await Promise.all([
-            productService.getAll(),
+            productService.getAllFresh(), // fresco: refleja precios Club actualizados
             productService.getCategories()
         ]);
         products = prodData || [];

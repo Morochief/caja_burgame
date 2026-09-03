@@ -60,6 +60,16 @@ export async function getAll() {
     return data;
 }
 
+// Fuerza un fetch fresco (sin caché) y actualiza la caché con el resultado.
+// Lo usan el POS y el autopedido para no quedarse con productos viejos
+// (ej: después de editar un club_price en el módulo Menú).
+export async function getAllFresh() {
+    const { data, error } = await supabase.from('products').select('*').eq('active', true).order('name');
+    if (error) throw error;
+    writeCache(data);
+    return data;
+}
+
 export async function getById(id) {
     const { data, error } = await supabase.from('products').select('*, categories(*)').eq('id', id).single();
     if (error) throw error;
@@ -191,6 +201,7 @@ export async function getLowStock(threshold = 10) {
 
 export const productService = {
     getAll,
+    getAllFresh,
     getAllAdmin,
     getById,
     getByCategory,
