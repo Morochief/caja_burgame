@@ -47,6 +47,9 @@ export function createCart() {
             if (!clubLookup) return;
 
             items.forEach(item => {
+                // El precio editado a mano gana: el toggle Club no lo pisa.
+                if (item.manualPrice) return;
+
                 const entry = clubLookup[item.productId];
                 const product = entry && entry.club_price !== undefined ? entry : null;
                 const club = product ? product.club_price : null;
@@ -138,6 +141,41 @@ export function createCart() {
             if (items[idx]) items[idx].customNotes = note;
         },
 
+        /**
+         * Setea manualmente el precio de un item (precio de venta especial).
+         * Marca el item como manualPrice para que el toggle Club no lo pise.
+         */
+        setPrice(idx, price) {
+            if (!items[idx]) return;
+            items[idx].price = Math.max(0, parseInt(price, 10) || 0);
+            items[idx].manualPrice = true;
+            items[idx].clubApplied = false;
+        },
+
+        /**
+         * Restaura el precio automático del item (según carta o modo Club).
+         * Desmarca manualPrice.
+         */
+        resetPrice(idx, clubLookup) {
+            if (!items[idx]) return;
+            const item = items[idx];
+            item.manualPrice = false;
+            const entry = clubLookup && clubLookup[item.productId];
+            const product = entry && entry.club_price !== undefined ? entry : null;
+            const club = product ? product.club_price : null;
+
+            if (clubMode && club) {
+                item.price = club;
+                item.clubApplied = true;
+            } else if (product) {
+                item.price = resolveNormalPrice(item, product);
+                item.clubApplied = false;
+            } else {
+                item.price = item.basePrice || item.price;
+                item.clubApplied = false;
+            }
+        },
+
         /** Vacia el carrito */
         clear() {
             items = [];
@@ -163,6 +201,7 @@ export function createCart() {
             const noteClass = opts.noteInputClass || 'input-item-note';
             const showToggle = opts.showComboToggle !== false;
             const placeholder = opts.notePlaceholder || '✏️ Aclaración (ej: Sin cebolla...)';
+            const editablePrice = !!opts.editablePrice; // POS puede ajustar precio por línea
 
             return items.map((item, idx) => {
                 const isBurger = item.isCombo !== undefined && !item.productName.includes('(');
@@ -184,6 +223,18 @@ export function createCart() {
                     `;
                 }
 
+                // En el POS el precio se muestra editable por línea.
+                // Si fue modificado a mano, se ve el icono ✏️ y no lo pisa el toggle Club.
+                const priceControl = editablePrice ? `
+                    <div class="cart-item__price-edit" style="display: flex; align-items: center; gap: 0.35rem; margin-top: 0.3rem;">
+                        <span style="font-size: 0.68rem; color: var(--text-muted); font-weight: 600;">Precio:</span>
+                        <input type="number" class="input-item-price" data-idx="${idx}" value="${item.price}" min="0" step="500"
+                            style="width: 110px; font-size: 0.8rem; padding: 0.25rem 0.5rem; background: var(--bg-card); border: 1px solid ${item.manualPrice ? 'var(--color-primary)' : 'var(--border-subtle)'}; border-radius: 4px; color: ${item.clubApplied ? 'var(--color-primary)' : 'var(--text-main)'}; font-family: var(--font-mono); font-weight: 700; text-align: right;">
+                        ${item.manualPrice ? '<span title="Precio modificado a mano" style="font-size:0.8rem;">✏️</span>' : ''}
+                        ${item.manualPrice ? `<button class="btn-reset-price" data-idx="${idx}" title="Restaurar precio de carta" style="background:transparent; border:none; cursor:pointer; color:var(--text-muted); font-size:0.9rem; padding:0;">↺</button>` : ''}
+                    </div>
+                ` : '';
+
                 return `
                     <div class="cart-item" style="border-left: 3px solid ${item.clubApplied ? '#FFD700' : (item.isCombo ? 'var(--color-primary)' : 'var(--border-subtle)')};">
                         <div class="cart-item__info">
@@ -193,6 +244,7 @@ export function createCart() {
                             </div>
                             <div class="cart-item__subtotal">${formatGs(item.price * item.quantity)}</div>
                         </div>
+                        ${priceControl}
                         <div style="margin-top: 0.4rem;">
                             <input type="text" class="${noteClass}" data-idx="${idx}" placeholder="${placeholder}" value="${item.customNotes || ''}" style="width: 100%; font-size: 0.78rem; padding: 0.35rem 0.6rem; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 4px; color: var(--color-primary);">
                         </div>

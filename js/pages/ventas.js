@@ -181,7 +181,7 @@ function openCartModal(container) {
             </div>
             <div class="cart-modal__body">
                 <div class="ticket-items" id="ticket-items">
-                    ${cart.renderItems({ showComboToggle: true, noteInputClass: 'input-item-note' })}
+                    ${cart.renderItems({ showComboToggle: true, noteInputClass: 'input-item-note', editablePrice: true })}
                 </div>
                 <div class="ticket-summary">
                     <div class="ticket-notes" style="margin-bottom:0.5rem">
@@ -366,6 +366,36 @@ function setupModalQtyControls(overlay, container) {
         });
     });
 
+    // Edición manual de precio por línea (solo POS)
+    overlay.querySelectorAll('.input-item-price').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const idx = parseInt(input.dataset.idx, 10);
+            const val = parseInt(e.target.value, 10);
+            if (isNaN(val) || val < 0) {
+                // valor inválido → restaurar el precio vigente mostrado
+                const item = cart.items[idx];
+                if (item) input.value = item.price;
+                return;
+            }
+            cart.setPrice(idx, val);
+            updateTicketUI(container);
+            closeCartModal();
+            openCartModal(container);
+        });
+    });
+
+    // Botón "↺" para restaurar el precio de carta del item editado a mano
+    overlay.querySelectorAll('.btn-reset-price').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const idx = parseInt(btn.dataset.idx, 10);
+            cart.resetPrice(idx, getClubLookup());
+            updateTicketUI(container);
+            closeCartModal();
+            openCartModal(container);
+        });
+    });
+
     overlay.querySelectorAll('.btn-qty, .btn-remove').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -440,7 +470,7 @@ function updateTicketUI(container) {
 
     const modalItems = document.querySelector('#ticket-items');
     if (modalItems) {
-        modalItems.innerHTML = cart.renderItems({ showComboToggle: true, noteInputClass: 'input-item-note' });
+        modalItems.innerHTML = cart.renderItems({ showComboToggle: true, noteInputClass: 'input-item-note', editablePrice: true });
         if (window.lucide) window.lucide.createIcons();
         const modalTotal = document.querySelector('#ticket-total');
         if (modalTotal) modalTotal.textContent = totalGs;
