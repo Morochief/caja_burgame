@@ -494,35 +494,41 @@ input:focus, select:focus, textarea:focus {
 /* Promo Action Buttons (Viernes de Bowser / Jueves de Cheat) */
 .btn-action-promo {
     width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.42rem 0.6rem;
+    padding: 0.35rem 0.45rem;
     border-radius: 4px;
     cursor: pointer;
     transition: all var(--transition-fast);
     box-shadow: 2px 2px 0px #000;
-    gap: 0.4rem;
-    line-height: 1.2;
+    gap: 0.25rem;
+    line-height: 1.1;
+    overflow: hidden;
 }
 
 .btn-action-promo .promo-text {
     font-family: var(--font-body);
-    font-size: 0.68rem;
+    font-size: 0.65rem;
     font-weight: 800;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.2px;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     text-transform: uppercase;
 }
 
 .btn-action-promo .promo-price {
     font-family: var(--font-mono, monospace);
-    font-size: 0.75rem;
+    font-size: 0.68rem;
     font-weight: 900;
     white-space: nowrap;
-    padding: 0.15rem 0.45rem;
+    padding: 0.15rem 0.35rem;
     border-radius: 3px;
     background: #000;
+    flex-shrink: 0;
 }
 
 /* Bowser Viernes Promo: Cyber Amber / Gold Flame */
@@ -543,6 +549,13 @@ input:focus, select:focus, textarea:focus {
     color: #FFD700;
     box-shadow: 3px 3px 0px #000, 0 0 14px rgba(255, 179, 0, 0.4);
     transform: translateY(-1px);
+}
+
+/* Header badge overlap fix */
+.product-badge {
+    max-width: 48%;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Cheat Jueves Promo: Electric Cyber Gold */

@@ -175,7 +175,7 @@
     background: var(--bg-card);
     border: 3px solid #1A1A1A;
     border-radius: 6px;
-    overflow: visible;
+    overflow: hidden;
     cursor: pointer;
     transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
     display: flex;
