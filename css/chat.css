@@ -265,3 +265,59 @@
 @media (max-width: 480px) {
     .chat-panel { width: 100vw; right: -100vw; }
 }
+
+/* ---- Barra de edicion (Telegram-style) ---- */
+.chat-edit-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.4rem 1rem;
+    background: rgba(255, 215, 0, 0.08);
+    border-top: 1px solid rgba(255, 215, 0, 0.25);
+    font-size: 0.75rem;
+    color: #FFD700;
+    flex-shrink: 0;
+    gap: 0.5rem;
+}
+#chat-edit-cancel {
+    background: none;
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 4px;
+    color: #FFD700;
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+}
+#chat-edit-cancel:hover { background: rgba(255, 215, 0, 0.12); }
+
+/* Tag "(editado)" dentro del mensaje */
+.chat-msg__edited {
+    font-size: 0.6rem;
+    color: #666;
+    margin-left: 0.4rem;
+    font-style: italic;
+}
+.chat-msg--own .chat-msg__edited { color: rgba(0,0,0,0.4); }
+
+/* Cursor de edicion en mensajes propios */
+.chat-msg[data-own="true"] { cursor: pointer; }
+.chat-msg[data-own="true"]:hover .chat-msg__bubble {
+    outline: 2px solid rgba(255, 215, 0, 0.3);
+    border-radius: 18px;
+}
+
+/* Boton limpiar chat (solo admin) */
+.chat-clear-btn {
+    background: none;
+    border: none;
+    color: #444;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0.2rem;
+    border-radius: 4px;
+    transition: color 0.15s;
+    line-height: 1;
+}
+.chat-clear-btn:hover { color: #FF3D71; }
