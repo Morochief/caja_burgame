@@ -1,5 +1,6 @@
 import { orderService } from './services/order-service.js';
 import { showToast } from './components/toast.js';
+import { initChat } from './components/chat-ui.js';
 
 let activeOrders = [];
 let allTodayOrders = [];
@@ -8,52 +9,29 @@ let hiddenDeliveredIds = new Set(); // IDs de comandas entregadas ocultadas manu
 
 // ============================================================
 // Alerta sonora de nuevas comandas (Item Get - Zelda OoT)
-// Suena al llegar una comanda nueva y repite hasta 3 veces si
-// el cocinero no le da "Iniciar preparación".
+// Suena UNA SOLA VEZ al llegar una comanda nueva.
 // ============================================================
 const ALERT_SOUND_SRC = 'assets/item-get.mp3';
-const ALERT_MAX_PLAYS = 3;
-const ALERT_INTERVAL_MS = 8000; // separación entre repeticiones
 const alertAudio = new Audio(ALERT_SOUND_SRC);
 alertAudio.volume = 0.8;
 
-// Map orderId -> { plays: number, timer: intervalId, acknowledged: boolean }
-const alertTimers = new Map();
+// Set para no repetir sonido por el mismo pedido
+const alertedOrderIds = new Set();
 
 function playAlertOnce() {
-    // El Audio solo puede reproducirse tras interacción del usuario.
-    // Si el navegador lo bloquea, no rompe nada.
     alertAudio.currentTime = 0;
     alertAudio.play().catch(() => { /* autoplay bloqueado, ignorar */ });
 }
 
 function startAlertForOrder(orderId) {
-    if (alertTimers.has(orderId)) return; // ya está sonando
-    const state = { plays: 0, timer: null, acknowledged: false };
-
-    const play = () => {
-        if (state.acknowledged) return;
-        state.plays++;
-        playAlertOnce();
-        if (state.plays < ALERT_MAX_PLAYS) {
-            state.timer = setTimeout(play, ALERT_INTERVAL_MS);
-        } else {
-            // Después de 3 sonidos sin atención, limpiar el registro
-            alertTimers.delete(orderId);
-        }
-    };
-
-    alertTimers.set(orderId, state);
-    play();
+    if (alertedOrderIds.has(orderId)) return; // ya sono
+    alertedOrderIds.add(orderId);
+    playAlertOnce();
 }
 
 function acknowledgeOrder(orderId) {
-    const state = alertTimers.get(orderId);
-    if (state) {
-        state.acknowledged = true;
-        if (state.timer) clearTimeout(state.timer);
-        alertTimers.delete(orderId);
-    }
+    // Solo limpieza de Set — ya no hay timers
+    alertedOrderIds.delete(orderId);
 }
 
 function isOrderedInsert(payload) {
@@ -103,6 +81,9 @@ async function initCocina() {
     await loadActiveOrders();
     renderCocinaView();
     setupRealtimeSubscription();
+
+    // Inicializar chat Cocina <-> Admin
+    initChat('kitchen');
 
     // Actualizar SOLO los temporizadores cada 30s (sin reconstruir todo el DOM)
     // El DOM completo se reconstruye solo cuando llegan eventos realtime.

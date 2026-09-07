@@ -8,6 +8,7 @@ import { showToast } from '../components/toast.js';
 import { renderProductCard } from '../components/product-card.js';
 import { createCart } from '../components/cart.js';
 import { navigate } from '../router.js';
+import { initChat } from '../components/chat-ui.js';
 
 let currentCategory = 'all';
 let searchQuery = '';
@@ -19,6 +20,7 @@ let categories = [];
 let customers = [];
 let customerLookupTimer = null;
 let isManualClubOverride = false;
+let _chatInitialized = false; // inicializar chat solo una vez
 
 export async function renderVentasPage() {
     const container = document.createElement('div');
@@ -101,6 +103,12 @@ async function loadVentasData(container) {
 
     setupEvents(container);
     if (window.lucide) window.lucide.createIcons();
+
+    // Inicializar chat Admin <-> Cocina (solo una vez aunque se navegue varias veces)
+    if (!_chatInitialized) {
+        _chatInitialized = true;
+        initChat('admin');
+    }
 }
 
 // ============================================================
