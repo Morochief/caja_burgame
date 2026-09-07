@@ -74,13 +74,20 @@
 }
 
 .arcade-iframe {
+    /* Zoom del juego: achicar el iframe y escalarlo con transform.
+       El contenido se ve --arcade-zoom veces mas grande sin recortarse
+       porque width/height = 100% / zoom y scale = zoom (se compensan). */
+    --arcade-zoom: 1.3;
     position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
+    top: 0;
+    left: 0;
+    width: calc(100% / var(--arcade-zoom));
+    height: calc(100% / var(--arcade-zoom));
     border: 0;
     display: none;
     background: #000;
+    transform: scale(var(--arcade-zoom));
+    transform-origin: top left;
 }
 
 /* --- Controles del juego --- */

@@ -329,4 +329,328 @@ input:focus, select:focus, textarea:focus {
     }
 }
 
+/* ==========================================================================
+   PRODUCT CARD & ACTION BUTTONS (ELITE ARCADE DESIGN)
+   ========================================================================== */
+
+/* Floating Badges on Product Image */
+.product-card__badges {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    right: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 4px;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.product-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 6px;
+    font-family: var(--font-pixel, monospace);
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    box-shadow: 2px 2px 0px #000;
+    backdrop-filter: blur(4px);
+    white-space: nowrap;
+}
+
+.product-badge--promo {
+    background: linear-gradient(135deg, #FFB300, #FF6F00);
+    color: #000;
+    border: 1px solid #FFD700;
+    box-shadow: 2px 2px 0px #000, 0 0 10px rgba(255, 179, 0, 0.5);
+}
+
+.product-badge--club {
+    background: #0D0D0D;
+    color: #FFD700;
+    border: 1px solid #FFD700;
+    font-family: var(--font-mono, monospace);
+    font-weight: 800;
+    margin-left: auto;
+    box-shadow: 2px 2px 0px #000, 0 0 8px var(--color-primary-glow);
+}
+
+/* Actions Container */
+.product-card__actions {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    margin-top: auto;
+}
+
+.product-actions__duo {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.35rem;
+    width: 100%;
+}
+
+.product-actions__stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    width: 100%;
+}
+
+/* Solo Button */
+.btn-action-solo {
+    background: #141414;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 4px;
+    padding: 0.45rem 0.25rem;
+    color: var(--text-main);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    box-shadow: 2px 2px 0px #000;
+    min-width: 0;
+    line-height: 1.1;
+}
+
+.btn-action-solo:hover {
+    background: #1F1F1F;
+    border-color: var(--color-primary);
+    box-shadow: 3px 3px 0px #000, 0 0 10px rgba(255, 215, 0, 0.2);
+    transform: translateY(-1px);
+}
+
+.btn-action-solo:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0px #000;
+}
+
+.btn-action-solo .btn-action-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.btn-action-solo .btn-action-price {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: var(--color-primary);
+    white-space: nowrap;
+}
+
+/* Combo Button */
+.btn-action-combo {
+    background: var(--color-primary);
+    border: 1px solid #000;
+    border-radius: 4px;
+    padding: 0.45rem 0.25rem;
+    color: #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    box-shadow: 2px 2px 0px #000;
+    min-width: 0;
+    line-height: 1.1;
+}
+
+.btn-action-combo:hover {
+    background: var(--color-primary-hover);
+    box-shadow: 3px 3px 0px #000, 0 0 15px var(--color-primary-glow);
+    transform: translateY(-1px);
+}
+
+.btn-action-combo:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0px #000;
+}
+
+.btn-action-combo .btn-action-label {
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: #000;
+}
+
+.btn-action-combo .btn-action-price {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.72rem;
+    font-weight: 900;
+    color: #000;
+    white-space: nowrap;
+}
+
+/* Promo Action Buttons (Viernes de Bowser / Jueves de Cheat) */
+.btn-action-promo {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.42rem 0.6rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    box-shadow: 2px 2px 0px #000;
+    gap: 0.4rem;
+    line-height: 1.2;
+}
+
+.btn-action-promo .promo-text {
+    font-family: var(--font-body);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    text-transform: uppercase;
+}
+
+.btn-action-promo .promo-price {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.75rem;
+    font-weight: 900;
+    white-space: nowrap;
+    padding: 0.15rem 0.45rem;
+    border-radius: 3px;
+    background: #000;
+}
+
+/* Bowser Viernes Promo: Cyber Amber / Gold Flame */
+.btn-action-promo--bowser {
+    background: linear-gradient(90deg, rgba(255, 145, 0, 0.15), rgba(255, 215, 0, 0.18));
+    border: 1.5px solid #FFB300;
+    color: #FFB300;
+}
+
+.btn-action-promo--bowser .promo-price {
+    color: #FFD700;
+    border: 1px solid rgba(255, 179, 0, 0.4);
+}
+
+.btn-action-promo--bowser:hover {
+    background: linear-gradient(90deg, rgba(255, 145, 0, 0.28), rgba(255, 215, 0, 0.28));
+    border-color: #FFD700;
+    color: #FFD700;
+    box-shadow: 3px 3px 0px #000, 0 0 14px rgba(255, 179, 0, 0.4);
+    transform: translateY(-1px);
+}
+
+/* Cheat Jueves Promo: Electric Cyber Gold */
+.btn-action-promo--gold {
+    background: linear-gradient(90deg, rgba(255, 215, 0, 0.18), rgba(255, 180, 0, 0.12));
+    border: 1.5px solid #FFD700;
+    color: #FFD700;
+}
+
+.btn-action-promo--gold .promo-price {
+    color: #000;
+    background: #FFD700;
+    border: 1px solid #000;
+}
+
+.btn-action-promo--gold:hover {
+    background: linear-gradient(90deg, rgba(255, 215, 0, 0.3), rgba(255, 180, 0, 0.25));
+    box-shadow: 3px 3px 0px #000, 0 0 14px var(--color-primary-glow);
+    transform: translateY(-1px);
+}
+
+/* Chopp & Variant Action Buttons */
+.btn-action-variant {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    background: #141414;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-main);
+    border-radius: 4px;
+    cursor: pointer;
+    box-shadow: 2px 2px 0px #000;
+    transition: all var(--transition-fast);
+    line-height: 1.2;
+}
+
+.btn-action-variant .variant-price {
+    font-family: var(--font-mono, monospace);
+    font-weight: 800;
+    color: var(--color-primary);
+    white-space: nowrap;
+}
+
+.btn-action-variant:hover {
+    border-color: var(--color-primary);
+    background: #1E1E1E;
+    transform: translateY(-1px);
+    box-shadow: 3px 3px 0px #000;
+}
+
+.btn-action-variant--featured {
+    background: rgba(255, 215, 0, 0.08);
+    border: 1.5px solid var(--color-primary);
+    color: var(--color-primary);
+}
+
+.btn-action-variant--gold {
+    background: var(--color-primary);
+    border: 1px solid #000;
+    color: #000;
+    font-weight: 800;
+}
+
+.btn-action-variant--gold .variant-price {
+    color: #000;
+    font-weight: 900;
+}
+
+.btn-action-variant--gold:hover {
+    background: var(--color-primary-hover);
+    box-shadow: 3px 3px 0px #000, 0 0 12px var(--color-primary-glow);
+}
+
+/* Standard Single Button */
+.btn-action-single {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    background: #141414;
+    border: 1.5px solid rgba(255, 215, 0, 0.35);
+    color: var(--text-main);
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-radius: 4px;
+    cursor: pointer;
+    box-shadow: 2px 2px 0px #000;
+    transition: all var(--transition-fast);
+}
+
+.btn-action-single .single-price {
+    font-family: var(--font-mono, monospace);
+    font-weight: 800;
+    color: var(--color-primary);
+    white-space: nowrap;
+}
+
+.btn-action-single:hover {
+    background: rgba(255, 215, 0, 0.1);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    box-shadow: 3px 3px 0px #000, 0 0 12px var(--color-primary-glow);
+    transform: translateY(-1px);
+}
+
 

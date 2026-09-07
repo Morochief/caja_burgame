@@ -262,8 +262,25 @@
 }
 .chat-overlay.visible { display: block; }
 
-@media (max-width: 480px) {
+@media (max-width: 600px) {
     .chat-panel { width: 100vw; right: -100vw; }
+    .chat-fab {
+        bottom: 4.8rem;
+        right: 1.2rem;
+        width: 46px;
+        height: 46px;
+        font-size: 1.2rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .chat-fab {
+        bottom: 4.5rem;
+        right: 1rem;
+        width: 44px;
+        height: 44px;
+        font-size: 1.15rem;
+    }
 }
 
 /* ---- Barra de edicion (Telegram-style) ---- */
