@@ -2,7 +2,7 @@ import { supabase } from '../supabase-client.js';
 
 // ====== CRUD de la tabla customers ======
 
-const CUSTOMER_SELECT = 'id, name, phone, notes, is_club_member, created_at, last_order_at';
+const CUSTOMER_SELECT = 'id, name, phone, notes, is_club_member, created_at, last_order_at, tax_id, email, address, birthday, category';
 
 export async function getAll() {
     const { data, error } = await supabase
@@ -20,7 +20,12 @@ export async function create(customerData) {
             name: customerData.name.trim(),
             phone: (customerData.phone || '').trim(),
             notes: (customerData.notes || '').trim(),
-            is_club_member: !!customerData.is_club_member
+            is_club_member: !!customerData.is_club_member,
+            tax_id: (customerData.tax_id || '').trim(),
+            email: (customerData.email || '').trim(),
+            address: (customerData.address || '').trim(),
+            birthday: (customerData.birthday || '').trim(),
+            category: (customerData.category || 'general').trim()
         }])
         .select()
         .single();
@@ -40,16 +45,21 @@ export async function findByName(name) {
 }
 
 export async function update(id, customerData) {
+    const payload = {
+        name: customerData.name.trim(),
+        phone: (customerData.phone || '').trim(),
+        notes: (customerData.notes || '').trim(),
+        ...(customerData.is_club_member !== undefined ? { is_club_member: !!customerData.is_club_member } : {}),
+        ...(customerData.tax_id !== undefined ? { tax_id: (customerData.tax_id || '').trim() } : {}),
+        ...(customerData.email !== undefined ? { email: (customerData.email || '').trim() } : {}),
+        ...(customerData.address !== undefined ? { address: (customerData.address || '').trim() } : {}),
+        ...(customerData.birthday !== undefined ? { birthday: (customerData.birthday || '').trim() } : {}),
+        ...(customerData.category !== undefined ? { category: (customerData.category || 'general').trim() } : {})
+    };
+
     const { data, error } = await supabase
         .from('customers')
-        .update({
-            name: customerData.name.trim(),
-            phone: (customerData.phone || '').trim(),
-            notes: (customerData.notes || '').trim(),
-            ...(customerData.is_club_member !== undefined
-                ? { is_club_member: !!customerData.is_club_member }
-                : {})
-        })
+        .update(payload)
         .eq('id', id)
         .select()
         .single();
@@ -336,6 +346,151 @@ export async function getMembershipStats() {
     return stats;
 }
 
+/**
+ * Obtiene todas las órdenes de un cliente con el detalle de items consumidos (order_items).
+ * @param {string} customerName
+ */
+export async function getCustomerOrdersWithItems(customerName) {
+    if (!customerName) return [];
+    const trimmed = customerName.trim();
+    const { data, error } = await supabase
+        .from('orders')
+        .select(`
+            id,
+            order_number,
+            status,
+            total,
+            payment_method,
+            notes,
+            created_at,
+            paid_at,
+            order_items (
+                id,
+                product_name,
+                price,
+                quantity,
+                is_combo
+            )
+        `)
+        .ilike('customer_name', trimmed)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('[customer-service] Error fetching orders with items:', error);
+        throw error;
+    }
+    return data || [];
+}
+
+/**
+ * Analiza las órdenes con items para calcular el ranking de productos favoritos del cliente.
+ * @param {Array} ordersWithItems
+ * @returns {Array<{name: string, quantity: number, total: number, customizations: string[]}>}
+ */
+export function getCustomerFavoriteProducts(ordersWithItems = []) {
+    const map = {};
+
+    (ordersWithItems || []).forEach(order => {
+        // Solo contar pedidos no cancelados
+        if (order.status === 'cancelled') return;
+
+        (order.order_items || []).forEach(item => {
+            let rawName = item.product_name || 'Producto';
+            let customization = '';
+            
+            // Si tiene notas tipo [📝 Sin cebolla], extraer la nota
+            const match = rawName.match(/\[(.*?)\]/);
+            if (match) {
+                customization = match[1].replace('📝', '').trim();
+            }
+
+            // Normalizar el nombre base para agrupar (ej: 'Arcade Classic')
+            let baseName = rawName.replace(/\[.*?\]/g, '').replace(/\(.*?\)/g, '').trim();
+            if (!baseName) baseName = rawName;
+
+            if (!map[baseName]) {
+                map[baseName] = {
+                    name: baseName,
+                    quantity: 0,
+                    total: 0,
+                    customizations: new Set()
+                };
+            }
+
+            const qty = item.quantity || 1;
+            const price = item.price || 0;
+            map[baseName].quantity += qty;
+            map[baseName].total += (price * qty);
+            if (customization) {
+                map[baseName].customizations.add(customization);
+            }
+        });
+    });
+
+    return Object.values(map)
+        .map(p => ({
+            name: p.name,
+            quantity: p.quantity,
+            total: p.total,
+            customizations: Array.from(p.customizations)
+        }))
+        .sort((a, b) => b.quantity - a.quantity || b.total - a.total);
+}
+
+/**
+ * Determina el Nivel / Tier Arcade del cliente según LTV y pedidos.
+ * @param {number} totalSpent
+ * @param {number} orderCount
+ * @returns {{id: string, name: string, icon: string, color: string, glow: string}}
+ */
+export function calculateCustomerTier(totalSpent = 0, orderCount = 0) {
+    if (totalSpent >= 600000 || orderCount >= 10) {
+        return { id: 'diamond', name: 'DIAMOND LEVEL', icon: '💎', color: '#00F0FF', glow: 'rgba(0,240,255,0.4)' };
+    }
+    if (totalSpent >= 300000 || orderCount >= 5) {
+        return { id: 'gold', name: 'GOLD LEVEL', icon: '🥇', color: '#FFD700', glow: 'rgba(255,215,0,0.4)' };
+    }
+    if (totalSpent >= 120000 || orderCount >= 2) {
+        return { id: 'silver', name: 'SILVER LEVEL', icon: '🥈', color: '#C0C0C0', glow: 'rgba(192,192,192,0.3)' };
+    }
+    return { id: 'bronze', name: 'BRONZE LEVEL', icon: '🥉', color: '#CD7F32', glow: 'rgba(205,127,50,0.3)' };
+}
+
+/**
+ * Calcula el segmento RFM operativo del cliente.
+ * @param {Object} customer
+ * @param {Object} stats
+ * @returns {{id: string, label: string, badgeClass: string, icon: string}}
+ */
+export function getCustomerSegment(customer = {}, stats = {}) {
+    if (customer.is_club_member) {
+        return { id: 'club', label: 'Club Burgame', badgeClass: 'badge--club', icon: '👑' };
+    }
+
+    const totalSpent = stats.total_spent || 0;
+    const orderCount = stats.order_count || 0;
+    const lastOrder = stats.last_order || customer.last_order_at;
+
+    let daysSinceLast = 0;
+    if (lastOrder) {
+        daysSinceLast = Math.floor((Date.now() - new Date(lastOrder).getTime()) / (1000 * 60 * 60 * 24));
+    }
+
+    if (totalSpent >= 250000 || orderCount >= 4) {
+        return { id: 'vip', label: 'VIP Élite', badgeClass: 'badge--vip', icon: '💎' };
+    }
+
+    if (lastOrder && daysSinceLast >= 40) {
+        return { id: 'at_risk', label: 'En Riesgo', badgeClass: 'badge--risk', icon: '⚠️' };
+    }
+
+    if (orderCount >= 2) {
+        return { id: 'frequent', label: 'Habitual', badgeClass: 'badge--frequent', icon: '🔥' };
+    }
+
+    return { id: 'new', label: 'Nuevo', badgeClass: 'badge--new', icon: '🌱' };
+}
+
 export const customerService = {
     getAll,
     findByName,
@@ -344,6 +499,11 @@ export const customerService = {
     remove,
     reassignOrders,
     getStatsByName,
+    // CRM 360 y RFM
+    getCustomerOrdersWithItems,
+    getCustomerFavoriteProducts,
+    calculateCustomerTier,
+    getCustomerSegment,
     // Club Burgame
     getClubMembers,
     getActiveMembership,

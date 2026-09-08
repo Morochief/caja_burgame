@@ -428,3 +428,115 @@ export async function exportConsolidatedReportExcel(analyticsData, periodLabel =
     });
 }
 
+// Exporta el módulo de Clientes a Excel Multi-Hoja con Métricas RFM y Branding
+export async function exportCustomersToExcel(customers = []) {
+    const ExcelJS = await loadExcelJS();
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Burgame Arcade POS - CRM';
+    wb.created = new Date();
+
+    const fmtDate = (d) => {
+        if (!d) return '—';
+        const date = new Date(d);
+        if (isNaN(date.getTime())) return '—';
+        return date.toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
+
+    // 1. Hoja Directorio Completo
+    const wsAll = wb.addWorksheet('Directorio Clientes');
+    const allHeader = ['#', 'Nombre / Razón Social', 'Teléfono', 'RUC / CI', 'Dirección Habitual', 'Cumpleaños', 'Segmento RFM', 'Nivel Tier', 'Pedidos', 'Total Gastado (Gs.)', 'Ticket Promedio (Gs.)', 'Última Visita', 'Club Burgame'];
+    const allRows = [[''], [''], [''], [''], [''], allHeader];
+
+    let totalLTV = 0;
+    let totalOrders = 0;
+
+    customers.forEach((c, idx) => {
+        const spent = c.total_spent || 0;
+        const orders = c.order_count || 0;
+        const avg = orders > 0 ? Math.round(spent / orders) : 0;
+        totalLTV += spent;
+        totalOrders += orders;
+
+        allRows.push([
+            idx + 1,
+            c.name || 'Sin nombre',
+            c.phone || '—',
+            c.tax_id || '—',
+            c.address || '—',
+            c.birthday || '—',
+            c.segmentLabel || 'General',
+            c.tierName || 'BRONZE',
+            orders,
+            spent,
+            avg,
+            fmtDate(c.last_order),
+            c.is_club_member ? 'SÍ (SOCIO)' : 'NO'
+        ]);
+    });
+
+    allRows.push([]);
+    allRows.push(['', 'TOTALES GENERALES', '', '', '', '', '', '', totalOrders, totalLTV, '', '', '']);
+    buildBurgameSheet(wsAll, allRows, { imageRows: 5 });
+
+    // 2. Hoja Clientes VIP y Club
+    const wsVip = wb.addWorksheet('VIP & Club Burgame');
+    const vipList = customers.filter(c => c.segmentId === 'vip' || c.segmentId === 'club' || (c.total_spent >= 250000));
+    const vipRows = [[''], [''], [''], [''], [''], allHeader];
+    let vipLTV = 0;
+    let vipOrders = 0;
+
+    vipList.forEach((c, idx) => {
+        const spent = c.total_spent || 0;
+        const orders = c.order_count || 0;
+        const avg = orders > 0 ? Math.round(spent / orders) : 0;
+        vipLTV += spent;
+        vipOrders += orders;
+
+        vipRows.push([
+            idx + 1,
+            c.name || 'Sin nombre',
+            c.phone || '—',
+            c.tax_id || '—',
+            c.address || '—',
+            c.birthday || '—',
+            c.segmentLabel || 'VIP',
+            c.tierName || 'GOLD',
+            orders,
+            spent,
+            avg,
+            fmtDate(c.last_order),
+            c.is_club_member ? 'SÍ (SOCIO)' : 'NO'
+        ]);
+    });
+
+    vipRows.push([]);
+    vipRows.push(['', 'TOTALES VIP & CLUB', '', '', '', '', '', '', vipOrders, vipLTV, '', '', '']);
+    buildBurgameSheet(wsVip, vipRows, { imageRows: 5 });
+
+    // 3. Hoja Campaña de Reactivación (En Riesgo con Teléfono)
+    const wsRisk = wb.addWorksheet('Campaña Reactivación');
+    const riskList = customers.filter(c => c.segmentId === 'at_risk');
+    const riskHeader = ['#', 'Nombre', 'Teléfono WhatsApp', 'Última Visita', 'Pedidos Previos', 'Historial Gastado (Gs.)', 'Notas'];
+    const riskRows = [[''], [''], [''], [''], [''], riskHeader];
+
+    riskList.forEach((c, idx) => {
+        riskRows.push([
+            idx + 1,
+            c.name,
+            c.phone || 'Sin teléfono',
+            fmtDate(c.last_order),
+            c.order_count || 0,
+            c.total_spent || 0,
+            c.notes || '—'
+        ]);
+    });
+    buildBurgameSheet(wsRisk, riskRows, { imageRows: 5 });
+
+    // Descarga con branding
+    const todayStr = new Date().toISOString().split('T')[0];
+    await downloadBurgameExcel(wb, `Burgame_Clientes_CRM_${todayStr}.xlsx`, {
+        logoSheets: ['Directorio Clientes', 'VIP & Club Burgame', 'Campaña Reactivación'],
+        bannerSheet: 'Directorio Clientes'
+    });
+}
+
