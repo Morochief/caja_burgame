@@ -1,0 +1,351 @@
+/* ==========================================================================
+   INVENTARIO PAGE STYLES (ENTERPRISE GASTRONOMY EDITION)
+   ========================================================================== */
+
+.inventario-page {
+    animation: fadeIn 0.25s ease-out;
+    padding-bottom: 2.5rem;
+}
+
+/* --------------------------------------------------------------------------
+   Top KPIs Grid
+   -------------------------------------------------------------------------- */
+.inventario-kpis-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.inventario-kpi-card {
+    background: var(--bg-card, #111);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-lg, 10px);
+    padding: 1.1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.inventario-kpi-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 215, 0, 0.3);
+}
+
+.inventario-kpi-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 3px;
+    height: 100%;
+    background: var(--inv-accent, var(--color-primary, #FFD700));
+}
+
+.inventario-kpi-card--total { --inv-accent: #00E5FF; }
+.inventario-kpi-card--healthy { --inv-accent: #10B981; }
+.inventario-kpi-card--low { --inv-accent: #F59E0B; }
+.inventario-kpi-card--out { --inv-accent: #EF4444; }
+.inventario-kpi-card--val { --inv-accent: #FFD700; }
+
+.inventario-kpi-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.inventario-kpi-title {
+    font-size: 0.72rem;
+    color: var(--text-muted, #8E9BAE);
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.inventario-kpi-icon {
+    font-size: 1.15rem;
+}
+
+.inventario-kpi-value {
+    font-family: var(--font-mono, monospace);
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: #FFF;
+    line-height: 1.1;
+}
+
+.inventario-kpi-card--total .inventario-kpi-value { color: #00E5FF; }
+.inventario-kpi-card--healthy .inventario-kpi-value { color: #10B981; }
+.inventario-kpi-card--low .inventario-kpi-value { color: #F59E0B; }
+.inventario-kpi-card--out .inventario-kpi-value { color: #EF4444; }
+.inventario-kpi-card--val .inventario-kpi-value { color: #FFD700; }
+
+.inventario-kpi-sub {
+    font-size: 0.76rem;
+    color: var(--text-muted, #8E9BAE);
+}
+
+/* --------------------------------------------------------------------------
+   View Mode Tabs (Stock Actual vs Kardex)
+   -------------------------------------------------------------------------- */
+.inventario-nav-tabs {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+    background: var(--bg-card, #111);
+    padding: 0.35rem;
+    border-radius: var(--radius-md, 6px);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    width: fit-content;
+}
+
+.inventario-tab-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted, #8E9BAE);
+    padding: 0.5rem 1.1rem;
+    border-radius: 4px;
+    font-size: 0.84rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.inventario-tab-btn:hover {
+    color: #FFF;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.inventario-tab-btn.active {
+    background: var(--color-primary, #FFD700);
+    color: #000;
+    font-weight: 800;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+/* --------------------------------------------------------------------------
+   Toolbar
+   -------------------------------------------------------------------------- */
+.inventario-toolbar {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+    align-items: center;
+}
+
+.inventario-toolbar input,
+.inventario-toolbar select {
+    background: var(--bg-elevated, #161616);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+    color: #FFF;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    outline: none;
+}
+
+.inventario-toolbar input:focus,
+.inventario-toolbar select:focus {
+    border-color: var(--color-primary, #FFD700);
+    box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.2);
+}
+
+.stock-filter-pills {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.stock-pill {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #D1D5DB;
+    padding: 0.45rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.stock-pill:hover {
+    border-color: var(--color-primary, #FFD700);
+    color: var(--color-primary, #FFD700);
+}
+
+.stock-pill.active {
+    background: rgba(255, 215, 0, 0.12);
+    border-color: var(--color-primary, #FFD700);
+    color: var(--color-primary, #FFD700);
+    font-weight: 800;
+}
+
+/* --------------------------------------------------------------------------
+   Stock Badges & Cell Formats
+   -------------------------------------------------------------------------- */
+.stock-level-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.stock-level--healthy {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10B981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.stock-level--low {
+    background: rgba(245, 158, 11, 0.15);
+    color: #F59E0B;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.stock-level--out {
+    background: rgba(239, 68, 68, 0.15);
+    color: #EF4444;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    animation: pulseBorder 2s infinite ease-in-out;
+}
+
+@keyframes pulseBorder {
+    0%, 100% { border-color: rgba(239, 68, 68, 0.3); }
+    50% { border-color: rgba(239, 68, 68, 0.8); box-shadow: 0 0 8px rgba(239, 68, 68, 0.4); }
+}
+
+/* Quick Stock Controls (+/- buttons) */
+.quick-adjust-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.btn-quick-step {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #FFF;
+    padding: 0.2rem 0.45rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-family: var(--font-mono, monospace);
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-quick-step:hover {
+    background: var(--color-primary, #FFD700);
+    color: #000;
+    border-color: var(--color-primary, #FFD700);
+}
+
+.btn-quick-step--sub:hover {
+    background: #EF4444;
+    color: #FFF;
+    border-color: #EF4444;
+}
+
+/* --------------------------------------------------------------------------
+   Kardex Movements Table
+   -------------------------------------------------------------------------- */
+.kardex-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.74rem;
+    font-weight: 700;
+}
+
+.kardex-badge--in {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10B981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.kardex-badge--out {
+    background: rgba(239, 68, 68, 0.15);
+    color: #EF4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.kardex-qty-in {
+    color: #10B981;
+    font-family: var(--font-mono);
+    font-weight: 800;
+}
+
+.kardex-qty-out {
+    color: #EF4444;
+    font-family: var(--font-mono);
+    font-weight: 800;
+}
+
+/* --------------------------------------------------------------------------
+   Modal Enhancements
+   -------------------------------------------------------------------------- */
+.inv-operation-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.4rem;
+    margin-bottom: 1.1rem;
+}
+
+.inv-op-tab {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-muted, #8E9BAE);
+    padding: 0.5rem 0.4rem;
+    border-radius: 6px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.inv-op-tab.selected {
+    border-color: var(--color-primary, #FFD700);
+    background: rgba(255, 215, 0, 0.1);
+    color: var(--color-primary, #FFD700);
+}
+
+.inv-quick-step-pills {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin-top: 0.45rem;
+}
+
+.inv-step-pill {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #CBD5E1;
+    padding: 0.25rem 0.55rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-family: var(--font-mono);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.inv-step-pill:hover {
+    border-color: var(--color-primary, #FFD700);
+    color: var(--color-primary, #FFD700);
+    background: rgba(255, 215, 0, 0.08);
+}
