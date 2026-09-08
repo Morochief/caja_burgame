@@ -160,10 +160,11 @@ export async function getClubMembers() {
 
 // Última membresía con expires_at > ahora (vigente). Devuelve null si no hay.
 export async function getActiveMembership(customerId) {
+    if (!customerId || !customerId.trim()) return null;
     const { data, error } = await supabase
         .from('club_memberships')
         .select('*')
-        .eq('customer_id', customerId)
+        .eq('customer_id', customerId.trim())
         .gt('expires_at', new Date().toISOString())
         .order('paid_at', { ascending: false })
         .limit(1);
@@ -173,23 +174,29 @@ export async function getActiveMembership(customerId) {
 
 // Última membresía (esté o no vigente) — para saber el último vencimiento.
 export async function getLastMembership(customerId) {
+    if (!customerId || !customerId.trim()) return null;
     const { data, error } = await supabase
         .from('club_memberships')
         .select('*')
-        .eq('customer_id', customerId)
+        .eq('customer_id', customerId.trim())
         .order('paid_at', { ascending: false })
         .limit(1);
     if (error) throw error;
     return (data && data.length > 0) ? data[0] : null;
 }
 
-// Todas las membresías de un cliente, ordenadas por paid_at desc.
+// Todas las membresías de un cliente (o todas si no se especifica customerId), ordenadas por paid_at desc.
 export async function getMembershipHistory(customerId) {
-    const { data, error } = await supabase
+    let query = supabase
         .from('club_memberships')
         .select('*')
-        .eq('customer_id', customerId)
         .order('paid_at', { ascending: false });
+
+    if (customerId && typeof customerId === 'string' && customerId.trim()) {
+        query = query.eq('customer_id', customerId.trim());
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
     return data || [];
 }

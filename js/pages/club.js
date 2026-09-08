@@ -394,13 +394,11 @@ async function loadClubData(container) {
         membersCache = allStats.members || [];
 
         // Traer todos los registros de membresías para auditoría
-        const { data: rawMemberships } = await customerService.getMembershipHistory('');
-        // También podemos traer todas las memberships globales
-        allMembershipsRaw = [];
         try {
-            const { data } = await window.supabaseClient?.from('club_memberships')?.select('*')?.order('paid_at', { ascending: false }) || {};
-            allMembershipsRaw = data || [];
-        } catch (_) {}
+            allMembershipsRaw = await customerService.getMembershipHistory();
+        } catch (_) {
+            allMembershipsRaw = [];
+        }
 
         updateStatsUI(container);
         updatePillCounters(container);
