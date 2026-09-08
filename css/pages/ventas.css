@@ -643,73 +643,90 @@
 }
 
 /* ==========================================================================
-   CART MODAL — Pedido Actual
+   CART & POS MODALS — ENTERPRISE ANTI-DESFASAJE ARCHITECTURE
    ========================================================================== */
 .cart-modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.75);
-    backdrop-filter: blur(4px);
-    z-index: 1000;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    background: rgba(0, 0, 0, 0.82);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 10000;
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: clamp(0.75rem, 3vw, 1.5rem);
+    box-sizing: border-box;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     opacity: 0;
-    transition: opacity 0.25s ease;
-    padding: 1rem;
+    pointer-events: none;
+    transition: opacity 0.22s ease;
 }
 
 .cart-modal-overlay.open {
     opacity: 1;
+    pointer-events: auto;
 }
 
 .cart-modal {
-    background: #0D0D0D;
-    border: 3px solid var(--color-primary);
-    border-radius: 6px;
-    box-shadow: 8px 8px 0px #000, 0 0 30px var(--color-primary-glow);
+    background: #0E1017;
+    border: 2px solid var(--border-gold, #FFD700);
+    border-radius: 10px;
+    box-shadow: 0 0 35px rgba(255, 215, 0, 0.25), 0 20px 45px rgba(0, 0, 0, 0.9);
     width: 100%;
-    max-width: 520px;
-    max-height: 90vh;
+    max-width: min(560px, 94vw);
+    max-height: min(92dvh, calc(100dvh - 2rem));
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transform: translateY(20px) scale(0.97);
-    transition: transform 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    margin: auto;
+    box-sizing: border-box;
+    position: relative;
+    transform: translateY(12px) scale(0.98);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .cart-modal-overlay.open .cart-modal {
     transform: translateY(0) scale(1);
 }
 
+/* Header Fijo del Modal */
 .cart-modal__header {
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 1rem 1.25rem;
-    border-bottom: 2px solid #1A1A1A;
-    background: #111111;
-    flex-shrink: 0;
+    gap: 0.75rem;
+    padding: 0.9rem 1.25rem;
+    border-bottom: 1px solid var(--border-subtle, #222);
+    background: #12141C;
+    box-sizing: border-box;
 }
 
-.cart-modal__header h2 {
+.cart-modal__header h2,
+.cart-modal__header h3 {
     font-family: var(--font-title);
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     color: var(--color-primary);
-    text-shadow: 0 0 10px var(--color-primary-glow), 2px 2px 0px #000;
+    text-shadow: 0 0 10px var(--color-primary-glow);
     text-transform: uppercase;
     letter-spacing: 1px;
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    margin: 0;
 }
 
 .cart-modal__close {
     width: 36px;
     height: 36px;
-    background: transparent;
-    border: 2px solid #2A2A2A;
-    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
     color: var(--text-muted);
     font-size: 1.3rem;
     line-height: 1;
@@ -718,40 +735,158 @@
     align-items: center;
     justify-content: center;
     transition: all var(--transition-fast);
-    box-shadow: 2px 2px 0px #000;
+    flex-shrink: 0;
 }
 
 .cart-modal__close:hover {
     border-color: var(--color-danger);
     color: var(--color-danger);
+    background: rgba(255, 61, 113, 0.15);
 }
 
+/* Cuerpo Scrollable Independiente */
 .cart-modal__body {
+    flex: 1 1 auto;
     overflow-y: auto;
-    padding: 1.25rem;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: 1rem 1.25rem;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    flex: 1;
+    gap: 0.85rem;
+    box-sizing: border-box;
 }
 
 .cart-modal__body::-webkit-scrollbar {
-    width: 5px;
+    width: 6px;
 }
 .cart-modal__body::-webkit-scrollbar-thumb {
-    background: rgba(255, 215, 0, 0.3);
-    border-radius: 3px;
+    background: rgba(255, 215, 0, 0.35);
+    border-radius: 4px;
 }
 
-/* Mobile: modal ocupa pantalla completa */
-/* Mobile: Layout & Modal Adaptations */
-@media (max-width: 600px) {
-    .pos-banner-img {
-        max-height: 70px;
-    }
+/* Footer Fijo Siempre Visible (Sticky Bottom) */
+.cart-modal__footer {
+    flex-shrink: 0;
+    padding: 0.85rem 1.25rem;
+    background: #0B0C12;
+    border-top: 1px solid var(--border-subtle, #222);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    box-sizing: border-box;
+    box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.5);
+}
 
+.cart-modal__total-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.cart-modal__total-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.cart-modal__total-val {
+    font-family: var(--font-title);
+    font-size: 1.35rem;
+    color: var(--color-primary);
+    text-shadow: 0 0 12px var(--color-primary-glow);
+    line-height: 1;
+}
+
+/* Selector de Modalidad (Salón / Llevar / Delivery) */
+.order-mode-selector {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.4rem;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.25rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-subtle);
+}
+
+.order-mode-btn {
+    padding: 0.45rem 0.3rem;
+    font-size: 0.74rem;
+    font-weight: 700;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--text-muted);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.order-mode-btn:hover {
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.order-mode-btn--active {
+    background: rgba(255, 215, 0, 0.15);
+    border-color: var(--border-gold);
+    color: var(--color-primary);
+    font-weight: 800;
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.2);
+}
+
+/* Grilla de Acciones del Carrito */
+.cart-modal__actions-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.3fr;
+    gap: 0.6rem;
+}
+
+.btn-cart-pay {
+    background: linear-gradient(135deg, #FFD700 0%, #FFC107 100%);
+    color: #000;
+    font-weight: 800;
+    font-size: 0.85rem;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.35);
+    border: none;
+    padding: 0.75rem 0.85rem;
+}
+
+.btn-cart-pay:hover {
+    filter: brightness(1.1);
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+}
+
+.btn-cart-send {
+    font-size: 0.78rem;
+    padding: 0.75rem 0.6rem;
+}
+
+/* Manija táctil de Bottom Sheet */
+.modal-drag-pill {
+    display: none;
+    width: 44px;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 3px;
+    margin: 0.5rem auto 0.2rem auto;
+}
+
+/* ==========================================================================
+   MOBILE FIRST & TABLET RESPONSIVENESS (BREAKPOINTS)
+   ========================================================================== */
+
+@media (max-width: 768px) {
     .pos-banner-container {
         margin-bottom: 0.4rem;
+    }
+
+    .pos-banner-img {
+        max-height: 85px;
     }
 
     .ventas-sticky-header {
@@ -761,21 +896,33 @@
     }
 
     .products-grid {
+        grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+        gap: 0.75rem;
+    }
+}
+
+/* Mobile Screens (Celulares <= 640px) */
+@media (max-width: 640px) {
+    .pos-banner-img {
+        max-height: 60px;
+    }
+
+    .products-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 0.65rem;
+        gap: 0.6rem;
     }
 
     .product-card__image {
-        height: 115px;
+        height: 110px;
     }
 
     .product-card__content {
-        padding: 0.6rem 0.5rem;
-        gap: 0.35rem;
+        padding: 0.55rem 0.5rem;
+        gap: 0.3rem;
     }
 
     .product-card__title {
-        font-size: 0.82rem;
+        font-size: 0.8rem;
         line-height: 1.25;
     }
 
@@ -783,21 +930,31 @@
         display: none;
     }
 
-    .cart-modal {
-        max-width: 100%;
-        max-height: 92vh;
-        border-radius: 16px 16px 0 0;
-        border-bottom: none;
-    }
-
-    .cart-modal-overlay {
+    /* Modal Carrito como Bottom Sheet Ergonómico */
+    .cart-modal-overlay--sheet {
         align-items: flex-end;
         padding: 0;
     }
 
+    .cart-modal-overlay--sheet .cart-modal {
+        max-width: 100%;
+        max-height: 88dvh;
+        border-radius: 18px 18px 0 0;
+        border-bottom: none;
+        margin: 0;
+    }
+
+    .cart-modal-overlay--sheet .modal-drag-pill {
+        display: block;
+    }
+
+    .cart-modal-overlay--sheet .cart-modal__footer {
+        padding-bottom: max(1.2rem, env(safe-area-inset-bottom, 1.2rem));
+    }
+
     .fab-cart {
-        bottom: 1.2rem;
-        right: 1.2rem;
+        bottom: max(1.2rem, env(safe-area-inset-bottom, 1.2rem));
+        right: 1rem;
         left: auto;
         padding: 0.75rem 1rem;
         font-size: 0.84rem;
@@ -812,37 +969,20 @@
     }
 
     .product-card__image {
-        height: 105px;
-    }
-
-    .product-card__content {
-        padding: 0.5rem 0.4rem;
-        gap: 0.3rem;
+        height: 100px;
     }
 
     .product-card__title {
-        font-size: 0.76rem;
+        font-size: 0.75rem;
     }
 
-    .cart-item__title {
-        font-size: 0.76rem;
-    }
-
-    .ticket-total-val {
-        font-size: 0.85rem;
-    }
-
-    .fab-cart {
-        bottom: 1rem;
-        right: 1rem;
-        left: auto;
-        font-size: 0.8rem;
-        padding: 0.65rem 0.9rem;
+    .cart-modal__actions-grid {
+        grid-template-columns: 1fr;
     }
 }
 
 /* ============================================================
-   CLUB BURGAME — toggle de precio socio en el modal del pedido
+   CLUB BURGAME & DETALLES
    ============================================================ */
 .club-toggle-row {
     background: rgba(255, 215, 0, 0.06);
@@ -857,3 +997,4 @@
     font-family: var(--font-mono);
     letter-spacing: 0.5px;
 }
+

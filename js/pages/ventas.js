@@ -17,6 +17,7 @@ let searchQuery = '';
 const cart = createCart();
 let currentNotes = '';
 let currentCustomerName = '';
+let currentOrderMode = 'salon'; // 'salon', 'llevar', 'delivery'
 let products = [];
 let categories = [];
 let customers = [];
@@ -182,7 +183,7 @@ function setupEvents(container) {
 }
 
 // ============================================================
-// Modal rápido de QR y PIN para el cajero
+// Modal rápido de QR y PIN para el cajero (Centrado Seguro)
 // ============================================================
 function openQuickQrModal() {
     const existing = document.querySelector('#quick-qr-modal-overlay');
@@ -196,7 +197,7 @@ function openQuickQrModal() {
     overlay.id = 'quick-qr-modal-overlay';
     overlay.className = 'cart-modal-overlay';
     overlay.innerHTML = `
-        <div class="cart-modal" style="max-width: 420px; text-align: center; border: 2px solid var(--color-primary); box-shadow: 0 0 35px var(--color-primary-glow);">
+        <div class="cart-modal" style="max-width: min(420px, 92vw); margin: auto; text-align: center; border: 2px solid var(--color-primary); box-shadow: 0 0 35px var(--color-primary-glow);">
             <div class="cart-modal__header" style="justify-content: space-between; display: flex; align-items: center; padding: 1rem 1.2rem; border-bottom: 1px solid var(--border-subtle);">
                 <h3 style="font-family: var(--font-title); font-size: 0.88rem; color: var(--color-primary); margin: 0;">
                     📱 CÓDIGO QR Y PIN CLIENTES
@@ -205,7 +206,7 @@ function openQuickQrModal() {
             </div>
             <div class="cart-modal__body" style="padding: 1.2rem; display: flex; flex-direction: column; align-items: center; gap: 1rem;">
                 <div style="background: #000; padding: 0.8rem; border-radius: 12px; border: 2px solid var(--border-gold); box-shadow: 0 0 20px rgba(255,215,0,0.2);">
-                    <img src="${qrApiUrl}" alt="QR Clientes" style="width: 190px; height: 190px; display: block; border-radius: 6px;">
+                    <img src="${qrApiUrl}" alt="QR Clientes" style="max-width: 100%; width: 180px; height: 180px; display: block; border-radius: 6px; object-fit: contain;">
                 </div>
                 <div>
                     <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 0.3rem;">
@@ -232,68 +233,105 @@ function openQuickQrModal() {
 
     overlay.querySelector('#btn-close-qr-modal')?.addEventListener('click', () => {
         overlay.classList.remove('open');
-        setTimeout(() => overlay.remove(), 250);
+        setTimeout(() => overlay.remove(), 220);
     });
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) {
             overlay.classList.remove('open');
-            setTimeout(() => overlay.remove(), 250);
+            setTimeout(() => overlay.remove(), 220);
         }
     });
 }
 
 
 // ============================================================
-// Modal del carrito
+// Modal del carrito (3 Zonas: Header, Body Scroll, Footer Sticky)
 // ============================================================
 function openCartModal(container) {
     const existing = document.querySelector('#cart-modal-overlay');
     if (existing) existing.remove();
 
     const overlay = document.createElement('div');
-    overlay.className = 'cart-modal-overlay';
+    overlay.className = 'cart-modal-overlay cart-modal-overlay--sheet';
     overlay.id = 'cart-modal-overlay';
     overlay.innerHTML = `
         <div class="cart-modal" id="cart-modal">
+            <div class="modal-drag-pill"></div>
             <div class="cart-modal__header">
-                <h2>🛒 PEDIDO ACTUAL</h2>
-                <button id="btn-close-cart-modal" class="cart-modal__close" aria-label="Cerrar">&times;</button>
+                <h2>
+                    🛒 PEDIDO ACTUAL 
+                    <span class="badge badge--yellow" id="modal-item-badge" style="font-size: 0.72rem; margin-left: 0.35rem;">
+                        ${cart.count}
+                    </span>
+                </h2>
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <button id="btn-clear-cart-modal" class="btn btn--danger btn--ghost btn--sm" style="padding: 0.3rem 0.6rem; font-size: 0.72rem;" title="Vaciar pedido">
+                        🗑️ Vaciar
+                    </button>
+                    <button id="btn-close-cart-modal" class="cart-modal__close" aria-label="Cerrar">&times;</button>
+                </div>
             </div>
+
+            <!-- Cuerpo Scrollable Independiente -->
             <div class="cart-modal__body">
                 <div class="ticket-items" id="ticket-items">
                     ${cart.renderItems({ showComboToggle: true, noteInputClass: 'input-item-note', editablePrice: true })}
                 </div>
-                <div class="ticket-summary">
-                    <div class="ticket-notes" style="margin-bottom:0.5rem">
-                        <label for="customer-name"><i data-lucide="user"></i> Cliente / Mesa:</label>
-                        <input type="text" id="customer-name" list="customer-list" placeholder="Elegir o escribir nuevo..." value="${currentCustomerName}" autocomplete="off">
-                        <datalist id="customer-list">
-                            ${customers.map(c => `<option value="${c.name}">`).join('')}
-                        </datalist>
-                        <div id="club-member-hint" class="club-member-hint" style="display:none; margin-top:0.4rem;"></div>
+
+                <!-- Selector de Modalidad -->
+                <div class="form-group" style="margin-top: 0.4rem;">
+                    <label style="font-size: 0.72rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.3rem; display: block;">
+                        Modalidad de Entrega:
+                    </label>
+                    <div class="order-mode-selector">
+                        <button type="button" class="order-mode-btn ${currentOrderMode === 'salon' ? 'order-mode-btn--active' : ''}" data-mode="salon">🍽️ Salón</button>
+                        <button type="button" class="order-mode-btn ${currentOrderMode === 'llevar' ? 'order-mode-btn--active' : ''}" data-mode="llevar">🥡 Llevar</button>
+                        <button type="button" class="order-mode-btn ${currentOrderMode === 'delivery' ? 'order-mode-btn--active' : ''}" data-mode="delivery">🛵 Delivery</button>
                     </div>
-                    <div class="ticket-notes club-toggle-row" style="margin-bottom:0.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; background: rgba(255,215,0,0.06); border: 1px solid rgba(255,215,0,0.25); border-radius: var(--radius-sm); padding: 0.5rem 0.7rem;">
-                        <label for="club-mode-toggle" style="font-size: 0.8rem; font-weight: 800; color: var(--color-primary); cursor: pointer; display: flex; align-items: center; gap: 0.4rem; margin: 0;">
-                            👑 Precio Club Burgame
-                        </label>
-                        <input type="checkbox" id="club-mode-toggle" ${cart.clubMode ? 'checked' : ''} style="accent-color: #FFD700; width: 18px; height: 18px; cursor: pointer;">
-                    </div>
-                    <div class="ticket-notes">
-                        <label for="order-notes"><i data-lucide="file-text"></i> Notas Cocina:</label>
-                        <input type="text" id="order-notes" placeholder="Ej: Sin cebolla..." value="${currentNotes}">
-                    </div>
-                    <div class="ticket-row ticket-row--total">
-                        <span>TOTAL</span>
-                        <span class="ticket-total-val" id="ticket-total">${formatGs(cart.total)}</span>
-                    </div>
-                    <div class="ticket-actions">
-                        <button id="btn-clear-cart" class="btn btn--danger btn--ghost">
-                            <i data-lucide="trash-2"></i> Limpiar
-                        </button>
-                        <button id="btn-send-order" class="btn btn--primary btn--block">
-                            ⌨️ ORDENAR PEDIDO
-                        </button>
-                    </div>
+                </div>
+
+                <!-- Cliente / Mesa -->
+                <div class="ticket-notes" style="margin-top: 0.2rem;">
+                    <label for="customer-name" style="font-size: 0.76rem; font-weight: 700; display: flex; align-items: center; gap: 0.4rem;">
+                        👤 Cliente / Mesa / Teléfono:
+                    </label>
+                    <input type="text" id="customer-name" list="customer-list" placeholder="Elegir o escribir nuevo..." value="${currentCustomerName}" autocomplete="off" style="font-size: 0.88rem;">
+                    <datalist id="customer-list">
+                        ${customers.map(c => `<option value="${c.name}">`).join('')}
+                    </datalist>
+                    <div id="club-member-hint" class="club-member-hint" style="display:none; margin-top:0.4rem;"></div>
+                </div>
+
+                <!-- Toggle Club Burgame -->
+                <div class="ticket-notes club-toggle-row" style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; background: rgba(255,215,0,0.06); border: 1px solid rgba(255,215,0,0.25); border-radius: var(--radius-sm); padding: 0.5rem 0.75rem;">
+                    <label for="club-mode-toggle" style="font-size: 0.8rem; font-weight: 800; color: var(--color-primary); cursor: pointer; display: flex; align-items: center; gap: 0.4rem; margin: 0;">
+                        👑 Precio Club Burgame
+                    </label>
+                    <input type="checkbox" id="club-mode-toggle" ${cart.clubMode ? 'checked' : ''} style="accent-color: #FFD700; width: 18px; height: 18px; cursor: pointer;">
+                </div>
+
+                <!-- Notas de Cocina -->
+                <div class="ticket-notes">
+                    <label for="order-notes" style="font-size: 0.76rem; font-weight: 700; display: flex; align-items: center; gap: 0.4rem;">
+                        📝 Notas Cocina:
+                    </label>
+                    <input type="text" id="order-notes" placeholder="Ej: Sin cebolla, extra cheddar..." value="${currentNotes}" style="font-size: 0.85rem;">
+                </div>
+            </div>
+
+            <!-- Footer Fijo Sticky Bottom Siempre Visible -->
+            <div class="cart-modal__footer">
+                <div class="cart-modal__total-bar">
+                    <span class="cart-modal__total-label">Total Pedido</span>
+                    <span class="cart-modal__total-val" id="ticket-total">${formatGs(cart.total)}</span>
+                </div>
+                <div class="cart-modal__actions-grid">
+                    <button id="btn-send-kitchen-only" class="btn btn--secondary btn-cart-send" title="Enviar comanda a cocina y cobrar luego en Órdenes">
+                        🚀 A Cocina (Mesa)
+                    </button>
+                    <button id="btn-open-fast-pay" class="btn btn--primary btn-cart-pay" title="Cobrar inmediatamente y enviar comanda a cocina">
+                        ⚡ Cobro Rápido
+                    </button>
                 </div>
             </div>
         </div>
@@ -303,31 +341,56 @@ function openCartModal(container) {
 
     if (window.lucide) window.lucide.createIcons();
 
+    // Eventos
     overlay.querySelector('#btn-close-cart-modal')?.addEventListener('click', closeCartModal);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) closeCartModal(); });
 
-    overlay.querySelector('#btn-clear-cart')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        cart.clear();
-        cart.setClubMode(false);
-        isManualClubOverride = false;
-        updateTicketUI(container);
-        closeCartModal();
-        openCartModal(container);
+    // Selector de modo (Salón / Llevar / Delivery)
+    overlay.querySelectorAll('.order-mode-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            overlay.querySelectorAll('.order-mode-btn').forEach(b => b.classList.remove('order-mode-btn--active'));
+            btn.classList.add('order-mode-btn--active');
+            currentOrderMode = btn.dataset.mode || 'salon';
+        });
     });
 
-    overlay.querySelector('#btn-send-order')?.addEventListener('click', (e) => {
+    // Vaciar
+    overlay.querySelector('#btn-clear-cart-modal')?.addEventListener('click', (e) => {
         e.stopPropagation();
-        sendOrderToKitchen(container);
+        if (cart.items.length === 0) return;
+        if (confirm('¿Vaciar todos los productos del pedido?')) {
+            cart.clear();
+            cart.setClubMode(false);
+            isManualClubOverride = false;
+            updateTicketUI(container);
+            closeCartModal();
+            openCartModal(container);
+        }
     });
 
+    // Enviar a Cocina (Pospago / Mesa)
+    overlay.querySelector('#btn-send-kitchen-only')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        sendOrderToKitchen(container, { navigateToOrders: true });
+    });
+
+    // Cobro Rápido en Mostrador
+    overlay.querySelector('#btn-open-fast-pay')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openFastPayModal(container);
+    });
+
+    // Cliente input & club check
     overlay.querySelector('#customer-name')?.addEventListener('input', (e) => {
         currentCustomerName = e.target.value;
-        isManualClubOverride = false; // al cambiar de cliente, se re-evalúa su membresía
+        isManualClubOverride = false;
         handleCustomerMembershipCheck(container);
     });
+
+    // Notas
     overlay.querySelector('#order-notes')?.addEventListener('input', (e) => { currentNotes = e.target.value; });
 
+    // Club toggle
     overlay.querySelector('#club-mode-toggle')?.addEventListener('change', (e) => {
         const active = e.target.checked;
         isManualClubOverride = true;
@@ -335,6 +398,140 @@ function openCartModal(container) {
     });
 
     setupModalQtyControls(overlay, container);
+}
+
+// ============================================================
+// Modal de Cobro Rápido en Caja (Fast Pay)
+// ============================================================
+function openFastPayModal(container) {
+    if (cart.items.length === 0) {
+        showToast({ message: 'El carrito está vacío', type: 'error' });
+        return;
+    }
+
+    const existing = document.querySelector('#fast-pay-modal-overlay');
+    if (existing) existing.remove();
+
+    const modeLabels = { salon: '🍽️ Salón / Mesa', llevar: '🥡 Para Llevar', delivery: '🛵 Delivery' };
+    const modeText = modeLabels[currentOrderMode] || '🍽️ Salón';
+
+    const overlay = document.createElement('div');
+    overlay.id = 'fast-pay-modal-overlay';
+    overlay.className = 'cart-modal-overlay';
+    overlay.innerHTML = `
+        <div class="cart-modal" style="max-width: min(450px, 92vw); margin: auto; border: 2px solid var(--color-primary); box-shadow: 0 0 35px var(--color-primary-glow);">
+            <div class="cart-modal__header" style="background: #12141C; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-subtle);">
+                <div>
+                    <h3 style="font-family: var(--font-title); font-size: 0.9rem; color: var(--color-primary); margin: 0;">
+                        ⚡ COBRO RÁPIDO EN CAJA
+                    </h3>
+                    <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem;">
+                        ${modeText} · ${currentCustomerName ? `👤 ${currentCustomerName}` : 'Cliente Mostrador'}
+                    </div>
+                </div>
+                <button id="btn-close-fast-pay" class="btn btn--sm" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-muted);">✕</button>
+            </div>
+            <div class="cart-modal__body" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem;">
+                <div style="text-align: center; background: rgba(255, 215, 0, 0.08); padding: 0.85rem; border-radius: 8px; border: 1px solid rgba(255, 215, 0, 0.25);">
+                    <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Total a Cobrar</div>
+                    <div style="font-family: var(--font-title); font-size: 1.8rem; color: var(--color-primary); margin-top: 0.2rem;">
+                        ${formatGs(cart.total)}
+                    </div>
+                </div>
+
+                <div style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">
+                    Seleccionar Medio de Pago:
+                </div>
+
+                <div class="payment-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;">
+                    <button class="btn btn--payment btn--cash btn-pos-pay-method" data-method="efectivo" style="padding: 0.8rem; font-size: 0.85rem;">
+                        💵 Efectivo
+                    </button>
+                    <button class="btn btn--payment btn--transfer btn-pos-pay-method" data-method="transferencia" style="padding: 0.8rem; font-size: 0.85rem;">
+                        📱 Transferencia / QR
+                    </button>
+                    <button class="btn btn--payment btn--debit btn-pos-pay-method" data-method="debito" style="padding: 0.8rem; font-size: 0.85rem;">
+                        💳 Tarjeta Débito
+                    </button>
+                    <button class="btn btn--payment btn--credit btn-pos-pay-method" data-method="credito" style="padding: 0.8rem; font-size: 0.85rem;">
+                        💳 Tarjeta Crédito
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('open'));
+
+    const closeFastModal = () => {
+        overlay.classList.remove('open');
+        setTimeout(() => overlay.remove(), 220);
+    };
+
+    overlay.querySelector('#btn-close-fast-pay')?.addEventListener('click', closeFastModal);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeFastModal(); });
+
+    overlay.querySelectorAll('.btn-pos-pay-method').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const method = btn.dataset.method;
+            btn.disabled = true;
+            btn.textContent = '⏳ Procesando...';
+            closeFastModal();
+            await sendOrderToKitchen(container, { fastPayMethod: method, navigateToOrders: false });
+        });
+    });
+}
+
+// ============================================================
+// Modal de Éxito de Pago Inmediato con Impresión
+// ============================================================
+function openPaymentSuccessModal(order, paymentMethod) {
+    const existing = document.querySelector('#pay-success-modal-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'pay-success-modal-overlay';
+    overlay.className = 'cart-modal-overlay';
+    overlay.innerHTML = `
+        <div class="cart-modal" style="max-width: min(420px, 92vw); margin: auto; text-align: center; border: 2px solid #00e676; box-shadow: 0 0 35px rgba(0,230,118,0.35);">
+            <div class="cart-modal__body" style="padding: 1.75rem 1.25rem; display: flex; flex-direction: column; align-items: center; gap: 0.85rem;">
+                <div style="font-size: 3rem; line-height: 1;">🎉</div>
+                <h3 style="font-family: var(--font-title); font-size: 1.1rem; color: #00e676; margin: 0;">
+                    ¡PEDIDO #${order.order_number} COBRADO!
+                </h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">
+                    Cobrado vía <strong>${paymentMethod.toUpperCase()}</strong> · Comanda en marcha en Cocina
+                </p>
+                <div style="font-family: var(--font-title); font-size: 1.4rem; color: var(--color-primary); margin: 0.4rem 0;">
+                    ${formatGs(order.total)}
+                </div>
+                <div style="display: flex; gap: 0.6rem; width: 100%; margin-top: 0.5rem;">
+                    <button id="btn-print-pos-receipt" class="btn btn--secondary" style="flex: 1; border-color: var(--border-gold);">
+                        🖨️ Imprimir Ticket
+                    </button>
+                    <button id="btn-next-order" class="btn btn--primary" style="flex: 1;">
+                        ✅ Siguiente Pedido
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('open'));
+
+    const closeSuccess = () => {
+        overlay.classList.remove('open');
+        setTimeout(() => overlay.remove(), 220);
+    };
+
+    overlay.querySelector('#btn-next-order')?.addEventListener('click', closeSuccess);
+    overlay.querySelector('#btn-print-pos-receipt')?.addEventListener('click', () => {
+        window.print();
+        closeSuccess();
+    });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeSuccess(); });
 }
 
 // Mapa productId → producto para aplicar precios Club al carrito.
@@ -564,9 +761,11 @@ function updateTicketUI(container) {
 }
 
 // ============================================================
-// Envío de pedido a cocina
+// Envío de pedido a cocina y cobro rápido
 // ============================================================
-async function sendOrderToKitchen(container) {
+async function sendOrderToKitchen(container, options = {}) {
+    const { fastPayMethod = null, navigateToOrders = true } = options;
+
     if (cart.items.length === 0) {
         showToast({ message: 'El carrito está vacío', type: 'error' });
         return;
@@ -575,7 +774,7 @@ async function sendOrderToKitchen(container) {
     // GUARD: prevenir doble-envío
     if (window._isSendingOrder) return;
     window._isSendingOrder = true;
-    const sendBtn = container.querySelector('#btn-send-order');
+    const sendBtn = container.querySelector('#btn-send-kitchen-only');
     const originalText = sendBtn ? sendBtn.innerHTML : null;
     if (sendBtn) { sendBtn.disabled = true; sendBtn.style.opacity = '0.6'; sendBtn.innerHTML = '⏳ ENVIANDO...'; }
 
@@ -601,41 +800,55 @@ async function sendOrderToKitchen(container) {
         return;
     }
 
-    // Los inputs están en el overlay del modal (que se appenda a document.body,
-    // no dentro del container de la página). Buscar en document.
+    // Los inputs están en el overlay del modal
     const notesInput = document.querySelector('#order-notes');
     const customerInput = document.querySelector('#customer-name');
-    const notes = notesInput ? notesInput.value.trim() : '';
-    const customerName = customerInput ? customerInput.value.trim() : '';
+    const notes = notesInput ? notesInput.value.trim() : currentNotes.trim();
+    const customerName = customerInput ? customerInput.value.trim() : currentCustomerName.trim();
+
+    const modeLabels = { salon: '🍽️ SALÓN', llevar: '🥡 LLEVAR', delivery: '🛵 DELIVERY' };
+    const modeTag = `[${modeLabels[currentOrderMode] || '🍽️ SALÓN'}]`;
+    const finalCustomer = customerName ? `${modeTag} ${customerName}` : `${modeTag} Cliente`;
 
     try {
         const order = await orderService.createOrder({
             items: cart.items,
             notes,
-            customerName,
+            customerName: finalCustomer,
             cashRegisterId: currentRegister.id
         });
 
-        showToast({
-            message: `🚀 Orden #${order.order_number} enviada a Cocina`,
-            type: 'success'
-        });
+        if (fastPayMethod) {
+            await orderService.processPayment(order.id, fastPayMethod);
+            showToast({
+                message: `💰 ¡Orden #${order.order_number} cobrada (${fastPayMethod.toUpperCase()}) y enviada a Cocina!`,
+                type: 'success'
+            });
+        } else {
+            showToast({
+                message: `🚀 Orden #${order.order_number} enviada a Cocina`,
+                type: 'success'
+            });
+        }
 
         cart.clear();
         cart.setClubMode(false);
         isManualClubOverride = false;
         currentNotes = '';
         currentCustomerName = '';
+        currentOrderMode = 'salon';
         if (notesInput) notesInput.value = '';
         if (customerInput) customerInput.value = '';
 
         container.querySelector('#ticket-panel')?.classList.remove('open');
+        closeCartModal();
         updateTicketUI(container);
 
-        // Cerrar el modal del carrito y llevar al cajero al módulo Órdenes
-        // para que procese el pago del cliente.
-        closeCartModal();
-        navigate('#/ordenes');
+        if (fastPayMethod) {
+            openPaymentSuccessModal(order, fastPayMethod);
+        } else if (navigateToOrders) {
+            navigate('#/ordenes');
+        }
     } catch (err) {
         showToast({ message: 'Error enviando orden: ' + err.message, type: 'error' });
     } finally {
@@ -646,9 +859,38 @@ async function sendOrderToKitchen(container) {
 
 function setupKeyboardShortcuts(container) {
     const handler = (e) => {
+        // F2 o '/' para enfocar el buscador de productos
+        if (e.key === 'F2' || (e.key === '/' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName))) {
+            e.preventDefault();
+            const searchInput = container.querySelector('#pos-search');
+            if (searchInput) {
+                searchInput.focus();
+                searchInput.select();
+            }
+            return;
+        }
+
+        // Escape para cerrar cualquier modal abierto
+        if (e.key === 'Escape') {
+            closeCartModal();
+            document.querySelector('#quick-qr-modal-overlay')?.remove();
+            document.querySelector('#fast-pay-modal-overlay')?.remove();
+            document.querySelector('#pay-success-modal-overlay')?.remove();
+            document.querySelector('#collect-self-order-modal')?.remove();
+            return;
+        }
+
+        // F4 para abrir el carrito
+        if (e.key === 'F4') {
+            e.preventDefault();
+            openCartModal(container);
+            return;
+        }
+
+        // Letra 'o' para ordenar cuando no se escribe en inputs
         if (e.key.toLowerCase() === 'o' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
             e.preventDefault();
-            sendOrderToKitchen(container);
+            if (cart.items.length > 0) openCartModal(container);
         }
     };
     window.addEventListener('keydown', handler);
@@ -731,7 +973,7 @@ async function openCollectSelfOrderModal(orderId) {
     overlay.id = 'collect-self-order-modal';
     overlay.className = 'cart-modal-overlay';
     overlay.innerHTML = `
-        <div class="cart-modal" style="max-width: 440px; border: 2px solid var(--color-primary); box-shadow: 0 0 35px var(--color-primary-glow);">
+        <div class="cart-modal" style="max-width: min(450px, 92vw); margin: auto; border: 2px solid var(--color-primary); box-shadow: 0 0 35px var(--color-primary-glow);">
             <div class="cart-modal__header" style="justify-content: space-between; display: flex; align-items: center; padding: 1rem 1.2rem; border-bottom: 1px solid var(--border-subtle);">
                 <div>
                     <h3 style="font-family: var(--font-title); font-size: 0.88rem; color: var(--color-primary); margin: 0;">
