@@ -139,10 +139,11 @@ const MEMBERSHIP_DAYS = 30;
 const CLUB_WARN_DAYS = 5;
 
 // Suma 30 días a una fecha ISO (o a now si no se pasa).
-function addMembershipDays(fromIso) {
+// Suma días a una fecha ISO (o a now si no se pasa).
+function addMembershipDays(fromIso, days = MEMBERSHIP_DAYS) {
     const base = fromIso ? new Date(fromIso) : new Date();
     const exp = new Date(base);
-    exp.setDate(exp.getDate() + MEMBERSHIP_DAYS);
+    exp.setDate(exp.getDate() + (days || MEMBERSHIP_DAYS));
     return exp.toISOString();
 }
 
@@ -203,21 +204,54 @@ async function markAsMember(customerId) {
 }
 
 /**
- * Registra una membresía nueva para un cliente.
- * Si no hay membresía vigente (o viene vencida), arranca desde hoy + 30 días.
- * @param {Object} params
- * @param {string} params.customerId
- * @param {number} [params.amount=70000]
+ * Da de baja a un cliente del Club Burgame (is_club_member = false).
+ * No borra su historial de pedidos ni su perfil en la base de datos.
  */
-export async function registerMembership({ customerId, amount }) {
+export async function revokeClubMembership(customerId) {
+    if (!customerId) throw new Error('ID de cliente no proporcionado');
+    const { error } = await supabase
+        .from('customers')
+        .update({ is_club_member: false })
+        .eq('id', customerId);
+    if (error) throw error;
+}
+
+/**
+ * Registra una membresía nueva para un cliente.
+ * Soporta modo 'paid' (pago) y modo 'tournament_prize' (premio de torneo con monto 0 Gs).
+ */
+export async function registerMembership({
+    customerId,
+    amount,
+    type = 'paid',
+    tournamentName = '',
+    paymentMethod = 'efectivo',
+    notes = '',
+    days = 30,
+    customExpiresAt = null,
+    paidAt = null
+}) {
     if (!customerId) throw new Error('Cliente no proporcionado');
-    const expiresAt = addMembershipDays(); // desde hoy
+
+    const effectivePaidAt = paidAt ? new Date(paidAt).toISOString() : new Date().toISOString();
+    const expiresAt = customExpiresAt
+        ? new Date(customExpiresAt).toISOString()
+        : addMembershipDays(effectivePaidAt, days || 30);
+
+    const isTournament = type === 'tournament_prize';
+    const finalAmount = isTournament ? (amount !== undefined ? amount : 0) : (amount || 70000);
+    const finalPaymentMethod = isTournament ? 'premio' : (paymentMethod || 'efectivo');
+
     const { data, error } = await supabase
         .from('club_memberships')
         .insert([{
             customer_id: customerId,
-            amount: amount || 70000,
-            paid_at: new Date().toISOString(),
+            amount: finalAmount,
+            type: type || 'paid',
+            tournament_name: (tournamentName || '').trim(),
+            payment_method: finalPaymentMethod,
+            notes: (notes || '').trim(),
+            paid_at: effectivePaidAt,
             expires_at: expiresAt
         }])
         .select()
@@ -230,24 +264,49 @@ export async function registerMembership({ customerId, amount }) {
 /**
  * Renueva la membresía de un cliente.
  * Si tiene una membresía vigente, extiende desde su vencimiento actual (acumula días).
- * Si está vencido o no tiene, arranca desde hoy + 30 días.
- * @param {Object} params
- * @param {string} params.customerId
- * @param {number} [params.amount=70000]
- * @param {string|null} [params.previousExpiry] - expires_at de la membresía vigente actual
+ * Si está vencido o no tiene, arranca desde hoy + días.
  */
-export async function renewMembership({ customerId, amount, previousExpiry }) {
+export async function renewMembership({
+    customerId,
+    amount,
+    type = 'paid',
+    tournamentName = '',
+    paymentMethod = 'efectivo',
+    notes = '',
+    days = 30,
+    customExpiresAt = null,
+    previousExpiry = null,
+    paidAt = null
+}) {
     if (!customerId) throw new Error('Cliente no proporcionado');
-    const activeExpiry = previousExpiry && new Date(previousExpiry) > new Date()
-        ? previousExpiry
-        : null;
-    const expiresAt = addMembershipDays(activeExpiry); // max(now, vencimiento) + 30 días
+
+    const now = new Date();
+    const effectivePaidAt = paidAt ? new Date(paidAt).toISOString() : now.toISOString();
+
+    let expiresAt;
+    if (customExpiresAt) {
+        expiresAt = new Date(customExpiresAt).toISOString();
+    } else {
+        const activeExpiry = previousExpiry && new Date(previousExpiry) > now
+            ? previousExpiry
+            : effectivePaidAt;
+        expiresAt = addMembershipDays(activeExpiry, days || 30);
+    }
+
+    const isTournament = type === 'tournament_prize';
+    const finalAmount = isTournament ? (amount !== undefined ? amount : 0) : (amount || 70000);
+    const finalPaymentMethod = isTournament ? 'premio' : (paymentMethod || 'efectivo');
+
     const { data, error } = await supabase
         .from('club_memberships')
         .insert([{
             customer_id: customerId,
-            amount: amount || 70000,
-            paid_at: new Date().toISOString(),
+            amount: finalAmount,
+            type: type || 'paid',
+            tournament_name: (tournamentName || '').trim(),
+            payment_method: finalPaymentMethod,
+            notes: (notes || '').trim(),
+            paid_at: effectivePaidAt,
             expires_at: expiresAt
         }])
         .select()
@@ -255,6 +314,43 @@ export async function renewMembership({ customerId, amount, previousExpiry }) {
     if (error) throw error;
     await markAsMember(customerId);
     return data;
+}
+
+/**
+ * Actualiza cualquier dato de una membresía existente en el historial.
+ */
+export async function updateMembership(id, membershipData) {
+    if (!id) throw new Error('ID de membresía no proporcionado');
+
+    const payload = {};
+    if (membershipData.amount !== undefined) payload.amount = parseInt(membershipData.amount, 10) || 0;
+    if (membershipData.type !== undefined) payload.type = membershipData.type;
+    if (membershipData.tournament_name !== undefined) payload.tournament_name = (membershipData.tournament_name || '').trim();
+    if (membershipData.payment_method !== undefined) payload.payment_method = membershipData.payment_method;
+    if (membershipData.notes !== undefined) payload.notes = (membershipData.notes || '').trim();
+    if (membershipData.paid_at !== undefined) payload.paid_at = new Date(membershipData.paid_at).toISOString();
+    if (membershipData.expires_at !== undefined) payload.expires_at = new Date(membershipData.expires_at).toISOString();
+
+    const { data, error } = await supabase
+        .from('club_memberships')
+        .update(payload)
+        .eq('id', id)
+        .select()
+        .single();
+    if (error) throw error;
+    return data;
+}
+
+/**
+ * Elimina un registro de membresía individual (anulación).
+ */
+export async function deleteMembership(id) {
+    if (!id) throw new Error('ID de membresía no proporcionado');
+    const { error } = await supabase
+        .from('club_memberships')
+        .delete()
+        .eq('id', id);
+    if (error) throw error;
 }
 
 /**
@@ -280,8 +376,7 @@ export async function getMembershipStatus(customerId) {
 
 /**
  * Stats globales para el módulo Club y Dashboard.
- * @returns {Promise<{totalClub:number, active:number, expiring:number, expired:number,
- *                    renewedThisMonth:number, revenueThisMonth:number, members:Array}>}
+ * Separa los ingresos reales (pagos) de las membresías otorgadas como premio de torneo.
  */
 export async function getMembershipStats() {
     const [members, memberships] = await Promise.all([
@@ -299,12 +394,15 @@ export async function getMembershipStats() {
         active: 0,
         expiring: 0,
         expired: 0,
+        tournamentMembers: 0,
         renewedThisMonth: 0,
         revenueThisMonth: 0,
+        tournamentPrizesThisMonth: 0,
+        totalTournamentPrizes: 0,
         members: []
     };
 
-    // Mapa de la última membresía por customer
+    // Mapa de la última membresía por customer (clave c.id o m.customer_id)
     const lastByCustomer = {};
     allMemberships.forEach(m => {
         if (!lastByCustomer[m.customer_id] || new Date(m.paid_at) > new Date(lastByCustomer[m.customer_id].paid_at)) {
@@ -313,7 +411,7 @@ export async function getMembershipStats() {
     });
 
     members.forEach(c => {
-        const last = lastByCustomer[c.customer_id] || null;
+        const last = lastByCustomer[c.id] || null;
         let daysLeft = null;
         let status = 'none';
         if (last) {
@@ -322,6 +420,10 @@ export async function getMembershipStats() {
             if (daysLeft < 0) status = 'expired';
             else if (daysLeft <= CLUB_WARN_DAYS) status = 'expiring';
             else status = 'active';
+
+            if (last.type === 'tournament_prize') {
+                stats.tournamentMembers++;
+            }
         }
         stats.totalClub++;
         if (status === 'active') stats.active++;
@@ -330,12 +432,23 @@ export async function getMembershipStats() {
         stats.members.push({ ...c, membership: last, status, daysLeft });
     });
 
-    // Stats del mes sobre TODOS los pagos de membresía (renovaciones + altas)
+    // Stats del mes sobre TODOS los registros de membresía (pagos vs torneos)
     allMemberships.forEach(m => {
         const paid = new Date(m.paid_at);
+        const isTournament = m.type === 'tournament_prize';
+
+        if (isTournament) {
+            stats.totalTournamentPrizes++;
+        }
+
         if (paid >= monthStart) {
             stats.renewedThisMonth++;
-            stats.revenueThisMonth += (m.amount || 0);
+            // Solo sumar al ingreso financiero real si no es premio gratuito
+            if (!isTournament && (m.amount || 0) > 0) {
+                stats.revenueThisMonth += (m.amount || 0);
+            } else if (isTournament) {
+                stats.tournamentPrizesThisMonth++;
+            }
         }
     });
 
@@ -513,6 +626,9 @@ export const customerService = {
     getMembershipStats,
     registerMembership,
     renewMembership,
+    updateMembership,
+    deleteMembership,
+    revokeClubMembership,
     MEMBERSHIP_DAYS,
     CLUB_WARN_DAYS
 };

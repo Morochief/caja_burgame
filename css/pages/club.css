@@ -1,72 +1,492 @@
-/* ============================================================
-   CLUB BURGAME — Socios y Membresías
-   ============================================================ */
+/* ==========================================================================
+   CLUB BURGAME — Suite de Membresías & Torneos Gamer de Élite
+   Arcade Dark Theme (Gold, Neon Cyan, JetBrains Mono)
+   ========================================================================== */
 
-.club-page .club-stats-grid {
+.club-page {
+    padding: 1.5rem;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+/* Page Header */
+.club-page .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.club-page .page-header__info h1 {
+    font-family: var(--font-title);
+    font-size: 1rem;
+    color: var(--color-primary);
+    text-shadow: 0 0 10px var(--color-primary-glow), 2px 2px 0 #000;
+    margin-bottom: 0.35rem;
+    letter-spacing: 0.5px;
+}
+
+.club-page .page-header__info p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.club-header-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+/* ==========================================================================
+   KPI Grid Arcade
+   ========================================================================== */
+.club-stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 1rem;
+    gap: 0.85rem;
     margin-bottom: 1.5rem;
 }
 
-.club-page .club-toolbar {
+.club-kpi-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 1rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    position: relative;
+    overflow: hidden;
+    transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.club-kpi-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 215, 0, 0.4);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.club-kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--border-subtle);
+}
+
+.club-kpi-card--gold::before { background: #FFD700; box-shadow: 0 0 8px rgba(255, 215, 0, 0.6); }
+.club-kpi-card--yellow::before { background: #FFC107; box-shadow: 0 0 8px rgba(255, 193, 7, 0.6); }
+.club-kpi-card--red::before { background: #FF5252; box-shadow: 0 0 8px rgba(255, 82, 82, 0.6); }
+.club-kpi-card--cyan::before { background: #00F0FF; box-shadow: 0 0 8px rgba(0, 240, 255, 0.6); }
+.club-kpi-card--green::before { background: #00E676; box-shadow: 0 0 8px rgba(0, 230, 118, 0.6); }
+
+.club-kpi-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.club-kpi-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+}
+
+.club-kpi-icon {
+    font-size: 1.15rem;
+}
+
+.club-kpi-value {
+    font-family: var(--font-mono);
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--text-main);
+    line-height: 1.2;
+}
+
+.club-kpi-card--gold .club-kpi-value { color: #FFD700; }
+.club-kpi-card--yellow .club-kpi-value { color: #FFC107; }
+.club-kpi-card--red .club-kpi-value { color: #FF5252; }
+.club-kpi-card--cyan .club-kpi-value { color: #00F0FF; }
+.club-kpi-card--green .club-kpi-value { color: #00E676; }
+
+.club-kpi-sub {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+/* ==========================================================================
+   Segment / Status Pills
+   ========================================================================== */
+.club-pills-bar {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+    scrollbar-width: thin;
+}
+
+.club-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.9rem;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all var(--transition-fast);
+    user-select: none;
+}
+
+.club-pill:hover {
+    border-color: rgba(255, 215, 0, 0.3);
+    color: var(--text-main);
+    background: rgba(255, 215, 0, 0.05);
+}
+
+.club-pill.active {
+    background: var(--color-primary);
+    color: #0A0B0E;
+    border-color: var(--color-primary);
+    font-weight: 800;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.35);
+}
+
+.club-pill__count {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.club-pill.active .club-pill__count {
+    background: rgba(0, 0, 0, 0.2);
+    color: #0A0B0E;
+    font-weight: 800;
+}
+
+/* ==========================================================================
+   Toolbar
+   ========================================================================== */
+.club-toolbar {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: center;
     margin-bottom: 1rem;
 }
 
-.club-page .club-toolbar input {
-    width: 100%;
-    max-width: 420px;
-    padding: 0.6rem 0.9rem;
-    background: var(--bg-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
-    color: var(--color-text);
-    font-size: 0.9rem;
+.club-search-wrap {
+    flex: 1;
+    min-width: 240px;
+    position: relative;
 }
 
-.club-page .club-table-wrap {
+.club-search-wrap input {
+    width: 100%;
+    padding: 0.6rem 0.9rem 0.6rem 2.2rem;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-main);
+    font-size: 0.85rem;
+}
+
+.club-search-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+/* ==========================================================================
+   Tabla de Socios
+   ========================================================================== */
+.club-table-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.club-table-wrap {
     overflow-x: auto;
 }
 
-.club-page .club-table {
+.club-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
 }
 
-.club-page .club-table th {
+.club-table thead th {
     text-align: left;
-    padding: 0.7rem 0.9rem;
+    padding: 0.8rem 0.75rem;
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 1px;
     color: var(--text-muted);
-    border-bottom: 1px solid var(--border-subtle);
+    background: rgba(0, 0, 0, 0.25);
+    border-bottom: 2px solid var(--border-subtle);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    transition: color var(--transition-fast);
 }
 
-.club-page .club-table td {
-    padding: 0.7rem 0.9rem;
-    border-bottom: 1px solid var(--border-subtle);
+.club-table thead th:hover {
+    color: var(--color-primary);
+}
+
+.club-table tbody td {
+    padding: 0.75rem 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
     vertical-align: middle;
 }
 
-.club-page .club-empty {
+.club-table tbody tr {
+    transition: background var(--transition-fast);
+}
+
+.club-table tbody tr:hover {
+    background: rgba(255, 215, 0, 0.04);
+}
+
+/* Identidad del Socio */
+.socio-identity {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.socio-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    background: rgba(255, 215, 0, 0.15);
+    border: 2px solid var(--color-primary);
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.35);
+    flex-shrink: 0;
+}
+
+.socio-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.socio-name {
+    font-weight: 700;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.socio-meta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+/* Badges de Origen / Torneo */
+.badge--tournament {
+    background: rgba(0, 240, 255, 0.15);
+    border: 1px solid #00F0FF;
+    color: #00F0FF;
+    font-size: 0.68rem;
+    font-weight: 800;
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    box-shadow: 0 0 6px rgba(0, 240, 255, 0.3);
+}
+
+.badge--paid-membership {
+    background: rgba(255, 215, 0, 0.15);
+    border: 1px solid #FFD700;
+    color: #FFD700;
+    font-size: 0.68rem;
+    font-weight: 800;
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+/* Botones de Acción */
+.club-actions {
+    display: flex;
+    gap: 0.35rem;
+    justify-content: flex-end;
+}
+
+.club-actions .btn {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.75rem;
+}
+
+/* ============================================================
+   Modal Alta / Renovación con Pestañas de Tipo (Pago vs Torneo)
+   ============================================================ */
+.club-type-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.club-type-tab {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 0.6rem 0.5rem;
     text-align: center;
-    padding: 2rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.club-type-tab:hover {
+    border-color: rgba(255, 215, 0, 0.3);
+    color: var(--text-main);
+}
+
+.club-type-tab.active {
+    background: rgba(255, 215, 0, 0.12);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.25);
+}
+
+.club-type-tab--tournament.active {
+    background: rgba(0, 240, 255, 0.12);
+    border-color: #00F0FF;
+    color: #00F0FF;
+    box-shadow: 0 0 8px rgba(0, 240, 255, 0.25);
+}
+
+/* Selector de Duración en Pills */
+.club-duration-pills {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin-top: 0.35rem;
+}
+
+.club-duration-pill {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 0.3rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.club-duration-pill:hover {
+    color: var(--text-main);
+    border-color: rgba(255, 215, 0, 0.3);
+}
+
+.club-duration-pill.active {
+    background: var(--color-primary);
+    color: #000;
+    border-color: var(--color-primary);
+    font-weight: 800;
+}
+
+/* ============================================================
+   Modal Historial y Auditoría de Membresías
+   ============================================================ */
+.club-history-row {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 0.9rem;
+    margin-bottom: 0.6rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    transition: border-color var(--transition-fast);
+}
+
+.club-history-row:hover {
+    border-color: rgba(255, 215, 0, 0.3);
+}
+
+.club-history-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.club-history-dates {
+    font-size: 0.78rem;
     color: var(--text-muted);
 }
 
-.club-page .club-member-status {
-    background: rgba(255, 215, 0, 0.05);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
-    padding: 0.6rem 0.8rem;
-    font-size: 0.82rem;
-    margin-bottom: 0.5rem;
+.club-history-actions {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
 }
 
-/* Aviso de membresía dentro del modal del pedido (POS) */
-.club-member-hint {
-    font-size: 0.75rem;
-    line-height: 1.3;
+/* Responsive */
+@media (max-width: 768px) {
+    .club-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .club-type-tabs {
+        grid-template-columns: 1fr;
+    }
+    .club-table thead th:nth-child(3),
+    .club-table tbody td:nth-child(3) {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .club-stats-grid {
+        grid-template-columns: 1fr;
+    }
+    .club-header-actions {
+        width: 100%;
+    }
+    .club-header-actions .btn {
+        flex: 1;
+    }
+    .club-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
 }

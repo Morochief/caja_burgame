@@ -540,3 +540,81 @@ export async function exportCustomersToExcel(customers = []) {
     });
 }
 
+// Exporta el módulo de Club Burgame a Excel Multi-Hoja (Padrón de Socios y Auditoría de Premios/Pagos)
+export async function exportClubToExcel(members = [], allMemberships = []) {
+    const ExcelJS = await loadExcelJS();
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Burgame Arcade POS - Club';
+    wb.created = new Date();
+
+    const fmtDate = (d) => {
+        if (!d) return '—';
+        const date = new Date(d);
+        if (isNaN(date.getTime())) return '—';
+        return date.toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
+
+    // 1. Hoja Padrón Oficial de Socios
+    const wsPadron = wb.addWorksheet('Padrón Oficial');
+    const padronHeader = ['#', 'Socio', 'Teléfono', 'Estado Vigencia', 'Días Restantes', 'Tipo Beneficio', 'Torneo / Origen', 'Último Inicio', 'Vencimiento', 'Monto (Gs.)', 'Medio Pago'];
+    const padronRows = [[''], [''], [''], [''], [''], padronHeader];
+
+    let totalRecaudado = 0;
+    let totalPremios = 0;
+
+    members.forEach((m, idx) => {
+        const last = m.membership || {};
+        const isTournament = last.type === 'tournament_prize';
+        const amount = isTournament ? 0 : (last.amount || 0);
+        totalRecaudado += amount;
+        if (isTournament) totalPremios++;
+
+        padronRows.push([
+            idx + 1,
+            m.name || 'Sin nombre',
+            m.phone || '—',
+            m.status ? m.status.toUpperCase() : 'ACTIVO',
+            m.daysLeft !== null ? m.daysLeft : '—',
+            isTournament ? 'PREMIO DE TORNEO' : 'PAGO REGULAR',
+            last.tournament_name || (isTournament ? 'Torneo Burgame' : 'Suscripción'),
+            fmtDate(last.paid_at),
+            fmtDate(last.expires_at),
+            amount,
+            last.payment_method || (isTournament ? 'premio' : 'efectivo')
+        ]);
+    });
+
+    padronRows.push([]);
+    padronRows.push(['', 'TOTALES PADRÓN', '', `Total Socios: ${members.length}`, '', `Premios: ${totalPremios}`, '', '', '', totalRecaudado, '']);
+    buildBurgameSheet(wsPadron, padronRows, { imageRows: 5 });
+
+    // 2. Hoja Auditoría de Membresías y Premios
+    const wsAudit = wb.addWorksheet('Auditoría Membresías');
+    const auditHeader = ['#', 'ID Registro', 'Fecha Registro', 'Vencimiento', 'Tipo', 'Torneo / Evento', 'Monto (Gs.)', 'Medio de Pago', 'Notas'];
+    const auditRows = [[''], [''], [''], [''], [''], auditHeader];
+
+    allMemberships.forEach((h, idx) => {
+        const isTournament = h.type === 'tournament_prize';
+        auditRows.push([
+            idx + 1,
+            h.id ? h.id.substring(0, 8) : '—',
+            fmtDate(h.paid_at),
+            fmtDate(h.expires_at),
+            isTournament ? 'PREMIO TORNEO' : 'PAGO REGULAR',
+            h.tournament_name || (isTournament ? 'Torneo Gamer' : 'Cuota Mensual'),
+            h.amount || 0,
+            h.payment_method || '—',
+            h.notes || '—'
+        ]);
+    });
+    buildBurgameSheet(wsAudit, auditRows, { imageRows: 5 });
+
+    // Descarga con branding
+    const todayStr = new Date().toISOString().split('T')[0];
+    await downloadBurgameExcel(wb, `Burgame_Club_Socios_${todayStr}.xlsx`, {
+        logoSheets: ['Padrón Oficial', 'Auditoría Membresías'],
+        bannerSheet: 'Padrón Oficial'
+    });
+}
+
+
