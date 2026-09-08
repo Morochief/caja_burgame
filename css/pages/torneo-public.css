@@ -1,0 +1,593 @@
+/* ============================================================
+   ESTILOS PORTAL PÚBLICO DE TORNEOS — BURGAME GAMING ARENA
+   Estilo Challonge: Responsive, Cyberpunk / Retro Arcade,
+   Árbol de Brackets con conectores, Pases Gamer y Formulario
+   ============================================================ */
+
+.torneo-body {
+    background-color: var(--bg-primary, #0A0B0E);
+    min-height: 100vh;
+    min-height: 100dvh;
+    font-family: var(--font-sans, 'Inter', sans-serif);
+    color: var(--color-text, #F0F2F5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.torneo-container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem 1rem 3rem 1rem;
+    box-sizing: border-box;
+}
+
+/* Estado de Carga */
+.torneo-loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    gap: 1.5rem;
+    color: var(--text-muted);
+}
+
+/* Banner Hero del Torneo */
+.torneo-hero {
+    background: linear-gradient(135deg, rgba(20, 22, 30, 0.95) 0%, rgba(10, 11, 14, 0.98) 100%);
+    border: 1px solid var(--border-gold-subtle, rgba(255, 215, 0, 0.2));
+    border-radius: var(--radius-lg, 12px);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 215, 0, 0.15);
+    position: relative;
+    overflow: hidden;
+}
+
+.torneo-hero::before {
+    content: '';
+    position: absolute;
+    top: -50px;
+    right: -50px;
+    width: 180px;
+    height: 180px;
+    background: radial-gradient(circle, rgba(255, 215, 0, 0.15) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.torneo-hero__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.torneo-hero__brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.torneo-hero__logo {
+    height: 42px;
+    width: auto;
+    filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.4));
+}
+
+.torneo-hero__arena-tag {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--color-primary, #FFD700);
+    background: rgba(255, 215, 0, 0.1);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+}
+
+.torneo-hero__title {
+    font-size: 1.6rem;
+    font-weight: 800;
+    margin: 0 0 0.5rem 0;
+    color: #FFF;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+    line-height: 1.2;
+}
+
+.torneo-hero__badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.torneo-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.3rem 0.65rem;
+    border-radius: 6px;
+    background: var(--bg-elevated, #181A22);
+    border: 1px solid var(--border-subtle, #2C2F3E);
+    color: var(--text-muted);
+}
+
+.torneo-badge--game {
+    background: rgba(255, 215, 0, 0.12);
+    color: #FFD700;
+    border-color: rgba(255, 215, 0, 0.4);
+}
+
+.torneo-badge--status-active {
+    background: rgba(0, 230, 118, 0.15);
+    color: #00E676;
+    border-color: #00E676;
+    animation: pulseGlow 2s infinite ease-in-out;
+}
+
+.torneo-badge--status-upcoming {
+    background: rgba(0, 176, 255, 0.15);
+    color: #00B0FF;
+    border-color: #00B0FF;
+}
+
+.torneo-badge--status-finished {
+    background: rgba(158, 158, 158, 0.2);
+    color: #BDBDBD;
+    border-color: #616161;
+}
+
+@keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 5px rgba(0, 230, 118, 0.4); }
+    50% { box-shadow: 0 0 15px rgba(0, 230, 118, 0.8); }
+}
+
+/* Cuenta Regresiva */
+.torneo-countdown {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border-subtle);
+    padding: 0.5rem 0.85rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+}
+
+.torneo-countdown__val {
+    font-family: var(--font-mono, monospace);
+    font-weight: 700;
+    color: var(--color-primary);
+}
+
+/* Pestañas Públicas */
+.torneo-nav-tabs {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 2px solid var(--border-subtle, #2C2F3E);
+    margin-bottom: 1.5rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.torneo-nav-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.torneo-nav-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    font-weight: 700;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    position: relative;
+}
+
+.torneo-nav-btn:hover {
+    color: #FFF;
+}
+
+.torneo-nav-btn--active {
+    color: var(--color-primary, #FFD700);
+    background: rgba(255, 215, 0, 0.08);
+}
+
+.torneo-nav-btn--active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--color-primary, #FFD700);
+    border-radius: 3px 3px 0 0;
+    box-shadow: 0 0 8px #FFD700;
+}
+
+/* Contenido de Pestañas */
+.torneo-tab-pane {
+    display: none;
+}
+
+.torneo-tab-pane--active {
+    display: block;
+}
+
+/* ============================================================
+   PESTAÑA 1: INFO & REGLAS & PREMIOS
+   ============================================================ */
+.torneo-info-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+}
+
+@media (min-width: 800px) {
+    .torneo-info-grid {
+        grid-template-columns: 1.3fr 1fr;
+    }
+}
+
+.torneo-card {
+    background: var(--bg-card, #14161E);
+    border: 1px solid var(--border-subtle, #2C2F3E);
+    border-radius: var(--radius-md, 10px);
+    padding: 1.25rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.torneo-card__title {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--color-primary);
+    margin: 0 0 1rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 0.5rem;
+}
+
+/* Podio de Premios */
+.prizes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.prize-item {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    background: var(--bg-elevated, #1A1D27);
+    padding: 0.85rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-subtle);
+}
+
+.prize-item--1st {
+    border-color: var(--border-gold, #FFD700);
+    background: linear-gradient(90deg, rgba(255, 215, 0, 0.12) 0%, rgba(26, 29, 39, 0.8) 100%);
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.15);
+}
+
+.prize-medal {
+    font-size: 1.6rem;
+    line-height: 1;
+}
+
+.prize-info h4 {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #FFF;
+}
+
+.prize-info p {
+    margin: 0.2rem 0 0 0;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+/* Ubicación y Salón Gamer */
+.location-box {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-subtle);
+    padding: 1rem;
+    border-radius: 8px;
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+}
+
+/* ============================================================
+   PESTAÑA 2: FORMULARIO DE INSCRIPCIÓN ONLINE
+   ============================================================ */
+.registration-form-card {
+    max-width: 620px;
+    margin: 0 auto;
+    background: var(--bg-card, #14161E);
+    border: 1px solid var(--border-gold-subtle, rgba(255, 215, 0, 0.25));
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+}
+
+.registration-form-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.registration-form-header h3 {
+    font-size: 1.3rem;
+    margin: 0 0 0.4rem 0;
+    color: #FFF;
+}
+
+.registration-form-header p {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.form-group-player {
+    background: var(--bg-elevated, #1A1D27);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.form-player-title {
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: var(--color-primary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+/* Tarjeta Pase Gamer Confirmado */
+.gamer-pass-card {
+    max-width: 480px;
+    margin: 1.5rem auto;
+    background: linear-gradient(135deg, #181B26 0%, #0E1017 100%);
+    border: 2px solid var(--color-primary, #FFD700);
+    border-radius: 14px;
+    padding: 1.75rem;
+    text-align: center;
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.25);
+    position: relative;
+    overflow: hidden;
+}
+
+.gamer-pass-card::after {
+    content: 'BURGAME ARENA PASS';
+    position: absolute;
+    bottom: -15px;
+    right: -10px;
+    font-size: 2.2rem;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.03);
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.gamer-pass-icon {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+}
+
+.gamer-pass-team {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #FFF;
+    margin: 0.5rem 0;
+}
+
+.gamer-pass-seed {
+    display: inline-block;
+    background: rgba(255, 215, 0, 0.15);
+    color: var(--color-primary);
+    border: 1px solid var(--color-primary);
+    font-family: var(--font-mono);
+    font-weight: 800;
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+}
+
+/* ============================================================
+   PESTAÑA 3: MOTOR DE BRACKETS INTERACTIVO (ESTILO CHALLONGE)
+   ============================================================ */
+.brackets-viewport {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 1.5rem 0.5rem;
+    box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-color: var(--color-primary) var(--bg-card);
+}
+
+.brackets-viewport::-webkit-scrollbar {
+    height: 8px;
+}
+
+.brackets-viewport::-webkit-scrollbar-thumb {
+    background: var(--color-primary);
+    border-radius: 4px;
+}
+
+.brackets-tree-container {
+    display: flex;
+    align-items: stretch;
+    gap: 2.5rem;
+    min-width: max-content;
+    padding: 0 1rem;
+}
+
+/* Columna de Ronda */
+.bracket-round-column {
+    display: flex;
+    flex-direction: column;
+    min-width: 250px;
+    width: 250px;
+}
+
+.bracket-round-header {
+    text-align: center;
+    padding: 0.6rem;
+    background: var(--bg-card, #14161E);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: var(--color-primary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 1.5rem;
+}
+
+.bracket-round-matches {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    flex-grow: 1;
+    gap: 2rem;
+}
+
+/* Tarjeta de Partido */
+.match-card {
+    background: var(--bg-card, #14161E);
+    border: 1px solid var(--border-subtle, #2C2F3E);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.match-card:hover {
+    border-color: rgba(255, 215, 0, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+}
+
+.match-card--completed {
+    border-color: rgba(255, 215, 0, 0.3);
+}
+
+.match-card--in_progress {
+    border-color: #00E676;
+    box-shadow: 0 0 10px rgba(0, 230, 118, 0.3);
+}
+
+.match-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.35rem 0.6rem;
+    background: rgba(0, 0, 0, 0.3);
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.match-team {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    transition: background 0.15s ease;
+}
+
+.match-team:last-child {
+    border-bottom: none;
+}
+
+.match-team--winner {
+    background: rgba(0, 230, 118, 0.1);
+}
+
+.match-team--loser {
+    opacity: 0.55;
+}
+
+.match-team-name {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #FFF;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 170px;
+}
+
+.match-team-name--empty {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.match-team-score {
+    font-family: var(--font-mono);
+    font-weight: 800;
+    font-size: 0.95rem;
+    padding: 0.1rem 0.45rem;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 4px;
+    color: var(--color-primary);
+    min-width: 20px;
+    text-align: center;
+}
+
+.match-team--winner .match-team-score {
+    background: #00E676;
+    color: #000;
+}
+
+/* Conectores tipo árbol (pseudo-elementos en desktop) */
+@media (min-width: 768px) {
+    .match-card {
+        position: relative;
+    }
+}
+
+/* Responsividad General */
+@media (max-width: 600px) {
+    .torneo-container {
+        padding: 0.5rem 0.5rem 2rem 0.5rem;
+    }
+
+    .torneo-hero {
+        padding: 1rem;
+    }
+
+    .torneo-hero__title {
+        font-size: 1.3rem;
+    }
+
+    .bracket-round-column {
+        min-width: 220px;
+        width: 220px;
+    }
+}

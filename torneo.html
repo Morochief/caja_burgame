@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Torneo Gamer — Burgame Gaming Arena</title>
+    <meta name="description" content="Inscripción oficial y cuadro de eliminación en vivo para torneos en Burgame Gaming Arena.">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@700&family=Press+Start+2P&display=swap" rel="stylesheet">
+
+    <!-- Preconnect a Supabase -->
+    <link rel="preconnect" href="https://vgpaexxlxexegnivfxgj.supabase.co">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.js" defer></script>
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/pages/torneo-public.css">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="BurgameLogoTrazoAmarillo.png">
+</head>
+<body class="bg-dark text-main torneo-body">
+    <div id="torneo-app" class="torneo-container">
+        <!-- Renderizado dinámicamente desde js/pages/torneo-public.js -->
+        <div class="torneo-loading-state">
+            <div class="pixel-spinner"></div>
+            <p>Cargando información del torneo...</p>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script type="module" src="js/pages/torneo-public.js"></script>
+</body>
+</html>

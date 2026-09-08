@@ -4,6 +4,10 @@
     {
       "source": "/cocina",
       "destination": "/cocina.html"
+    },
+    {
+      "source": "/torneo",
+      "destination": "/torneo.html"
     }
   ],
   "headers": [

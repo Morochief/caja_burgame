@@ -1,7 +1,8 @@
 // ============================================================
-// Página ARCADE & GAMING ARENA - ENTERPRISE SUITE
+// Página ARCADE & GAMING ARENA - ENTERPRISE SUITE (CHALLONGE-GRADE)
 // 1. Play Arena: Pacman clásico + modo arcade cabinet + controles
-// 2. Torneos Gamer: Gestión de torneos, podios (1º, 2º, 3º) y
+// 2. Torneos Gamer: Gestión integral de torneos, links públicos,
+//    inscripciones online, motor de brackets interactivo y
 //    entrega directa de membresías Club Burgame (0 Gs premio).
 // 3. High Scores & Moderación: Ranking, registro de puntajes físicos,
 //    moderación admin y tabla de recompensas por score.
@@ -14,6 +15,8 @@ import { customerService } from '../services/customer-service.js';
 let _activeTab = 'arena';
 let _tournamentsFilter = 'all';
 let _customersCache = [];
+let _currentManagingTourn = null;
+let _bracketSubTab = 'brackets'; // 'brackets' | 'participants'
 
 export function renderArcadePage() {
     const container = document.createElement('div');
@@ -65,7 +68,7 @@ export function renderArcadePage() {
                 🕹️ Arena de Juegos
             </button>
             <button class="arcade-tab-btn" data-tab="tournaments">
-                🏆 Torneos Gamer & Podios <span class="arcade-tab-badge" id="tab-tournaments-badge">0</span>
+                🏆 Torneos Gamer & Brackets <span class="arcade-tab-badge" id="tab-tournaments-badge">0</span>
             </button>
             <button class="arcade-tab-btn" data-tab="scores">
                 🥇 High Scores & Moderación
@@ -216,7 +219,7 @@ export function renderArcadePage() {
         </div>
 
         <!-- ==========================================
-             MODALES
+             MODALES DE LA SUITE DE TORNEOS
              ========================================== -->
 
         <!-- Modal: Nuevo / Editar Torneo -->
@@ -242,18 +245,26 @@ export function renderArcadePage() {
                             <input type="date" id="tourn-date" class="form-input" required>
                         </div>
                     </div>
-                    <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                    <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem;">
                         <div class="form-group">
-                            <label class="form-label">Estado del Torneo</label>
-                            <select id="tourn-status" class="form-select">
-                                <option value="finished">Finalizado (Con Ganadores)</option>
-                                <option value="active">En Curso</option>
-                                <option value="upcoming">Próximo / Inscripciones</option>
+                            <label class="form-label">Modalidad</label>
+                            <select id="tourn-modality" class="form-select">
+                                <option value="2v2">2v2 (Equipos)</option>
+                                <option value="1v1">1v1 (Individual)</option>
+                                <option value="3v3">3v3</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Cant. Participantes</label>
-                            <input type="number" id="tourn-participants" class="form-input" placeholder="16" min="2">
+                            <label class="form-label">Estado</label>
+                            <select id="tourn-status" class="form-select">
+                                <option value="upcoming">Próximo / Inscripciones</option>
+                                <option value="active">En Curso</option>
+                                <option value="finished">Finalizado</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Cupo Máx.</label>
+                            <input type="number" id="tourn-participants" class="form-input" placeholder="16" min="4" max="32" value="16">
                         </div>
                     </div>
 
@@ -277,13 +288,173 @@ export function renderArcadePage() {
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Notas / Resumen del Evento</label>
-                        <textarea id="tourn-notes" class="form-textarea" rows="2" placeholder="Detalles, fotos de los ganadores, modalidad, etc."></textarea>
+                        <label class="form-label">Reglamento / Notas del Evento</label>
+                        <textarea id="tourn-notes" class="form-textarea" rows="2" placeholder="Modalidad al mejor de 3, escenarios legales, etc."></textarea>
                     </div>
 
                     <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
                         <button type="button" class="btn btn--secondary tournament-close-modal">Cancelar</button>
                         <button type="submit" class="btn btn--primary">Guardar Torneo</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal: Compartir Link & QR Público (Estilo Challonge) -->
+        <div id="tournament-share-modal" class="modal-overlay hidden">
+            <div class="modal-card card" style="max-width: 500px; text-align: center;">
+                <div class="modal-header">
+                    <h2>🔗 Link & QR Oficial del Torneo</h2>
+                    <button class="btn-close share-tourn-close">&times;</button>
+                </div>
+                <div class="modal-body" style="padding: 1.5rem; display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+                    <h3 id="share-modal-title" style="color: var(--color-primary); margin: 0; font-size: 1.15rem;">-</h3>
+                    <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0;">
+                        Compartí este enlace con los jugadores para que se inscriban online o escaneen el QR en el salón para seguir los brackets en vivo.
+                    </p>
+
+                    <!-- QR Code Display -->
+                    <div style="background: #FFF; padding: 0.75rem; border-radius: 8px; box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);">
+                        <img id="share-modal-qr" src="" alt="QR Torneo" style="width: 180px; height: 180px; display: block;">
+                    </div>
+
+                    <!-- Enlace copiable -->
+                    <div style="display: flex; width: 100%; gap: 0.5rem;">
+                        <input type="text" id="share-modal-url" class="form-input" readonly style="font-family: var(--font-mono); font-size: 0.8rem; background: rgba(0,0,0,0.5);">
+                        <button class="btn btn--primary" id="btn-copy-share-url" style="white-space: nowrap;">
+                            📋 Copiar
+                        </button>
+                    </div>
+
+                    <div style="display: flex; gap: 0.5rem; width: 100%;">
+                        <a id="share-modal-wa-btn" href="#" target="_blank" class="btn btn--secondary btn--sm" style="flex: 1; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 0.35rem;">
+                            📲 WhatsApp
+                        </a>
+                        <a id="share-modal-open-btn" href="#" target="_blank" class="btn btn--secondary btn--sm" style="flex: 1; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 0.35rem;">
+                            🌐 Abrir Portal
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Gestor Interactivo de Brackets (Challonge Engine) -->
+        <div id="bracket-admin-modal" class="modal-overlay hidden">
+            <div class="modal-card card bracket-modal-dialog">
+                <div class="modal-header">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <h2 id="bracket-modal-tourn-title">⚔️ Cuadro de Eliminación</h2>
+                        <span id="bracket-modal-status-badge" class="tournament-status-badge tournament-status-badge--active">En Curso</span>
+                    </div>
+                    <button class="btn-close bracket-admin-close">&times;</button>
+                </div>
+
+                <!-- Toolbar de Brackets -->
+                <div class="bracket-admin-toolbar">
+                    <div class="bracket-admin-tabs">
+                        <button class="bracket-admin-tab-btn bracket-admin-tab-btn--active" data-subtab="brackets">
+                            ⚔️ Llaves de Partidos
+                        </button>
+                        <button class="bracket-admin-tab-btn" data-subtab="participants">
+                            👥 Inscriptos (<span id="bracket-participants-count">0</span>)
+                        </button>
+                    </div>
+
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button class="btn btn--secondary btn--sm" id="btn-admin-add-participant">
+                            + Inscribir Equipo
+                        </button>
+                        <button class="btn btn--secondary btn--sm" id="btn-admin-generate-brackets" style="border-color: var(--border-gold); color: var(--color-primary);">
+                            🎲 Sortear & Generar Brackets
+                        </button>
+                        <button class="btn btn--primary btn--sm" id="btn-admin-declare-winner">
+                            🏆 Premiación Oficial (0 Gs)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sub-Pestaña A: Árbol Visual de Brackets -->
+                <div class="bracket-admin-viewport" id="bracket-admin-tree-pane">
+                    <div class="brackets-tree-container" id="admin-brackets-tree-container">
+                        <!-- Partidos interactivos generados dinámicamente -->
+                    </div>
+                </div>
+
+                <!-- Sub-Pestaña B: Lista de Participantes & Check-in -->
+                <div class="bracket-admin-viewport hidden" id="bracket-admin-participants-pane">
+                    <div id="admin-participants-list-container">
+                        <!-- Tabla de participantes -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Registrar / Editar Puntaje de Partido -->
+        <div id="match-score-modal" class="modal-overlay hidden">
+            <div class="modal-card card" style="max-width: 440px;">
+                <div class="modal-header">
+                    <h2 id="match-score-modal-title">🎮 Registrar Resultado</h2>
+                    <button class="btn-close match-score-close">&times;</button>
+                </div>
+                <form id="match-score-form" style="padding: 1.25rem;">
+                    <input type="hidden" id="score-match-id" value="">
+                    <input type="hidden" id="score-p1-id" value="">
+                    <input type="hidden" id="score-p2-id" value="">
+
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+                        Ingresá el resultado de la serie. El ganador avanzará automáticamente a la siguiente llave del torneo.
+                    </p>
+
+                    <!-- Equipo 1 -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-elevated); padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 0.75rem;">
+                        <span id="score-p1-name" style="font-weight: 700; font-size: 0.95rem; color: #FFF;">Equipo 1</span>
+                        <input type="number" id="score-val-1" class="form-input" min="0" max="99" value="0" style="width: 70px; text-align: center; font-size: 1.2rem; font-weight: 800; font-family: var(--font-mono);" required>
+                    </div>
+
+                    <div style="text-align: center; font-weight: 900; color: var(--color-primary); margin: 0.25rem 0;">VS</div>
+
+                    <!-- Equipo 2 -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-elevated); padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem;">
+                        <span id="score-p2-name" style="font-weight: 700; font-size: 0.95rem; color: #FFF;">Equipo 2</span>
+                        <input type="number" id="score-val-2" class="form-input" min="0" max="99" value="0" style="width: 70px; text-align: center; font-size: 1.2rem; font-weight: 800; font-family: var(--font-mono);" required>
+                    </div>
+
+                    <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                        <button type="button" class="btn btn--secondary match-score-close">Cancelar</button>
+                        <button type="submit" class="btn btn--primary">Confirmar y Avanzar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal: Inscripción Presencial de Equipo -->
+        <div id="add-participant-modal" class="modal-overlay hidden">
+            <div class="modal-card card" style="max-width: 480px;">
+                <div class="modal-header">
+                    <h2>📝 Inscribir Equipo en Torneo</h2>
+                    <button class="btn-close add-participant-close">&times;</button>
+                </div>
+                <form id="add-participant-form" style="padding: 1.25rem;">
+                    <div class="form-group" style="margin-bottom: 0.75rem;">
+                        <label class="form-label">Nombre del Equipo / Gamer Tag *</label>
+                        <input type="text" id="admin-reg-team" class="form-input" placeholder="Ej: Los Vengadores Gamer" required>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0.75rem;">
+                        <label class="form-label">Capitán / Jugador 1 *</label>
+                        <input type="text" id="admin-reg-cap" class="form-input" placeholder="Nombre completo" required>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0.75rem;">
+                        <label class="form-label">Teléfono / WhatsApp *</label>
+                        <input type="tel" id="admin-reg-phone" class="form-input" placeholder="0981 123456" required>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 1.25rem;">
+                        <label class="form-label">Jugador 2 (Compañero - Opcional)</label>
+                        <input type="text" id="admin-reg-p2" class="form-input" placeholder="Nombre del compañero">
+                    </div>
+
+                    <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                        <button type="button" class="btn btn--secondary add-participant-close">Cancelar</button>
+                        <button type="submit" class="btn btn--primary">Registrar Equipo</button>
                     </div>
                 </form>
             </div>
@@ -367,7 +538,6 @@ function setupArcadePage(container) {
     setupScores(container);
     setupModals(container);
 
-    // Cargar datos
     refreshAllData(container);
 }
 
@@ -437,10 +607,9 @@ function setupGameControls(container) {
 }
 
 // ============================================================
-// Lógica de Torneos
+// Lógica de Torneos (Listado y Acciones Challonge)
 // ============================================================
 function setupTournaments(container) {
-    // Filtros
     const filterBtns = container.querySelectorAll('.filter-tourn-btn');
     filterBtns.forEach(btn => {
         btn.addEventListener('click', () => {
@@ -456,18 +625,19 @@ function setupTournaments(container) {
         });
     });
 
-    // Botón nuevo torneo
     const newBtn = container.querySelector('#btn-new-tournament');
     newBtn?.addEventListener('click', () => {
         openTournamentModal(container);
     });
 }
 
-function renderTournamentsList(container) {
+async function renderTournamentsList(container) {
     const grid = container.querySelector('#tournaments-grid');
     if (!grid) return;
 
-    const all = arcadeService.getTournaments();
+    grid.innerHTML = '<div class="page-loading" style="padding: 2rem; grid-column: 1 / -1;"><div class="pixel-spinner"></div></div>';
+
+    const all = await arcadeService.getTournaments();
     container.querySelector('#tab-tournaments-badge').textContent = all.length;
 
     let filtered = all;
@@ -480,7 +650,7 @@ function renderTournamentsList(container) {
             <div style="grid-column: 1 / -1; text-align: center; padding: 3rem 1rem; color: var(--text-muted); background: var(--bg-card); border-radius: var(--radius-md); border: 1px dashed var(--border-subtle);">
                 <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🎮</div>
                 <h3 style="color: var(--color-text); margin-bottom: 0.25rem;">No hay torneos en esta sección</h3>
-                <p style="font-size: 0.85rem;">Creá un nuevo torneo gamer para registrar podios y otorgar membresías.</p>
+                <p style="font-size: 0.85rem;">Creá un nuevo torneo gamer para registrar podios y generar brackets.</p>
             </div>
         `;
         return;
@@ -503,7 +673,17 @@ function renderTournamentsList(container) {
 
                 <div class="tournament-meta-row">
                     <span>📅 ${t.date || 'Sin fecha'}</span>
-                    <span>👥 ${t.participantsCount || 0} Participantes</span>
+                    <span>👥 ${t.modality || '2v2'} (Máx. ${t.max_participants || 16})</span>
+                </div>
+
+                <!-- Botones de Acción Challonge -->
+                <div class="tournament-action-strip">
+                    <button class="btn-bracket-view" data-tourn-id="${t.id}">
+                        ⚔️ Brackets & Llaves
+                    </button>
+                    <button class="btn-share-tourn" data-tourn-id="${t.id}">
+                        🔗 Link / QR Público
+                    </button>
                 </div>
 
                 <!-- Podio -->
@@ -515,12 +695,12 @@ function renderTournamentsList(container) {
                         <div class="podium-winner-info">
                             <span class="podium-icon">🥇</span>
                             <div>
-                                <div class="podium-winner-name">${t.firstPlace?.name || 'Por definir'}</div>
-                                <div class="podium-prize-desc">${t.firstPlace?.prize || 'Membresía Club Burgame'}</div>
+                                <div class="podium-winner-name">${t.firstPlace?.name || t.first_place?.name || 'Por definir'}</div>
+                                <div class="podium-prize-desc">${t.firstPlace?.prize || t.first_place?.prize || 'Membresía Club Burgame'}</div>
                             </div>
                         </div>
-                        <button class="podium-grant-btn btn-grant-membership" data-tourn-id="${t.id}" data-place="1º Puesto" data-name="${t.firstPlace?.name || ''}">
-                            🏅 Otorgar Membresía (0 Gs)
+                        <button class="podium-grant-btn btn-grant-membership" data-tourn-id="${t.id}" data-place="1º Puesto" data-name="${t.firstPlace?.name || t.first_place?.name || ''}">
+                            🏅 Otorgar (0 Gs)
                         </button>
                     </div>
 
@@ -529,11 +709,11 @@ function renderTournamentsList(container) {
                         <div class="podium-winner-info">
                             <span class="podium-icon">🥈</span>
                             <div>
-                                <div class="podium-winner-name">${t.secondPlace?.name || 'Por definir'}</div>
-                                <div class="podium-prize-desc">${t.secondPlace?.prize || 'Premio secundario'}</div>
+                                <div class="podium-winner-name">${t.secondPlace?.name || t.second_place?.name || 'Por definir'}</div>
+                                <div class="podium-prize-desc">${t.secondPlace?.prize || t.second_place?.prize || 'Premio secundario'}</div>
                             </div>
                         </div>
-                        <button class="podium-grant-btn btn-grant-membership" data-tourn-id="${t.id}" data-place="2º Puesto" data-name="${t.secondPlace?.name || ''}">
+                        <button class="podium-grant-btn btn-grant-membership" data-tourn-id="${t.id}" data-place="2º Puesto" data-name="${t.secondPlace?.name || t.second_place?.name || ''}">
                             🏅 Otorgar (0 Gs)
                         </button>
                     </div>
@@ -543,8 +723,8 @@ function renderTournamentsList(container) {
                         <div class="podium-winner-info">
                             <span class="podium-icon">🥉</span>
                             <div>
-                                <div class="podium-winner-name">${t.thirdPlace?.name || 'Por definir'}</div>
-                                <div class="podium-prize-desc">${t.thirdPlace?.prize || 'Consolación'}</div>
+                                <div class="podium-winner-name">${t.thirdPlace?.name || t.third_place?.name || 'Por definir'}</div>
+                                <div class="podium-prize-desc">${t.thirdPlace?.prize || t.third_place?.prize || 'Consolación'}</div>
                             </div>
                         </div>
                     </div>
@@ -555,15 +735,29 @@ function renderTournamentsList(container) {
                         ${t.notes || 'Sin observaciones'}
                     </span>
                     <div class="tournament-actions-btns">
-                        <button class="btn btn--secondary btn--sm btn-edit-tourn" data-id="${t.id}">✏️</button>
-                        <button class="btn btn--secondary btn--sm btn-delete-tourn" data-id="${t.id}" style="color: var(--color-error);">🗑️</button>
+                        <button class="btn btn--secondary btn--sm btn-edit-tourn" data-id="${t.id}" title="Editar">✏️</button>
+                        <button class="btn btn--secondary btn--sm btn-delete-tourn" data-id="${t.id}" style="color: var(--color-error);" title="Eliminar">🗑️</button>
                     </div>
                 </div>
             </div>
         `;
     }).join('');
 
-    // Eventos de botones en tarjetas
+    // Conectar eventos
+    grid.querySelectorAll('.btn-bracket-view').forEach(b => {
+        b.addEventListener('click', async () => {
+            const tourn = all.find(x => x.id === b.dataset.tournId);
+            if (tourn) openBracketManagerModal(container, tourn);
+        });
+    });
+
+    grid.querySelectorAll('.btn-share-tourn').forEach(b => {
+        b.addEventListener('click', () => {
+            const tourn = all.find(x => x.id === b.dataset.tournId);
+            if (tourn) openShareModal(container, tourn);
+        });
+    });
+
     grid.querySelectorAll('.btn-grant-membership').forEach(b => {
         b.addEventListener('click', () => {
             const tournId = b.dataset.tournId;
@@ -582,14 +776,331 @@ function renderTournamentsList(container) {
     });
 
     grid.querySelectorAll('.btn-delete-tourn').forEach(b => {
-        b.addEventListener('click', () => {
-            if (confirm('¿Eliminar este torneo?')) {
-                arcadeService.deleteTournament(b.dataset.id);
+        b.addEventListener('click', async () => {
+            if (confirm('¿Eliminar este torneo y todos sus brackets?')) {
+                await arcadeService.deleteTournament(b.dataset.id);
                 showToast({ message: 'Torneo eliminado', type: 'info' });
                 refreshAllData(container);
             }
         });
     });
+}
+
+// ============================================================
+// Modal Compartir Link & QR Público
+// ============================================================
+function openShareModal(container, tourn) {
+    const modal = container.querySelector('#tournament-share-modal');
+    if (!modal) return;
+
+    const shareUrl = `${window.location.origin}${window.location.pathname.replace('index.html', '')}torneo.html?id=${tourn.id}`;
+    
+    container.querySelector('#share-modal-title').textContent = `🎮 ${tourn.title}`;
+    const urlInput = container.querySelector('#share-modal-url');
+    urlInput.value = shareUrl;
+
+    // Generar QR dinámico
+    const qrImg = container.querySelector('#share-modal-qr');
+    qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(shareUrl)}&bgcolor=FFFFFF&color=000000`;
+
+    // WhatsApp button
+    const waBtn = container.querySelector('#share-modal-wa-btn');
+    const waText = encodeURIComponent(`¡Te invitamos al ${tourn.title} en Burgame! Inscribí a tu equipo o mirá las llaves en vivo aquí: ${shareUrl}`);
+    waBtn.href = `https://api.whatsapp.com/send?text=${waText}`;
+
+    // Open button
+    const openBtn = container.querySelector('#share-modal-open-btn');
+    openBtn.href = shareUrl;
+
+    // Copy action
+    const copyBtn = container.querySelector('#btn-copy-share-url');
+    copyBtn.onclick = () => {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            showToast({ message: '¡Link copiado al portapapeles!', type: 'success' });
+            copyBtn.textContent = '✅ ¡Copiado!';
+            setTimeout(() => { copyBtn.textContent = '📋 Copiar'; }, 2000);
+        });
+    };
+
+    modal.classList.remove('hidden');
+}
+
+// ============================================================
+// Modal Gestor de Brackets (Challonge Engine en Admin)
+// ============================================================
+async function openBracketManagerModal(container, tourn) {
+    _currentManagingTourn = tourn;
+    const modal = container.querySelector('#bracket-admin-modal');
+    if (!modal) return;
+
+    container.querySelector('#bracket-modal-tourn-title').textContent = `⚔️ ${tourn.title}`;
+    const statusBadge = container.querySelector('#bracket-modal-status-badge');
+    statusBadge.textContent = tourn.status === 'finished' ? 'Finalizado' : tourn.status === 'active' ? 'En Curso' : 'Próximo';
+    statusBadge.className = `tournament-status-badge tournament-status-badge--${tourn.status}`;
+
+    modal.classList.remove('hidden');
+    await refreshBracketAdminData(container);
+}
+
+async function refreshBracketAdminData(container) {
+    if (!_currentManagingTourn) return;
+
+    const fullTourn = await arcadeService.getTournamentById(_currentManagingTourn.id);
+    if (!fullTourn) return;
+
+    _currentManagingTourn = fullTourn;
+    const participants = fullTourn.participants || [];
+    const matches = fullTourn.matches || [];
+
+    container.querySelector('#bracket-participants-count').textContent = participants.length;
+
+    renderAdminBracketsTree(container, fullTourn, matches, participants);
+    renderAdminParticipantsList(container, fullTourn, participants);
+}
+
+function renderAdminBracketsTree(container, tourn, matches, participants) {
+    const treeContainer = container.querySelector('#admin-brackets-tree-container');
+    if (!treeContainer) return;
+
+    if (!matches || matches.length === 0) {
+        treeContainer.innerHTML = `
+            <div style="text-align: center; padding: 3rem 1rem; color: var(--text-muted); width: 100%;">
+                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🎲</div>
+                <h4 style="color: #FFF; margin-bottom: 0.25rem;">Cuadro no generado</h4>
+                <p style="font-size: 0.85rem; margin-bottom: 1.25rem;">
+                    Inscribí a los participantes y presioná "Sortear & Generar Brackets" para armar las llaves de eliminación.
+                </p>
+                <button class="btn btn--primary" id="btn-empty-generate-brackets">
+                    🎲 Generar Brackets Ahora
+                </button>
+            </div>
+        `;
+        treeContainer.querySelector('#btn-empty-generate-brackets')?.addEventListener('click', () => {
+            handleGenerateBrackets(container);
+        });
+        return;
+    }
+
+    const roundsMap = {};
+    matches.forEach(m => {
+        if (!roundsMap[m.round_index]) roundsMap[m.round_index] = [];
+        roundsMap[m.round_index].push(m);
+    });
+
+    const roundIndexes = Object.keys(roundsMap).map(Number).sort((a, b) => a - b);
+
+    treeContainer.innerHTML = roundIndexes.map(rIdx => {
+        const matchesInRound = roundsMap[rIdx].sort((a, b) => a.match_index - b.match_index);
+        const roundTitle = matchesInRound[0]?.round_name || `Ronda ${rIdx}`;
+
+        return `
+            <div class="bracket-round-column">
+                <div class="bracket-round-header">${roundTitle}</div>
+                <div class="bracket-round-matches">
+                    ${matchesInRound.map(m => renderAdminMatchCardHtml(m, participants)).join('')}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Eventos de click en partidos para cargar score
+    treeContainer.querySelectorAll('.match-card--admin').forEach(card => {
+        card.addEventListener('click', () => {
+            const matchId = card.dataset.matchId;
+            const match = matches.find(m => m.id === matchId);
+            if (!match) return;
+
+            const p1 = participants.find(p => p.id === match.participant1_id);
+            const p2 = participants.find(p => p.id === match.participant2_id);
+
+            if (!p1 && !p2) {
+                showToast({ message: 'Esperando que avancen los rivales de rondas previas', type: 'info' });
+                return;
+            }
+
+            openMatchScoreModal(container, tourn, match, p1, p2);
+        });
+    });
+}
+
+function renderAdminMatchCardHtml(match, participants) {
+    const p1 = participants.find(p => p.id === match.participant1_id);
+    const p2 = participants.find(p => p.id === match.participant2_id);
+
+    const isCompleted = match.status === 'completed';
+    const isLive = match.status === 'in_progress';
+
+    const p1Name = p1 ? p1.team_name : (match.round_index === 1 ? 'BYE' : 'Por definir');
+    const p2Name = p2 ? p2.team_name : (match.round_index === 1 ? 'BYE' : 'Por definir');
+
+    const p1Winner = isCompleted && match.winner_id === match.participant1_id;
+    const p2Winner = isCompleted && match.winner_id === match.participant2_id;
+
+    return `
+        <div class="match-card match-card--admin ${isCompleted ? 'match-card--completed' : ''} ${isLive ? 'match-card--in_progress' : ''}" data-match-id="${match.id}">
+            <div class="match-header">
+                <span>Partida #${(match.match_index || 0) + 1}</span>
+                <span>${isCompleted ? '✅ Definido' : isLive ? '🔥 EN JUEGO' : '⏱️ Pendiente'}</span>
+            </div>
+
+            <!-- Equipo 1 -->
+            <div class="match-team ${p1Winner ? 'match-team--winner' : (isCompleted && !p1Winner ? 'match-team--loser' : '')}">
+                <span class="match-team-name ${!p1 ? 'match-team-name--empty' : ''}">
+                    ${p1 ? `<span style="color: var(--color-primary); font-size: 0.7rem;">#${p1.seed || ''}</span> ` : ''}${p1Name}
+                </span>
+                <span class="match-team-score">${match.score1 ?? 0}</span>
+            </div>
+
+            <!-- Equipo 2 -->
+            <div class="match-team ${p2Winner ? 'match-team--winner' : (isCompleted && !p2Winner ? 'match-team--loser' : '')}">
+                <span class="match-team-name ${!p2 ? 'match-team-name--empty' : ''}">
+                    ${p2 ? `<span style="color: var(--color-primary); font-size: 0.7rem;">#${p2.seed || ''}</span> ` : ''}${p2Name}
+                </span>
+                <span class="match-team-score">${match.score2 ?? 0}</span>
+            </div>
+
+            <div class="match-card__action-hint">
+                👉 Click para cargar resultado
+            </div>
+        </div>
+    `;
+}
+
+function renderAdminParticipantsList(container, tourn, participants) {
+    const listContainer = container.querySelector('#admin-participants-list-container');
+    if (!listContainer) return;
+
+    if (!participants || participants.length === 0) {
+        listContainer.innerHTML = `
+            <div style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted);">
+                <p>No hay participantes registrados aún.</p>
+                <button class="btn btn--primary btn--sm" id="btn-reg-first-team">Inscribir Primer Equipo</button>
+            </div>
+        `;
+        listContainer.querySelector('#btn-reg-first-team')?.addEventListener('click', () => {
+            openAddParticipantModal(container, tourn);
+        });
+        return;
+    }
+
+    listContainer.innerHTML = `
+        <table class="participants-admin-table">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">Seed</th>
+                    <th>Equipo / Tag</th>
+                    <th>Capitán</th>
+                    <th>WhatsApp</th>
+                    <th>Jugador 2</th>
+                    <th>Check-in</th>
+                    <th style="width: 40px;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                ${participants.map(p => {
+                    const isChecked = p.status === 'checked_in';
+                    return `
+                        <tr>
+                            <td style="font-family: var(--font-mono); font-weight: bold; color: var(--color-primary);">#${p.seed || '-'}</td>
+                            <td style="font-weight: 700; color: #FFF;">${p.team_name}</td>
+                            <td>${p.captain_name}</td>
+                            <td>
+                                <a href="https://api.whatsapp.com/send?phone=${p.captain_phone.replace(/\D/g, '')}" target="_blank" style="color: #00E676; text-decoration: none;">
+                                    ${p.captain_phone}
+                                </a>
+                            </td>
+                            <td>${p.player2_name || '-'}</td>
+                            <td>
+                                <span class="checkin-badge ${isChecked ? 'checkin-badge--checked' : 'checkin-badge--pending'} btn-toggle-checkin" data-id="${p.id}" data-status="${p.status}">
+                                    ${isChecked ? '✅ Presente' : '⏳ Pendiente'}
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn-delete-participant" data-id="${p.id}" style="background: none; border: none; cursor: pointer; color: var(--color-error); font-size: 0.9rem;" title="Eliminar inscripto">
+                                    🗑️
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('')}
+            </tbody>
+        </table>
+    `;
+
+    // Toggle check-in
+    listContainer.querySelectorAll('.btn-toggle-checkin').forEach(badge => {
+        badge.addEventListener('click', async () => {
+            const partId = badge.dataset.id;
+            const newStatus = badge.dataset.status === 'checked_in' ? 'registered' : 'checked_in';
+            await arcadeService.updateParticipantStatus(partId, newStatus);
+            showToast({ message: 'Estado de check-in actualizado', type: 'info' });
+            await refreshBracketAdminData(container);
+        });
+    });
+
+    // Delete participant
+    listContainer.querySelectorAll('.btn-delete-participant').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            if (confirm('¿Eliminar este participante de las inscripciones?')) {
+                await arcadeService.deleteParticipant(btn.dataset.id);
+                showToast({ message: 'Participante eliminado', type: 'info' });
+                await refreshBracketAdminData(container);
+            }
+        });
+    });
+}
+
+// ============================================================
+// Acciones del Bracket Manager
+// ============================================================
+async function handleGenerateBrackets(container) {
+    if (!_currentManagingTourn) return;
+
+    const participants = await arcadeService.getParticipants(_currentManagingTourn.id);
+    if (participants.length < 2) {
+        showToast({ message: 'Se necesitan al menos 2 equipos para armar las llaves.', type: 'warning' });
+        return;
+    }
+
+    if (!confirm(`¿Generar cuadro de eliminación con sorteo aleatorio (Shuffle) para ${participants.length} equipos?`)) {
+        return;
+    }
+
+    try {
+        await arcadeService.generateBrackets(_currentManagingTourn.id, { shuffle: true, includeThirdPlace: true });
+        showToast({ message: '¡Brackets generados con éxito!', type: 'success' });
+        await refreshBracketAdminData(container);
+        refreshAllData(container);
+    } catch (err) {
+        console.error('Error al generar brackets:', err);
+        showToast({ message: err.message, type: 'error' });
+    }
+}
+
+function openMatchScoreModal(container, tourn, match, p1, p2) {
+    const modal = container.querySelector('#match-score-modal');
+    if (!modal) return;
+
+    container.querySelector('#score-match-id').value = match.id;
+    container.querySelector('#score-p1-id').value = p1 ? p1.id : '';
+    container.querySelector('#score-p2-id').value = p2 ? p2.id : '';
+
+    container.querySelector('#score-p1-name').textContent = p1 ? p1.team_name : 'BYE';
+    container.querySelector('#score-p2-name').textContent = p2 ? p2.team_name : 'BYE';
+
+    container.querySelector('#score-val-1').value = match.score1 || 0;
+    container.querySelector('#score-val-2').value = match.score2 || 0;
+
+    container.querySelector('#match-score-modal-title').textContent = `Partida: ${match.round_name}`;
+
+    modal.classList.remove('hidden');
+}
+
+function openAddParticipantModal(container, tourn) {
+    const modal = container.querySelector('#add-participant-modal');
+    if (!modal) return;
+    container.querySelector('#add-participant-form').reset();
+    modal.classList.remove('hidden');
 }
 
 // ============================================================
@@ -675,12 +1186,24 @@ async function renderQuickScores(container) {
 }
 
 // ============================================================
-// Modales y Formularios
+// Configuración de Formularios y Modales
 // ============================================================
 function setupModals(container) {
-    // Cerrar modales con botones de clase o fondo
+    // Cerrar modales
     container.querySelectorAll('.tournament-close-modal').forEach(b => {
         b.addEventListener('click', () => container.querySelector('#tournament-modal')?.classList.add('hidden'));
+    });
+    container.querySelectorAll('.share-tourn-close').forEach(b => {
+        b.addEventListener('click', () => container.querySelector('#tournament-share-modal')?.classList.add('hidden'));
+    });
+    container.querySelectorAll('.bracket-admin-close').forEach(b => {
+        b.addEventListener('click', () => container.querySelector('#bracket-admin-modal')?.classList.add('hidden'));
+    });
+    container.querySelectorAll('.match-score-close').forEach(b => {
+        b.addEventListener('click', () => container.querySelector('#match-score-modal')?.classList.add('hidden'));
+    });
+    container.querySelectorAll('.add-participant-close').forEach(b => {
+        b.addEventListener('click', () => container.querySelector('#add-participant-modal')?.classList.add('hidden'));
     });
     container.querySelectorAll('.grant-prize-close').forEach(b => {
         b.addEventListener('click', () => container.querySelector('#grant-prize-modal')?.classList.add('hidden'));
@@ -695,118 +1218,226 @@ function setupModals(container) {
         });
     });
 
-    // Guardar Torneo Form
+    // Pestañas internas del Bracket Admin Modal
+    container.querySelectorAll('.bracket-admin-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = btn.dataset.subtab;
+            container.querySelectorAll('.bracket-admin-tab-btn').forEach(b => b.classList.remove('bracket-admin-tab-btn--active'));
+            btn.classList.add('bracket-admin-tab-btn--active');
+
+            if (target === 'brackets') {
+                container.querySelector('#bracket-admin-tree-pane')?.classList.remove('hidden');
+                container.querySelector('#bracket-admin-participants-pane')?.classList.add('hidden');
+            } else {
+                container.querySelector('#bracket-admin-tree-pane')?.classList.add('hidden');
+                container.querySelector('#bracket-admin-participants-pane')?.classList.remove('hidden');
+            }
+        });
+    });
+
+    // Toolbar de Brackets
+    container.querySelector('#btn-admin-generate-brackets')?.addEventListener('click', () => {
+        handleGenerateBrackets(container);
+    });
+
+    container.querySelector('#btn-admin-add-participant')?.addEventListener('click', () => {
+        if (_currentManagingTourn) openAddParticipantModal(container, _currentManagingTourn);
+    });
+
+    container.querySelector('#btn-admin-declare-winner')?.addEventListener('click', () => {
+        if (_currentManagingTourn) {
+            openGrantPrizeModal(container, _currentManagingTourn, '1º Puesto', _currentManagingTourn.first_place?.name || '');
+        }
+    });
+
+    // Formulario Crear / Editar Torneo
     const tournForm = container.querySelector('#tournament-form');
-    tournForm?.addEventListener('submit', e => {
+    tournForm?.addEventListener('submit', async e => {
         e.preventDefault();
         const id = container.querySelector('#tourn-id').value;
-        const tournament = {
-            id: id || undefined,
-            title: container.querySelector('#tourn-title').value.trim(),
-            game: container.querySelector('#tourn-game').value.trim(),
-            date: container.querySelector('#tourn-date').value,
-            status: container.querySelector('#tourn-status').value,
-            participantsCount: parseInt(container.querySelector('#tourn-participants').value, 10) || 0,
-            firstPlace: {
-                name: container.querySelector('#tourn-1st-name').value.trim() || 'Por definir',
-                prize: container.querySelector('#tourn-1st-prize').value.trim() || 'Membresía Club Burgame'
-            },
-            secondPlace: {
-                name: container.querySelector('#tourn-2nd-name').value.trim() || 'Por definir',
-                prize: container.querySelector('#tourn-2nd-prize').value.trim() || 'Premio 2º Puesto'
-            },
-            thirdPlace: {
-                name: container.querySelector('#tourn-3rd-name').value.trim() || 'Por definir',
-                prize: container.querySelector('#tourn-3rd-prize').value.trim() || 'Premio 3º Puesto'
-            },
-            notes: container.querySelector('#tourn-notes').value.trim()
+        const title = container.querySelector('#tourn-title').value;
+        const game = container.querySelector('#tourn-game').value;
+        const date = container.querySelector('#tourn-date').value;
+        const modality = container.querySelector('#tourn-modality')?.value || '2v2';
+        const status = container.querySelector('#tourn-status').value;
+        const maxParticipants = parseInt(container.querySelector('#tourn-participants').value, 10) || 16;
+        const notes = container.querySelector('#tourn-notes').value;
+
+        const firstPlace = {
+            name: container.querySelector('#tourn-1st-name').value || 'Por definir',
+            prize: container.querySelector('#tourn-1st-prize').value || 'Membresía Club Burgame'
+        };
+        const secondPlace = {
+            name: container.querySelector('#tourn-2nd-name').value || 'Por definir',
+            prize: container.querySelector('#tourn-2nd-prize').value || 'Premio secundario'
+        };
+        const thirdPlace = {
+            name: container.querySelector('#tourn-3rd-name').value || 'Por definir',
+            prize: container.querySelector('#tourn-3rd-prize').value || 'Consolación'
         };
 
-        arcadeService.saveTournament(tournament);
-        showToast({ message: id ? 'Torneo actualizado con éxito' : '¡Nuevo torneo creado!', type: 'success' });
-        container.querySelector('#tournament-modal')?.classList.add('hidden');
+        const newTourn = {
+            title,
+            game,
+            date,
+            modality,
+            status,
+            max_participants: maxParticipants,
+            participantsCount: maxParticipants,
+            first_place: firstPlace,
+            second_place: secondPlace,
+            third_place: thirdPlace,
+            firstPlace,
+            secondPlace,
+            thirdPlace,
+            notes
+        };
+
+        if (id) newTourn.id = id;
+
+        await arcadeService.saveTournament(newTourn);
+        showToast({ message: id ? 'Torneo actualizado' : 'Torneo creado con éxito', type: 'success' });
+        container.querySelector('#tournament-modal').classList.add('hidden');
         refreshAllData(container);
     });
 
-    // Guardar Premio Membresía Form
+    // Formulario Match Score
+    const matchScoreForm = container.querySelector('#match-score-form');
+    matchScoreForm?.addEventListener('submit', async e => {
+        e.preventDefault();
+        const matchId = container.querySelector('#score-match-id').value;
+        const p1Id = container.querySelector('#score-p1-id').value;
+        const p2Id = container.querySelector('#score-p2-id').value;
+        const s1 = parseInt(container.querySelector('#score-val-1').value, 10) || 0;
+        const s2 = parseInt(container.querySelector('#score-val-2').value, 10) || 0;
+
+        if (s1 === s2) {
+            showToast({ message: 'Debe haber un ganador (partida sin empate)', type: 'warning' });
+            return;
+        }
+
+        const winnerId = s1 > s2 ? p1Id : p2Id;
+
+        try {
+            const res = await arcadeService.updateMatchScore(matchId, s1, s2, winnerId);
+            container.querySelector('#match-score-modal').classList.add('hidden');
+            showToast({ message: '¡Resultado registrado! El ganador avanzó al siguiente partido.', type: 'success' });
+
+            if (res.tournamentFinished) {
+                showToast({ message: '🏆 ¡GRAN FINAL CONCLUIDA! Ya podés premiar a los campeones.', type: 'success' });
+            }
+
+            await refreshBracketAdminData(container);
+            refreshAllData(container);
+        } catch (err) {
+            console.error('Error al actualizar score:', err);
+            showToast({ message: err.message, type: 'error' });
+        }
+    });
+
+    // Formulario Inscripción Presencial
+    const addPartForm = container.querySelector('#add-participant-form');
+    addPartForm?.addEventListener('submit', async e => {
+        e.preventDefault();
+        if (!_currentManagingTourn) return;
+
+        const team = container.querySelector('#admin-reg-team').value;
+        const cap = container.querySelector('#admin-reg-cap').value;
+        const phone = container.querySelector('#admin-reg-phone').value;
+        const p2 = container.querySelector('#admin-reg-p2').value;
+
+        try {
+            await arcadeService.registerParticipant({
+                tournament_id: _currentManagingTourn.id,
+                team_name: team,
+                captain_name: cap,
+                captain_phone: phone,
+                player2_name: p2,
+                status: 'checked_in'
+            });
+
+            container.querySelector('#add-participant-modal').classList.add('hidden');
+            showToast({ message: `Equipo "${team}" inscripto con éxito`, type: 'success' });
+            await refreshBracketAdminData(container);
+        } catch (err) {
+            showToast({ message: err.message, type: 'error' });
+        }
+    });
+
+    // Formulario Otorgar Membresía Premio
     const grantForm = container.querySelector('#grant-prize-form');
     grantForm?.addEventListener('submit', async e => {
         e.preventDefault();
-        const customerId = container.querySelector('#grant-customer-select').value;
         const tournTitle = container.querySelector('#grant-tourn-title').value;
         const placeName = container.querySelector('#grant-place-name').value;
+        const customerId = container.querySelector('#grant-customer-select').value;
 
         if (!customerId) {
-            showToast({ message: 'Por favor seleccioná un cliente', type: 'error' });
+            showToast({ message: 'Seleccione un cliente', type: 'warning' });
             return;
         }
 
         try {
             await arcadeService.grantTournamentMembership(customerId, tournTitle, placeName);
-            showToast({ message: `¡Membresía otorgada con éxito (0 Gs)!`, type: 'success' });
-            container.querySelector('#grant-prize-modal')?.classList.add('hidden');
+            showToast({ message: `¡Membresía VIP oficial (0 Gs) otorgada con éxito!`, type: 'success' });
+            container.querySelector('#grant-prize-modal').classList.add('hidden');
         } catch (err) {
-            console.error('Error al otorgar membresía:', err);
-            showToast({ message: 'Error al registrar premio: ' + err.message, type: 'error' });
+            console.error('Error al otorgar premio:', err);
+            showToast({ message: err.message || 'Error al otorgar membresía', type: 'error' });
         }
     });
 
-    // Guardar Score Manual Form
-    const manualScoreForm = container.querySelector('#manual-score-form');
-    manualScoreForm?.addEventListener('submit', async e => {
+    // Formulario Score Manual
+    const manualForm = container.querySelector('#manual-score-form');
+    manualForm?.addEventListener('submit', async e => {
         e.preventDefault();
-        const initials = container.querySelector('#manual-initials').value.trim().toUpperCase();
-        const score = parseInt(container.querySelector('#manual-score').value, 10);
-
-        if (!initials || !score) {
-            showToast({ message: 'Completá todos los campos requeridos', type: 'error' });
-            return;
-        }
+        const initials = container.querySelector('#manual-initials').value;
+        const score = container.querySelector('#manual-score').value;
 
         try {
             await arcadeService.saveScore(initials, score);
-            showToast({ message: `Puntaje guardado: ${initials} - ${score}`, type: 'success' });
-            container.querySelector('#manual-score-modal')?.classList.add('hidden');
+            showToast({ message: 'Puntaje registrado en el ranking', type: 'success' });
+            container.querySelector('#manual-score-modal').classList.add('hidden');
             refreshAllData(container);
         } catch (err) {
-            showToast({ message: 'Error al registrar puntaje: ' + err.message, type: 'error' });
+            showToast({ message: err.message || 'Error al guardar puntaje', type: 'error' });
         }
     });
 
-    // Buscador rápido en modal de otorgar membresía
+    // Búsqueda en selector de clientes
     const searchInput = container.querySelector('#grant-customer-search');
-    searchInput?.addEventListener('input', () => {
-        filterCustomerOptions(container, searchInput.value);
+    searchInput?.addEventListener('input', e => {
+        filterCustomerOptions(container, e.target.value);
     });
 }
 
 function openTournamentModal(container, tourn = null) {
     const modal = container.querySelector('#tournament-modal');
-    const form = container.querySelector('#tournament-form');
-    form.reset();
-
     const titleEl = container.querySelector('#tournament-modal-title');
+    container.querySelector('#tournament-form').reset();
+
     if (tourn) {
         titleEl.textContent = '✏️ Editar Torneo Gamer';
         container.querySelector('#tourn-id').value = tourn.id;
         container.querySelector('#tourn-title').value = tourn.title || '';
         container.querySelector('#tourn-game').value = tourn.game || '';
         container.querySelector('#tourn-date').value = tourn.date || '';
-        container.querySelector('#tourn-status').value = tourn.status || 'finished';
-        container.querySelector('#tourn-participants').value = tourn.participantsCount || 16;
-        container.querySelector('#tourn-1st-name').value = tourn.firstPlace?.name || '';
-        container.querySelector('#tourn-1st-prize').value = tourn.firstPlace?.prize || '';
-        container.querySelector('#tourn-2nd-name').value = tourn.secondPlace?.name || '';
-        container.querySelector('#tourn-2nd-prize').value = tourn.secondPlace?.prize || '';
-        container.querySelector('#tourn-3rd-name').value = tourn.thirdPlace?.name || '';
-        container.querySelector('#tourn-3rd-prize').value = tourn.thirdPlace?.prize || '';
+        container.querySelector('#tourn-modality').value = tourn.modality || '2v2';
+        container.querySelector('#tourn-status').value = tourn.status || 'active';
+        container.querySelector('#tourn-participants').value = tourn.max_participants || tourn.participantsCount || 16;
+        container.querySelector('#tourn-1st-name').value = tourn.firstPlace?.name || tourn.first_place?.name || '';
+        container.querySelector('#tourn-1st-prize').value = tourn.firstPlace?.prize || tourn.first_place?.prize || '';
+        container.querySelector('#tourn-2nd-name').value = tourn.secondPlace?.name || tourn.second_place?.name || '';
+        container.querySelector('#tourn-2nd-prize').value = tourn.secondPlace?.prize || tourn.second_place?.prize || '';
+        container.querySelector('#tourn-3rd-name').value = tourn.thirdPlace?.name || tourn.third_place?.name || '';
+        container.querySelector('#tourn-3rd-prize').value = tourn.thirdPlace?.prize || tourn.third_place?.prize || '';
         container.querySelector('#tourn-notes').value = tourn.notes || '';
     } else {
         titleEl.textContent = '🏆 Nuevo Torneo Gamer';
         container.querySelector('#tourn-id').value = '';
         container.querySelector('#tourn-date').value = new Date().toISOString().split('T')[0];
         container.querySelector('#tourn-1st-prize').value = 'Membresía Club Burgame 1 Mes';
-        container.querySelector('#tourn-status').value = 'active';
+        container.querySelector('#tourn-status').value = 'upcoming';
     }
 
     modal.classList.remove('hidden');
@@ -859,12 +1490,11 @@ function filterCustomerOptions(container, query = '') {
 // Actualización Global de Métricas y Datos
 // ============================================================
 async function refreshAllData(container) {
-    const tournaments = arcadeService.getTournaments();
+    const tournaments = await arcadeService.getTournaments();
     renderTournamentsList(container);
     renderQuickScores(container);
     renderFullScoresList(container);
 
-    // KPI Strip
     const totalTournaments = tournaments.length;
     const activeEvents = tournaments.filter(t => t.status === 'active' || t.status === 'upcoming').length;
     container.querySelector('#kpi-tournaments-count').textContent = totalTournaments;
@@ -904,4 +1534,3 @@ function ensureScoreListener() {
 }
 
 ensureScoreListener();
-

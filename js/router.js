@@ -17,6 +17,11 @@ const routes = {
     '#/club': () => import('./pages/club.js').then(m => m.renderClubPage()),
     '#/ajustes': () => import('./pages/ajustes.js').then(m => m.renderAjustesPage()),
     '#/arcade': () => import('./pages/arcade.js').then(m => m.renderArcadePage()),
+    '#/torneo': () => {
+        window.location.href = 'torneo.html';
+        const dummy = document.createElement('div');
+        return dummy;
+    },
     '#/cliente': () => {
         window.location.href = 'cliente.html';
         const dummy = document.createElement('div');
