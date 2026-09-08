@@ -1,7 +1,8 @@
 import { supabase } from '../supabase-client.js';
 
-export async function createOrder({ items, notes, customerName, cashRegisterId }) {
+export async function createOrder({ items, notes, customerName, cashRegisterId, status = 'ordered' }) {
     const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const initialStatus = status || 'ordered';
 
     // El nombre del cliente va en su propia columna (customer_name),
     // no embebido en notes. Notes queda solo para notas de cocina reales.
@@ -33,6 +34,11 @@ export async function createOrder({ items, notes, customerName, cashRegisterId }
     });
 
     if (!rpcError && rpcData) {
+        // Si el estado deseado no es 'ordered' (ej: 'pending_payment' para autopedidos), actualizarlo
+        if (initialStatus !== 'ordered') {
+            await supabase.from('orders').update({ status: initialStatus }).eq('id', rpcData.id);
+            rpcData.status = initialStatus;
+        }
         return rpcData;
     }
 
@@ -46,7 +52,7 @@ export async function createOrder({ items, notes, customerName, cashRegisterId }
     const basePayload = {
         notes: finalNotes,
         cash_register_id: cashRegisterId || null,
-        status: 'ordered',
+        status: initialStatus,
         total: total,
         customer_name: cName
     };
@@ -97,12 +103,30 @@ export async function updateStatus(orderId, newStatus) {
 }
 
 export async function processPayment(orderId, paymentMethod) {
-    // El pago NO cambia el status de cocina (ordered→preparing→ready→delivered).
-    // Se trackea con paid_at + payment_method, independientes del flujo de cocina.
-    // Así la comanda sigue visible en cocina aunque el cliente ya haya pagado.
-    const { data, error } = await supabase.from('orders').update({
+    // Si la orden estaba en 'pending_payment' (autopedido que pasó por caja),
+    // al cobrarla pasa a 'ordered' para que recién en ese momento ingrese a cocina y suene la alerta.
+    const { data: cur } = await supabase.from('orders').select('status').eq('id', orderId).maybeSingle();
+
+    const updatePayload = {
         payment_method: paymentMethod,
         paid_at: new Date().toISOString()
+    };
+
+    if (cur && (cur.status === 'pending_payment' || cur.status === 'pending_approval')) {
+        updatePayload.status = 'ordered';
+        updatePayload.ordered_at = new Date().toISOString();
+    }
+
+    const { data, error } = await supabase.from('orders').update(updatePayload).eq('id', orderId).select().single();
+    if (error) throw error;
+    return data;
+}
+
+export async function approveOrder(orderId) {
+    // Enviar comanda a cocina sin requerir cobro inmediato
+    const { data, error } = await supabase.from('orders').update({
+        status: 'ordered',
+        ordered_at: new Date().toISOString()
     }).eq('id', orderId).select().single();
     if (error) throw error;
     return data;
@@ -141,9 +165,14 @@ export async function getDistinctCustomers() {
 }
 
 export async function getActiveOrders() {
-    // Comandas activas en cocina: todo lo que no esté cancelado.
-    // El pago (paid_at) es independiente del status de preparación.
-    const { data, error } = await supabase.from('orders').select(`*, order_items(*)`).neq('status', 'cancelled').order('created_at');
+    // Comandas activas en cocina: solo las aprobadas para preparar (no canceladas ni pendientes de cobro en caja)
+    const { data, error } = await supabase
+        .from('orders')
+        .select(`*, order_items(*)`)
+        .neq('status', 'cancelled')
+        .neq('status', 'pending_payment')
+        .neq('status', 'pending_approval')
+        .order('created_at');
     if (error) throw error;
     return data;
 }
@@ -213,6 +242,7 @@ export const orderService = {
     createOrder,
     updateStatus,
     processPayment,
+    approveOrder,
     updatePaymentMethod,
     getActiveOrders,
     getPendingPayment,

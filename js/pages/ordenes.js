@@ -152,13 +152,25 @@ function renderOrdersList() {
 
             ${activeTab === 'pending' ? `
                 <div class="order-card__payments">
-                    <p class="payment-title">Selecciona Método de Pago:</p>
+                    <p class="payment-title" style="color: ${order.status === 'pending_payment' ? 'var(--color-primary)' : 'inherit'}; font-weight: 700;">
+                        ${order.status === 'pending_payment' ? '💰 Cobrar y Enviar a Cocina:' : 'Selecciona Método de Pago:'}
+                    </p>
                     <div class="payment-grid">
                         <button class="btn btn--payment btn--cash" data-id="${order.id}" data-method="efectivo">💵 Efectivo</button>
                         <button class="btn btn--payment btn--transfer" data-id="${order.id}" data-method="transferencia">📱 Transferencia</button>
                         <button class="btn btn--payment btn--debit" data-id="${order.id}" data-method="debito">💳 Débito</button>
                         <button class="btn btn--payment btn--credit" data-id="${order.id}" data-method="credito">💳 Crédito</button>
                     </div>
+                    ${order.status === 'pending_payment' ? `
+                        <div style="display: flex; gap: 0.5rem; margin-top: 0.6rem;">
+                            <button class="btn btn--secondary btn--sm btn--approve-kitchen" data-id="${order.id}" style="flex: 1; border-color: var(--border-gold); font-size: 0.78rem;">
+                                ⚡ Enviar a Cocina (Cobrar después)
+                            </button>
+                            <button class="btn btn--secondary btn--sm btn--reject-order" data-id="${order.id}" style="color: #FF5252; border-color: rgba(255,82,82,0.4); font-size: 0.78rem;">
+                                ❌ Cancelar
+                            </button>
+                        </div>
+                    ` : ''}
                 </div>
             ` : `
                 <div class="order-card__paid-info">
@@ -188,6 +200,7 @@ function getStatusBadgeClass(status, paidAt) {
     // Si ya está pagado, mostrar verde sin importar el estado de cocina
     if (paidAt) return 'green';
     switch (status) {
+        case 'pending_payment': return 'yellow';
         case 'ordered': return 'yellow';
         case 'preparing': return 'orange';
         case 'ready': return 'blue';
@@ -197,6 +210,9 @@ function getStatusBadgeClass(status, paidAt) {
 }
 
 function getStatusLabel(status, paidAt) {
+    if (status === 'pending_payment') {
+        return '📱 AUTOPEDIDO · EN CAJA';
+    }
     const kitchenLabel = {
         ordered: 'NUEVO',
         preparing: 'PREPARANDO',
@@ -256,13 +272,44 @@ function attachPaymentEvents(container) {
             try {
                 await orderService.processPayment(orderId, method);
                 showToast({ 
-                    message: `💰 ¡Pago registrado con éxito (${method.toUpperCase()})!`, 
+                    message: `💰 ¡Pago registrado con éxito (${method.toUpperCase()}) y enviado a cocina!`, 
                     type: 'success' 
                 });
                 await loadData();
                 updateView(container);
             } catch (err) {
                 showToast({ message: 'Error al procesar el pago: ' + err.message, type: 'error' });
+            }
+        });
+    });
+
+    // Enviar a Cocina sin cobrar inmediatamente (Autopedido)
+    container.querySelectorAll('.btn--approve-kitchen').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const orderId = btn.dataset.id;
+            try {
+                await orderService.approveOrder(orderId);
+                showToast({ message: '⚡ ¡Comanda enviada a cocina!', type: 'success' });
+                await loadData();
+                updateView(container);
+            } catch (err) {
+                showToast({ message: 'Error enviando a cocina: ' + err.message, type: 'error' });
+            }
+        });
+    });
+
+    // Cancelar/Rechazar Pedido
+    container.querySelectorAll('.btn--reject-order').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const orderId = btn.dataset.id;
+            if (!confirm('¿Deseas cancelar y rechazar este pedido?')) return;
+            try {
+                await orderService.cancelOrder(orderId);
+                showToast({ message: '❌ Pedido cancelado correctamente', type: 'info' });
+                await loadData();
+                updateView(container);
+            } catch (err) {
+                showToast({ message: 'Error al cancelar pedido: ' + err.message, type: 'error' });
             }
         });
     });

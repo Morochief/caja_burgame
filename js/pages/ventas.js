@@ -10,6 +10,7 @@ import { createCart } from '../components/cart.js';
 import { navigate } from '../router.js';
 import { initChat } from '../components/chat-ui.js';
 import { qrAuthService } from '../services/qr-auth-service.js';
+import { supabase } from '../supabase-client.js';
 
 let currentCategory = 'all';
 let searchQuery = '';
@@ -113,6 +114,9 @@ async function loadVentasData(container) {
         _chatInitialized = true;
         initChat('admin');
     }
+
+    // Escuchar autopedidos entrantes que requieren cobro en caja
+    setupIncomingOrdersListener(container);
 }
 
 // ============================================================
@@ -649,3 +653,173 @@ function setupKeyboardShortcuts(container) {
     };
     window.addEventListener('keydown', handler);
 }
+
+// ============================================================
+// Autopedidos entrantes: Notificación y Cobro Rápido en POS
+// ============================================================
+let incomingOrdersChannel = null;
+
+function setupIncomingOrdersListener(container) {
+    if (incomingOrdersChannel) return;
+
+    incomingOrdersChannel = orderService.subscribeToOrders((payload) => {
+        if (payload.eventType === 'INSERT' && payload.new?.status === 'pending_payment') {
+            showIncomingSelfOrderBanner(payload.new);
+        }
+    });
+}
+
+function showIncomingSelfOrderBanner(order) {
+    const existing = document.getElementById(`incoming-order-banner-${order.id}`);
+    if (existing) return;
+
+    const banner = document.createElement('div');
+    banner.id = `incoming-order-banner-${order.id}`;
+    banner.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        background: #0E1017;
+        border: 2px solid #FFD700;
+        box-shadow: 0 0 30px rgba(255, 215, 0, 0.4);
+        border-radius: 12px;
+        padding: 0.9rem 1.2rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        animation: fadeIn 0.3s ease-out;
+        max-width: 440px;
+    `;
+
+    banner.innerHTML = `
+        <div style="font-size: 1.6rem; animation: pulse 1s infinite;">🔔</div>
+        <div style="flex: 1;">
+            <div style="font-family: var(--font-title); font-size: 0.78rem; color: var(--color-primary);">
+                ¡NUEVO AUTOPEDIDO #${order.order_number || ''}!
+            </div>
+            <div style="font-size: 0.88rem; font-weight: 700; color: #FFF; margin-top: 0.15rem;">
+                ${order.customer_name || 'Cliente'} — <strong>${formatGs(order.total)}</strong>
+            </div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">
+                Pendiente de cobro para enviar a cocina
+            </div>
+        </div>
+        <button class="btn btn--primary btn--sm btn-banner-cobrar" style="white-space: nowrap; font-weight: 800; padding: 0.45rem 0.8rem;">
+            💰 Cobrar
+        </button>
+        <button class="btn-banner-close" style="background: none; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer; padding: 0 0.3rem;">✕</button>
+    `;
+
+    document.body.appendChild(banner);
+
+    banner.querySelector('.btn-banner-close')?.addEventListener('click', () => banner.remove());
+    banner.querySelector('.btn-banner-cobrar')?.addEventListener('click', () => {
+        banner.remove();
+        openCollectSelfOrderModal(order.id);
+    });
+}
+
+async function openCollectSelfOrderModal(orderId) {
+    const existing = document.getElementById('collect-self-order-modal');
+    if (existing) existing.remove();
+
+    const { data: order } = await supabase.from('orders').select(`*, order_items(*)`).eq('id', orderId).single();
+    if (!order) return;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'collect-self-order-modal';
+    overlay.className = 'cart-modal-overlay';
+    overlay.innerHTML = `
+        <div class="cart-modal" style="max-width: 440px; border: 2px solid var(--color-primary); box-shadow: 0 0 35px var(--color-primary-glow);">
+            <div class="cart-modal__header" style="justify-content: space-between; display: flex; align-items: center; padding: 1rem 1.2rem; border-bottom: 1px solid var(--border-subtle);">
+                <div>
+                    <h3 style="font-family: var(--font-title); font-size: 0.88rem; color: var(--color-primary); margin: 0;">
+                        PEDIDO #${order.order_number} · AUTOPEDIDO
+                    </h3>
+                    <div style="font-size: 0.82rem; font-weight: 700; color: var(--text-main); margin-top: 0.2rem;">
+                        👤 ${order.customer_name || 'Cliente'}
+                    </div>
+                </div>
+                <button id="btn-close-collect-modal" class="btn btn--sm" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-muted);">✕</button>
+            </div>
+            <div class="cart-modal__body" style="padding: 1.2rem;">
+                <div style="max-height: 180px; overflow-y: auto; margin-bottom: 0.8rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.6rem;">
+                    ${(order.order_items || []).map(it => `
+                        <div style="display: flex; justify-content: space-between; font-size: 0.85rem; padding: 0.3rem 0;">
+                            <span>${it.quantity}x ${it.product_name}</span>
+                            <span style="font-weight: 700;">${formatGs(it.price * it.quantity)}</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 1.1rem; font-weight: 800; color: var(--color-primary); margin-bottom: 1.2rem;">
+                    <span>TOTAL A COBRAR:</span>
+                    <span>${formatGs(order.total)}</span>
+                </div>
+                <div style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem; color: var(--text-muted);">
+                    Cobrar y Enviar Comanda a Cocina:
+                </div>
+                <div class="payment-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.8rem;">
+                    <button class="btn btn--payment btn--cash btn-pay-fast" data-method="efectivo" style="padding: 0.7rem;">💵 Efectivo</button>
+                    <button class="btn btn--payment btn--transfer btn-pay-fast" data-method="transferencia" style="padding: 0.7rem;">📱 Transferencia</button>
+                    <button class="btn btn--payment btn--debit btn-pay-fast" data-method="debito" style="padding: 0.7rem;">💳 Débito</button>
+                    <button class="btn btn--payment btn--credit btn-pay-fast" data-method="credito" style="padding: 0.7rem;">💳 Crédito</button>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button id="btn-fast-approve-kitchen" class="btn btn--secondary btn--sm" style="flex: 1; border-color: var(--border-gold); font-size: 0.78rem;">
+                        ⚡ Enviar a Cocina (Cobrar después)
+                    </button>
+                    <button id="btn-fast-cancel-order" class="btn btn--secondary btn--sm" style="color: #FF5252; border-color: rgba(255,82,82,0.4); font-size: 0.78rem;">
+                        ❌ Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('open'));
+
+    const closeModal = () => {
+        overlay.classList.remove('open');
+        setTimeout(() => overlay.remove(), 250);
+    };
+
+    overlay.querySelector('#btn-close-collect-modal')?.addEventListener('click', closeModal);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+
+    overlay.querySelectorAll('.btn-pay-fast').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const method = btn.dataset.method;
+            try {
+                await orderService.processPayment(orderId, method);
+                showToast({ message: `💰 ¡Cobrado con ${method.toUpperCase()} y enviado a cocina!`, type: 'success' });
+                closeModal();
+            } catch (err) {
+                showToast({ message: 'Error al cobrar: ' + err.message, type: 'error' });
+            }
+        });
+    });
+
+    overlay.querySelector('#btn-fast-approve-kitchen')?.addEventListener('click', async () => {
+        try {
+            await orderService.approveOrder(orderId);
+            showToast({ message: '⚡ ¡Comanda enviada a cocina!', type: 'success' });
+            closeModal();
+        } catch (err) {
+            showToast({ message: 'Error enviando a cocina: ' + err.message, type: 'error' });
+        }
+    });
+
+    overlay.querySelector('#btn-fast-cancel-order')?.addEventListener('click', async () => {
+        if (!confirm('¿Deseas cancelar y rechazar este autopedido?')) return;
+        try {
+            await orderService.cancelOrder(orderId);
+            showToast({ message: '❌ Pedido cancelado correctamente', type: 'info' });
+            closeModal();
+        } catch (err) {
+            showToast({ message: 'Error al cancelar: ' + err.message, type: 'error' });
+        }
+    });
+}
+

@@ -39,6 +39,13 @@ function isOrderedInsert(payload) {
     return payload.eventType === 'INSERT' && payload.new?.status === 'ordered';
 }
 
+function isOrderApprovedUpdate(payload) {
+    // UPDATE de una orden que estaba pendiente en caja y fue cobrada/aprobada a 'ordered'
+    return payload.eventType === 'UPDATE' &&
+           payload.new?.status === 'ordered' &&
+           (payload.old?.status === 'pending_payment' || payload.old?.status === 'pending_approval');
+}
+
 function isPreparingUpdate(payload) {
     // UPDATE que pasó a 'preparing' (el cocinero inició preparación)
     return payload.eventType === 'UPDATE' && payload.new?.status === 'preparing' && payload.old?.status !== 'preparing';
@@ -121,7 +128,7 @@ async function loadActiveOrders() {
         // Un solo fetch en lugar de dos, ahorrando un round-trip a Supabase.
         const today = await orderService.getTodaysOrders();
         allTodayOrders = today || [];
-        activeOrders = allTodayOrders.filter(o => o.status !== 'cancelled');
+        activeOrders = allTodayOrders.filter(o => o.status !== 'cancelled' && o.status !== 'pending_payment' && o.status !== 'pending_approval');
     } catch (err) {
         console.error('Error cargando comandas:', err);
         showToast({ message: 'Error cargando comandas de cocina: ' + err.message, type: 'error' });
@@ -348,8 +355,8 @@ function setupRealtimeSubscription() {
     // agruparlos en un solo fetch + render en lugar de N renders.
     let debounceTimer = null;
     orderService.subscribeToOrders((payload) => {
-        // Alerta sonora: nueva comanda -> empezar a sonar (hasta 3 veces)
-        if (isOrderedInsert(payload)) {
+        // Alerta sonora: nueva comanda directa o comanda aprobada/cobrada en caja -> empezar a sonar
+        if (isOrderedInsert(payload) || isOrderApprovedUpdate(payload)) {
             startAlertForOrder(payload.new.id);
         }
         // El cocinero inició preparación -> detener repeticiones del sonido

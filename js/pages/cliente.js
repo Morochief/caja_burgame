@@ -321,13 +321,14 @@ function setupEvents(appEl) {
                 items: cart.items,
                 notes: serviceType === 'eat_in' ? `AUTOPEDIDO MESA ${tableVal}` : `AUTOPEDIDO PARA LLEVAR`,
                 customerName: fullCustomerName,
-                cashRegisterId: currentReg ? currentReg.id : null
+                cashRegisterId: currentReg ? currentReg.id : null,
+                status: 'pending_payment'
             });
 
             activeOrder = order;
             cart.clear();
             cart.setClubMode(false);
-            showToast({ message: '🏆 ¡Pedido recibido! Cocina ya está trabajando en tu orden.', type: 'success' });
+            showToast({ message: '💳 ¡Pedido enviado a Caja! Acércate a abonar para iniciar preparación.', type: 'info', duration: 6000 });
 
             subscribeToLiveTracker(order.id, appEl);
             renderView(appEl);
@@ -407,19 +408,27 @@ function setupCartEvents(appEl) {
 // Order Tracker (estado del pedido en tiempo real)
 // ============================================================
 function renderOrderTracker(appEl) {
-    const status = activeOrder.status || 'ordered';
-    let progressPct = 33;
-    let statusLabel = '⚡ PEDIDO ENVIADO A COCINA';
-    let subtext = 'Tu comanda ya ingresó a la fila de preparación.';
+    const status = activeOrder.status || 'pending_payment';
+    let progressPct = 25;
+    let statusLabel = '💳 PENDIENTE DE PAGO EN CAJA';
+    let subtext = 'Tu pedido fue recibido en la caja. Por favor acércate a abonar (Efectivo, Tarjeta o Transferencia). Una vez cobrado, ¡viaja de inmediato a cocina!';
 
-    if (status === 'preparing') {
-        progressPct = 66;
+    if (status === 'ordered') {
+        progressPct = 50;
+        statusLabel = '⚡ ¡PAGO CONFIRMADO! EN COCINA';
+        subtext = 'Tu comanda ya ingresó a la fila de preparación de los cocineros.';
+    } else if (status === 'preparing') {
+        progressPct = 75;
         statusLabel = '🔥 EN PREPARACIÓN';
         subtext = 'Tus hamburguesas se están cocinando al fuego ahora mismo.';
     } else if (status === 'ready') {
         progressPct = 100;
         statusLabel = '✅ ¡LISTO EN BARRA / MESA!';
         subtext = '¡Tu pedido ya está listo! Retira en barra o te lo llevamos a la mesa.';
+    } else if (status === 'cancelled') {
+        progressPct = 0;
+        statusLabel = '❌ PEDIDO CANCELADO';
+        subtext = 'Este pedido ha sido cancelado o rechazado.';
     }
 
     appEl.innerHTML = `
@@ -438,9 +447,10 @@ function renderOrderTracker(appEl) {
             </div>
 
             <div class="tracker-steps">
-                <span class="tracker-step ${progressPct >= 33 ? 'active' : ''}">1. RECIBIDO</span>
-                <span class="tracker-step ${progressPct >= 66 ? 'active' : ''}">2. EN COCINA</span>
-                <span class="tracker-step ${progressPct >= 100 ? 'active' : ''}">3. ¡LISTO!</span>
+                <span class="tracker-step ${progressPct >= 25 ? 'active' : ''}">1. EN CAJA</span>
+                <span class="tracker-step ${progressPct >= 50 ? 'active' : ''}">2. EN COCINA</span>
+                <span class="tracker-step ${progressPct >= 75 ? 'active' : ''}">3. COCINANDO</span>
+                <span class="tracker-step ${progressPct >= 100 ? 'active' : ''}">4. ¡LISTO!</span>
             </div>
 
             <div style="background: rgba(255, 215, 0, 0.08); border: 1px solid var(--border-gold); padding: 1.2rem; border-radius: var(--radius-md);">
