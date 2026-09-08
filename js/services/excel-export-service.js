@@ -29,7 +29,7 @@ const BURGAME_BORDER = {
     right: { style: 'thin', color: { argb: BURGAME_COLORS.border } }
 };
 
-export const BURGAME_STYLES = {
+const BURGAME_STYLES = {
     title: {
         fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: BURGAME_COLORS.yellow } },
         font: { color: { argb: BURGAME_COLORS.black }, bold: true, size: 16, name: 'Calibri' },
@@ -40,6 +40,24 @@ export const BURGAME_STYLES = {
         fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: BURGAME_COLORS.yellow } },
         font: { color: { argb: BURGAME_COLORS.black }, bold: true, size: 11, name: 'Calibri' },
         alignment: { horizontal: 'center', vertical: 'middle' },
+        border: BURGAME_BORDER
+    },
+    orderHeader: {
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E1E1E' } },
+        font: { color: { argb: BURGAME_COLORS.yellowBright }, bold: true, size: 11, name: 'Calibri' },
+        alignment: { vertical: 'middle' },
+        border: BURGAME_BORDER
+    },
+    subHeader: {
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF161616' } },
+        font: { color: { argb: BURGAME_COLORS.muted }, bold: true, size: 10, name: 'Calibri' },
+        alignment: { vertical: 'middle' },
+        border: BURGAME_BORDER
+    },
+    subItem: {
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: BURGAME_COLORS.black } },
+        font: { color: { argb: BURGAME_COLORS.white }, size: 10, name: 'Calibri' },
+        alignment: { vertical: 'middle' },
         border: BURGAME_BORDER
     },
     section: {
@@ -107,6 +125,9 @@ export function buildBurgameSheet(ws, rows, opts = {}) {
             const isEmpty = !_rowIsNotEmpty(rowValues, numCols);
             const isTotal = _rowHasExact(rowValues, numCols, 'TOTAL') || _rowHasExact(rowValues, numCols, 'TOTAL GASTOS') || _rowHasExact(rowValues, numCols, 'BENEFICIO NETO');
             const isSection = _rowHasSubstring(rowValues, numCols, '---') || _rowHasExact(rowValues, numCols, 'RESUMEN POR PRODUCTO');
+            const isSubHeader = _rowHasExact(rowValues, numCols, 'CANTIDAD') && _rowHasExact(rowValues, numCols, 'ARTÍCULO');
+            const isOrderHeader = rowValues._isOrderHeader === true;
+            const isSubItem = rowValues._isSubItem === true;
 
             if (i === imageRows && firstRowIsTitle) {
                 style = BURGAME_STYLES.title;
@@ -116,6 +137,12 @@ export function buildBurgameSheet(ws, rows, opts = {}) {
                 style = BURGAME_STYLES.section;
             } else if (isTotal) {
                 style = BURGAME_STYLES.total;
+            } else if (isSubHeader) {
+                style = BURGAME_STYLES.subHeader;
+            } else if (isOrderHeader) {
+                style = BURGAME_STYLES.orderHeader;
+            } else if (isSubItem) {
+                style = BURGAME_STYLES.subItem;
             } else if (isEmpty) {
                 style = BURGAME_STYLES.empty;
             } else {
@@ -227,7 +254,7 @@ export async function downloadBurgameExcel(exceljsWb, filename, opts = {}) {
     }
 }
 
-// Genera el reporte Excel maestro consolidado para un período o día
+// Genera el reporte Excel maestro consolidado con desglose contable de élite
 export async function exportConsolidatedReportExcel(analyticsData, periodLabel = '') {
     const ExcelJS = await loadExcelJS();
     const wb = new ExcelJS.Workbook();
@@ -247,6 +274,10 @@ export async function exportConsolidatedReportExcel(analyticsData, periodLabel =
         registers = []
     } = analyticsData;
 
+    // Cálculo contable de IVA 10% (Régimen General Paraguay: Total / 11)
+    const totalIva = Math.round(totalSales / 11);
+    const totalSubtotal = totalSales - totalIva;
+
     // 1. Resumen
     const wsResumen = wb.addWorksheet('Resumen');
     const resumenRows = [
@@ -255,9 +286,12 @@ export async function exportConsolidatedReportExcel(analyticsData, periodLabel =
         [''],
         ['Período / Fecha:', periodLabel || 'Personalizado'],
         ['Generado el:', new Date().toLocaleString('es-PY')],
+        ['Sucursal / Local:', 'Burgame Central'],
         [''],
-        ['--- RESUMEN FINANCIERO ---'],
+        ['--- RESUMEN FINANCIERO Y CONTABLE ---'],
         ['Ventas Totales (Gs.):', totalSales],
+        ['Subtotal Sin IVA (Gs.):', totalSubtotal],
+        ['Liquidación IVA 10% (Gs.):', totalIva],
         ['Gastos Totales (Gs.):', totalExpenses],
         ['Beneficio Neto (Gs.):', netProfit],
         ['Ticket Promedio (Gs.):', avgTicket],
@@ -268,7 +302,7 @@ export async function exportConsolidatedReportExcel(analyticsData, periodLabel =
         ['💳 Tarjeta Débito (Gs.):', payments.debito || 0],
         ['💳 Tarjeta Crédito (Gs.):', payments.credito || 0],
         [''],
-        ['--- OPERACIONES ---'],
+        ['--- OPERACIONES Y CAJA ---'],
         ['Pedidos Cobrados:', paidOrders.length],
         ['Pedidos Cancelados:', allOrders.filter(o => o.status === 'cancelled').length],
         ['Gastos Registrados:', expenses.length],
@@ -276,35 +310,84 @@ export async function exportConsolidatedReportExcel(analyticsData, periodLabel =
     ];
     buildBurgameSheet(wsResumen, resumenRows, { firstRowIsTitle: true, imageRows: 5 });
 
-    // 2. Ventas Detalladas
+    // 2. Ventas Detalladas (Formato Superior: Ticket Principal + Renglones de Artículos con IVA)
     const wsVentas = wb.addWorksheet('Ventas');
-    const ventasHeader = ['#', 'Nº Pedido', 'Fecha y Hora', 'Cliente', 'Productos Vendidos', 'Método de Pago', 'Total (Gs.)', 'Notas'];
+    const ventasHeader = [
+        'ID / DOC',
+        '# PEDIDO',
+        'FECHA Y HORA',
+        'CLIENTE',
+        'USUARIO / CAJA',
+        'M. DE PAGO',
+        'TIPO',
+        'SUBTOTAL',
+        'IVA 10%',
+        'TOTAL (Gs.)',
+        'NOTAS'
+    ];
     const ventasRows = [[''], [''], [''], [''], [''], ventasHeader];
-    paidOrders.forEach((o, idx) => {
-        const itemsList = (o.order_items || []).map(it => {
-            const qty = it.quantity || 1;
-            const name = (it.product_name || 'Item').replace(/\s*\[📝\s*[^\]]+\]/, '').trim();
-            return `${qty}x ${name}`;
-        }).join(', ');
 
-        ventasRows.push([
-            idx + 1,
+    paidOrders.forEach((o) => {
+        const orderTotal = o.total || 0;
+        const orderIva = Math.round(orderTotal / 11);
+        const orderSubtotal = orderTotal - orderIva;
+        const methodDisplay = paymentLabels[o.payment_method] || o.payment_method || 'Efectivo';
+
+        // Fila Maestra del Pedido
+        const headerRow = [
+            (o.id || '').slice(0, 8),
             o.order_number || '—',
             fmtDate(o.created_at),
-            o.customer_name || '—',
-            itemsList || '—',
-            paymentLabels[o.payment_method] || o.payment_method || 'Efectivo',
-            o.total || 0,
+            o.customer_name || 'Consumidor Final',
+            'BurgAdmin / Central',
+            `${methodDisplay}: ${orderTotal.toLocaleString('es-PY')}`,
+            'Contado',
+            orderSubtotal,
+            orderIva,
+            orderTotal,
             o.notes || ''
-        ]);
+        ];
+        headerRow._isOrderHeader = true;
+        ventasRows.push(headerRow);
+
+        // Subcabecera de Artículos
+        const items = o.order_items || [];
+        if (items.length > 0) {
+            const subHead = ['', 'CANTIDAD', 'ARTÍCULO', 'PRECIO UNITARIO', 'SUBTOTAL ITEM', '', '', '', '', '', ''];
+            ventasRows.push(subHead);
+
+            // Renglón por cada artículo
+            items.forEach((it) => {
+                const qty = it.quantity || 1;
+                const price = it.price || 0;
+                const sub = price * qty;
+                const cleanName = (it.product_name || 'Item').replace(/\s*\[📝\s*[^\]]+\]/, '').trim();
+
+                const itemRow = [
+                    '',
+                    qty,
+                    cleanName,
+                    price,
+                    sub,
+                    it.is_combo ? 'COMBO' : 'INDIVIDUAL',
+                    '', '', '', '', ''
+                ];
+                itemRow._isSubItem = true;
+                ventasRows.push(itemRow);
+            });
+        }
+
+        // Fila espaciadora entre pedidos para legibilidad
+        ventasRows.push([]);
     });
-    ventasRows.push([]);
-    ventasRows.push(['', '', '', '', '', 'TOTAL', totalSales, '']);
+
+    // Fila de Totales Generales
+    ventasRows.push(['', '', '', '', '', 'TOTALES', '', totalSubtotal, totalIva, totalSales, '']);
     buildBurgameSheet(wsVentas, ventasRows, { imageRows: 5 });
 
-    // 3. Ítems / Ranking de Productos
+    // 3. Ítems / Ranking de Productos (Idéntico y superior al reporte mensual de 3 columnas)
     const wsItems = wb.addWorksheet('Productos');
-    const itemsHeader = ['#', 'Producto', 'Cantidad Vendida', 'Total Generado (Gs.)', '% del Total'];
+    const itemsHeader = ['#', 'Nombre', 'Cantidad', 'Total (Gs.)', '% del Total'];
     const itemsRows = [[''], [''], [''], [''], [''], itemsHeader];
     topProducts.forEach((p, idx) => {
         const pct = totalSales > 0 ? ((p.total / totalSales) * 100).toFixed(1) + '%' : '0%';
@@ -317,7 +400,7 @@ export async function exportConsolidatedReportExcel(analyticsData, periodLabel =
         ]);
     });
     itemsRows.push([]);
-    itemsRows.push(['', 'TOTAL', topProducts.reduce((sum, p) => sum + p.qty, 0), totalSales, '100%']);
+    itemsRows.push(['', 'TOTALES', topProducts.reduce((sum, p) => sum + p.qty, 0), totalSales, '100%']);
     buildBurgameSheet(wsItems, itemsRows, { imageRows: 5 });
 
     // 4. Gastos Detallados
@@ -344,3 +427,4 @@ export async function exportConsolidatedReportExcel(analyticsData, periodLabel =
         bannerSheet: 'Resumen'
     });
 }
+

@@ -1001,31 +1001,73 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
         ];
         buildBurgameSheet(wsResumen, resumenData, { firstRowIsTitle: true, imageRows: 5 });
 
-        // ---------- HOJA 2: Ventas Detalladas ----------
+        // ---------- HOJA 2: Ventas Detalladas (Formato Superior Contable) ----------
         const wsVentas = wb.addWorksheet('Ventas Detalladas');
-        const ventasHeader = ['#', 'Pedido Nº', 'Hora', 'Cliente', 'Productos Vendidos', 'Método de Pago', 'Estado', 'Total (Gs.)', 'Notas'];
+        const ventasHeader = [
+            'ID / DOC',
+            '# PEDIDO',
+            'HORA',
+            'CLIENTE',
+            'USUARIO / CAJA',
+            'M. DE PAGO',
+            'TIPO',
+            'SUBTOTAL',
+            'IVA 10%',
+            'TOTAL (Gs.)',
+            'NOTAS'
+        ];
         const ventasData = [[''], [''], [''], [''], [''], ventasHeader];
-        paidOrders.forEach((o, i) => {
-            const itemsList = (o.order_items || []).map(it => {
-                const qty = it.quantity || 1;
-                const name = (it.product_name || 'Item').replace(/\s*\[📝\s*[^\]]+\]/, '').trim();
-                return `${qty}x ${name}`;
-            }).join(', ');
 
-            ventasData.push([
-                i + 1,
+        paidOrders.forEach((o) => {
+            const orderTotal = o.total || 0;
+            const orderIva = Math.round(orderTotal / 11);
+            const orderSubtotal = orderTotal - orderIva;
+            const methodDisplay = paymentLabels[o.payment_method] || o.payment_method || 'Efectivo';
+
+            const headerRow = [
+                (o.id || '').slice(0, 8),
                 o.order_number || '—',
                 new Date(o.created_at).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' }),
-                o.customer_name || '—',
-                itemsList || '—',
-                paymentLabels[o.payment_method] || o.payment_method || 'Efectivo',
-                o.status,
-                o.total || 0,
+                o.customer_name || 'Consumidor Final',
+                'BurgAdmin / Central',
+                `${methodDisplay}: ${orderTotal.toLocaleString('es-PY')}`,
+                'Contado',
+                orderSubtotal,
+                orderIva,
+                orderTotal,
                 o.notes || ''
-            ]);
+            ];
+            headerRow._isOrderHeader = true;
+            ventasData.push(headerRow);
+
+            const items = o.order_items || [];
+            if (items.length > 0) {
+                ventasData.push(['', 'CANTIDAD', 'ARTÍCULO', 'PRECIO UNITARIO', 'SUBTOTAL ITEM', '', '', '', '', '', '']);
+                items.forEach(it => {
+                    const qty = it.quantity || 1;
+                    const price = it.price || 0;
+                    const sub = price * qty;
+                    const cleanName = (it.product_name || 'Item').replace(/\s*\[📝\s*[^\]]+\]/, '').trim();
+
+                    const itemRow = [
+                        '',
+                        qty,
+                        cleanName,
+                        price,
+                        sub,
+                        it.is_combo ? 'COMBO' : 'INDIVIDUAL',
+                        '', '', '', '', ''
+                    ];
+                    itemRow._isSubItem = true;
+                    ventasData.push(itemRow);
+                });
+            }
+            ventasData.push([]);
         });
-        ventasData.push([]);
-        ventasData.push(['', '', '', '', '', '', 'TOTAL', totalSales, '']);
+
+        const totalIva = Math.round(totalSales / 11);
+        const totalSubtotal = totalSales - totalIva;
+        ventasData.push(['', '', '', '', '', 'TOTALES', '', totalSubtotal, totalIva, totalSales, '']);
         buildBurgameSheet(wsVentas, ventasData, { imageRows: 5 });
 
         // ---------- HOJA 3: Items Vendidos ----------
