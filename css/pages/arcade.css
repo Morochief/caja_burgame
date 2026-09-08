@@ -854,3 +854,190 @@
     border: 1px solid #FF9800;
 }
 
+/* ==========================================================================
+   WIZARD DE CREACIÓN / EDICIÓN DE TORNEOS (ESTILO CHALLONGE)
+   ========================================================================== */
+
+.tourn-wizard-modal {
+    width: min(760px, 96vw);
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    padding: 0 !important;
+    overflow: hidden;
+    border: 1px solid var(--border-gold) !important;
+    box-shadow: 0 0 35px rgba(255, 215, 0, 0.22) !important;
+}
+
+.tourn-wizard-modal .modal-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-subtle);
+    background: rgba(0, 0, 0, 0.35);
+}
+
+.tourn-wizard-nav {
+    display: flex;
+    overflow-x: auto;
+    background: rgba(0, 0, 0, 0.45);
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 0.35rem 0.75rem;
+    gap: 0.35rem;
+    scrollbar-width: thin;
+}
+
+.tourn-wizard-tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.55rem 0.85rem;
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+.tourn-wizard-tab-btn:hover {
+    color: #FFF;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.tourn-wizard-tab-btn.active {
+    color: var(--color-primary);
+    background: rgba(255, 215, 0, 0.12);
+    border-color: rgba(255, 215, 0, 0.3);
+}
+
+.tourn-wizard-tab-btn .tab-step {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 19px;
+    height: 19px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.tourn-wizard-tab-btn.active .tab-step {
+    background: var(--color-primary);
+    color: #000;
+}
+
+.tourn-wizard-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.25rem 1.5rem;
+    scrollbar-width: thin;
+}
+
+.tourn-wizard-pane {
+    display: none;
+}
+
+.tourn-wizard-pane.active {
+    display: block;
+    animation: fadeIn 0.2s ease;
+}
+
+.tourn-wizard-section-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    margin: 0 0 0.85rem 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.tourn-radio-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+@media (max-width: 600px) {
+    .tourn-radio-group {
+        grid-template-columns: 1fr;
+    }
+}
+
+.tourn-radio-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    padding: 0.75rem;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-subtle);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.tourn-radio-card:hover {
+    border-color: rgba(255, 215, 0, 0.4);
+    background: rgba(255, 215, 0, 0.04);
+}
+
+.tourn-radio-card:has(input:checked) {
+    border-color: var(--color-primary);
+    background: rgba(255, 215, 0, 0.09);
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.15);
+}
+
+.tourn-radio-card input[type="radio"] {
+    margin-top: 0.2rem;
+    accent-color: var(--color-primary);
+    cursor: pointer;
+}
+
+.tourn-radio-card-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.tourn-radio-card-content strong {
+    font-size: 0.82rem;
+    color: #fff;
+}
+
+.tourn-radio-card-content span {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    line-height: 1.35;
+}
+
+.tourn-checkbox-inline {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    cursor: pointer;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    user-select: none;
+}
+
+.tourn-checkbox-inline:hover {
+    color: #FFF;
+}
+
+.tourn-checkbox-inline input[type="checkbox"] {
+    margin-top: 0.15rem;
+    accent-color: var(--color-primary);
+    cursor: pointer;
+}
+
+.tourn-checkbox-inline strong {
+    color: #FFF;
+}
+
+

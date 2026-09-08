@@ -19,6 +19,16 @@ CREATE TABLE IF NOT EXISTS public.tournaments (
     max_participants INTEGER DEFAULT 16,
     status TEXT DEFAULT 'upcoming', -- 'draft', 'upcoming', 'active', 'finished'
     registration_open BOOLEAN DEFAULT true,
+    url_slug TEXT,
+    host_name TEXT DEFAULT 'Burgame Gaming Arena',
+    stage_type TEXT DEFAULT 'single_stage', -- 'single_stage', 'two_stage'
+    registration_fee TEXT DEFAULT 'free', -- 'free', 'paid'
+    fee_amount NUMERIC DEFAULT 0,
+    include_third_place BOOLEAN DEFAULT true,
+    require_checkin BOOLEAN DEFAULT true,
+    seeding_rule TEXT DEFAULT 'traditional', -- 'traditional', 'shuffle', 'sequential'
+    quick_advance BOOLEAN DEFAULT false,
+    hide_bracket_preview BOOLEAN DEFAULT false,
     prize_pool JSONB DEFAULT '{"first": "Membresía Club Burgame + Burger", "second": "Papas XL + Bebidas", "third": "Cervezas Artesanales"}'::jsonb,
     first_place JSONB,
     second_place JSONB,

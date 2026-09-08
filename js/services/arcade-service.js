@@ -218,6 +218,16 @@ function normalizeTournament(t) {
         participantsCount: t.max_participants || 16,
         status: t.status || 'upcoming',
         registration_open: t.registration_open !== false,
+        url_slug: t.url_slug || t.id,
+        host_name: t.host_name || 'Burgame Gaming Arena',
+        stage_type: t.stage_type || 'single_stage',
+        registration_fee: t.registration_fee || 'free',
+        fee_amount: parseFloat(t.fee_amount) || 0,
+        include_third_place: t.include_third_place !== false,
+        require_checkin: t.require_checkin !== false,
+        seeding_rule: t.seeding_rule || 'traditional',
+        quick_advance: t.quick_advance === true,
+        hide_bracket_preview: t.hide_bracket_preview === true,
         prize_pool: t.prize_pool || {},
         prizePoolDescription: typeof t.prize_pool === 'object' ? (t.prize_pool.first || 'Membresía Club') : t.prize_pool,
         firstPlace: t.first_place || { name: 'Por definir', prize: 'Membresía Club Burgame' },
@@ -268,8 +278,9 @@ export async function getTournamentById(id) {
         const { data, error } = await supabase
             .from(TOURNAMENTS_TABLE)
             .select('*')
-            .eq('id', id)
-            .single();
+            .or(`id.eq.${id},url_slug.eq.${id}`)
+            .limit(1)
+            .maybeSingle();
 
         if (!error && data) {
             tournament = normalizeTournament(data);
@@ -280,7 +291,7 @@ export async function getTournamentById(id) {
 
     if (!tournament) {
         const list = await getTournaments();
-        tournament = list.find(t => t.id === id) || null;
+        tournament = list.find(t => t.id === id || t.url_slug === id) || null;
     }
 
     if (!tournament) return null;
@@ -298,7 +309,7 @@ export async function getTournamentById(id) {
 
 export async function saveTournament(tournament) {
     if (!tournament.id) {
-        tournament.id = 'tourn-' + Date.now();
+        tournament.id = tournament.url_slug || ('tourn-' + Date.now());
     }
     tournament.updated_at = new Date().toISOString();
 
@@ -313,6 +324,16 @@ export async function saveTournament(tournament) {
         max_participants: parseInt(tournament.max_participants || tournament.participantsCount, 10) || 16,
         status: tournament.status || 'upcoming',
         registration_open: tournament.registration_open !== false,
+        url_slug: tournament.url_slug || tournament.id,
+        host_name: tournament.host_name || 'Burgame Gaming Arena',
+        stage_type: tournament.stage_type || 'single_stage',
+        registration_fee: tournament.registration_fee || 'free',
+        fee_amount: parseFloat(tournament.fee_amount) || 0,
+        include_third_place: tournament.include_third_place !== false,
+        require_checkin: tournament.require_checkin !== false,
+        seeding_rule: tournament.seeding_rule || 'traditional',
+        quick_advance: tournament.quick_advance === true,
+        hide_bracket_preview: tournament.hide_bracket_preview === true,
         prize_pool: tournament.prize_pool || {
             first: tournament.firstPlace?.prize || 'Membresía Club Burgame',
             second: tournament.secondPlace?.prize || '2x Papas XL',

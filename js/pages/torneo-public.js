@@ -297,6 +297,20 @@ function renderRegistrationFormContent() {
             <p>Completá los datos de tu equipo para asegurar tu lugar en el cuadro del torneo.</p>
         </div>
 
+        ${_tournament.registration_fee === 'paid' && _tournament.fee_amount > 0 ? `
+            <div style="background: rgba(255, 215, 0, 0.1); border: 1px solid var(--border-gold); padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; color: #FFF;">
+                <span style="font-size: 1.2rem;">💵</span>
+                <span>Tarifa de Inscripción: <strong>Gs. ${_tournament.fee_amount.toLocaleString('es-PY')}</strong> (se abona en caja de Burgame el día del evento).</span>
+            </div>
+        ` : ''}
+
+        ${_tournament.require_checkin ? `
+            <div style="background: rgba(0, 176, 255, 0.08); border: 1px solid rgba(0, 176, 255, 0.3); padding: 0.65rem 1rem; border-radius: 6px; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: #FFF;">
+                <span>✅</span>
+                <span><strong>Check-in requerido:</strong> Deberás confirmar tu presencia en la recepción de Burgame al llegar.</span>
+            </div>
+        ` : ''}
+
         <form id="public-registration-form">
             <div class="form-group" style="margin-bottom: 1rem;">
                 <label class="form-label">Nombre del Equipo o Gamer Tag *</label>
@@ -423,6 +437,18 @@ function renderBracketsPane() {
 }
 
 function renderBracketsTreeHtml() {
+    if (_tournament && _tournament.hide_bracket_preview && _tournament.status === 'upcoming') {
+        return `
+            <div style="text-align: center; padding: 3.5rem 1rem; color: var(--text-muted); width: 100%;">
+                <div style="font-size: 2.8rem; margin-bottom: 0.5rem;">🔒</div>
+                <h4 style="color: #FFF; margin-bottom: 0.35rem;">Cuadro Oculto por el Anfitrión</h4>
+                <p style="font-size: 0.85rem; max-width: 440px; margin: 0 auto; line-height: 1.4;">
+                    El anfitrión configuró el cuadro oficial para revelarse públicamente al iniciar el evento en Burgame Arena.
+                </p>
+            </div>
+        `;
+    }
+
     if (!_matches || _matches.length === 0) {
         return `
             <div style="text-align: center; padding: 3rem 1rem; color: var(--text-muted); width: 100%;">

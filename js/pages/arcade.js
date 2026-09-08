@@ -222,79 +222,322 @@ export function renderArcadePage() {
              MODALES DE LA SUITE DE TORNEOS
              ========================================== -->
 
-        <!-- Modal: Nuevo / Editar Torneo -->
+        <!-- Modal: Nuevo / Editar Torneo (Asistente Oficial Challonge Wizard) -->
         <div id="tournament-modal" class="modal-overlay hidden">
-            <div class="modal-card card" style="max-width: 580px;">
+            <div class="modal-card card tourn-wizard-modal">
                 <div class="modal-header">
-                    <h2 id="tournament-modal-title">🏆 Nuevo Torneo Gamer</h2>
+                    <div style="display: flex; align-items: center; gap: 0.6rem;">
+                        <span style="font-size: 1.4rem;">🏆</span>
+                        <div>
+                            <h2 id="tournament-modal-title" style="margin: 0; font-size: 1.15rem;">Crear Torneo Gamer</h2>
+                            <span style="font-size: 0.72rem; color: var(--text-muted);">Asistente estilo Challonge • Motor Burgame Arena</span>
+                        </div>
+                    </div>
                     <button class="btn-close tournament-close-modal">&times;</button>
                 </div>
-                <form id="tournament-form">
+
+                <!-- Wizard Tabs Header -->
+                <div class="tourn-wizard-nav">
+                    <button type="button" class="tourn-wizard-tab-btn active" data-tab-idx="0">
+                        <span class="tab-step">1</span> Información Básica & Juego
+                    </button>
+                    <button type="button" class="tourn-wizard-tab-btn" data-tab-idx="1">
+                        <span class="tab-step">2</span> Registro & Cupos
+                    </button>
+                    <button type="button" class="tourn-wizard-tab-btn" data-tab-idx="2">
+                        <span class="tab-step">3</span> Opciones del Bracket
+                    </button>
+                    <button type="button" class="tourn-wizard-tab-btn" data-tab-idx="3">
+                        <span class="tab-step">4</span> Premios & Club Burgame
+                    </button>
+                </div>
+
+                <form id="tournament-form" style="display: flex; flex-direction: column; flex: 1; overflow: hidden; margin: 0;">
                     <input type="hidden" id="tourn-id" value="">
-                    <div class="form-group">
-                        <label class="form-label">Título del Torneo *</label>
-                        <input type="text" id="tourn-title" class="form-input" placeholder="Ej: Torneo Rocket League 2v2 - Copa Burgame" required>
-                    </div>
-                    <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-                        <div class="form-group">
-                            <label class="form-label">Juego / Disciplina *</label>
-                            <input type="text" id="tourn-game" class="form-input" placeholder="Ej: Rocket League, Smash Bros, Pac-Man" required>
+
+                    <!-- Scrollable Body Container -->
+                    <div class="tourn-wizard-body">
+
+                        <!-- TAB 1: Información Básica & Juego -->
+                        <div class="tourn-wizard-pane active" id="pane-tab-basico">
+                            <h3 class="tourn-wizard-section-title">Información Básica</h3>
+                            
+                            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                                <div class="form-group">
+                                    <label class="form-label">Anfitrión del Torneo</label>
+                                    <input type="text" id="tourn-host" class="form-input" value="Burgame Gaming Arena" placeholder="Burgame Gaming Arena">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Estado Inicial</label>
+                                    <select id="tourn-status" class="form-select">
+                                        <option value="upcoming">Próximo / Inscripciones Abiertas</option>
+                                        <option value="active">En Curso (Fase de Eliminatorias)</option>
+                                        <option value="finished">Finalizado / Premiado</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Nombre del Torneo *</label>
+                                <input type="text" id="tourn-title" class="form-input" placeholder="Ej: Torneo Rocket League 2v2 - Copa Burgame" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">URL del Torneo (Enlace Personalizado) *</label>
+                                <div style="display: flex; gap: 0.4rem; align-items: center;">
+                                    <span style="font-family: var(--font-mono); font-size: 0.76rem; color: var(--text-muted); white-space: nowrap;">torneo.html?id=</span>
+                                    <input type="text" id="tourn-slug" class="form-input" placeholder="rocket-league-2v2" style="font-family: var(--font-mono); font-weight: 600;" required>
+                                    <button type="button" class="btn btn--secondary btn--sm" id="btn-random-slug" title="Generar Slug Aleatorio" style="white-space: nowrap; padding: 0.45rem 0.75rem;">
+                                        🎲 Aleatorio
+                                    </button>
+                                </div>
+                                <span class="form-hint" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.25rem; display: block;">
+                                    Las letras, números y guiones son los únicos caracteres permitidos para el enlace público.
+                                </span>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Descripción & Reglamento General</label>
+                                <textarea id="tourn-notes" class="form-textarea" rows="2" placeholder="Reglas del torneo, formato al mejor de 3, configuración de controles, escenarios legales, etc."></textarea>
+                            </div>
+
+                            <hr style="border: 0; border-top: 1px solid var(--border-subtle); margin: 1.25rem 0;">
+
+                            <h3 class="tourn-wizard-section-title">Información del Juego</h3>
+
+                            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                                <div class="form-group">
+                                    <label class="form-label">Juego / Disciplina *</label>
+                                    <input type="text" id="tourn-game" class="form-input" placeholder="Ej: Rocket League, Smash Bros, EA FC" list="game-presets-list" required>
+                                    <datalist id="game-presets-list">
+                                        <option value="Rocket League">
+                                        <option value="Super Smash Bros. Ultimate">
+                                        <option value="EA FC / FIFA 24">
+                                        <option value="Street Fighter 6">
+                                        <option value="Mortal Kombat 1">
+                                        <option value="Tekken 8">
+                                        <option value="Mario Kart 8 Deluxe">
+                                        <option value="Dragon Ball FighterZ">
+                                        <option value="Pac-Man Arcade Retro">
+                                    </datalist>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Formato del Torneo *</label>
+                                    <select id="tourn-format" class="form-select">
+                                        <option value="single_elim">Eliminación Simple</option>
+                                        <option value="double_elim">Doble Eliminación</option>
+                                        <option value="round_robin">Todos contra todos (Round Robin)</option>
+                                        <option value="swiss">Sistema Suizo</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Tipo de Etapa</label>
+                                <div class="tourn-radio-group">
+                                    <label class="tourn-radio-card">
+                                        <input type="radio" name="tourn-stage-type" value="single_stage" checked>
+                                        <div class="tourn-radio-card-content">
+                                            <strong>Etapa Única</strong>
+                                            <span>Una sola fase de torneo con el formato seleccionado (Eliminación directa).</span>
+                                        </div>
+                                    </label>
+                                    <label class="tourn-radio-card">
+                                        <input type="radio" name="tourn-stage-type" value="two_stage">
+                                        <div class="tourn-radio-card-content">
+                                            <strong>Dos Etapas</strong>
+                                            <span>Fase de grupos inicial seguida de llaves de eliminación final.</span>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="form-group" style="margin-top: 0.5rem;">
+                                <label class="tourn-checkbox-inline">
+                                    <input type="checkbox" id="tourn-include-third-place" checked>
+                                    <span>🥉 <strong>Incluir un partido por el 3.er puesto</strong> (Desempate por el trofeo y premio de bronce)</span>
+                                </label>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">Fecha del Torneo *</label>
-                            <input type="date" id="tourn-date" class="form-input" required>
+
+                        <!-- TAB 2: Registro & Cupos -->
+                        <div class="tourn-wizard-pane" id="pane-tab-registro">
+                            <h3 class="tourn-wizard-section-title">Configuración de Registro</h3>
+
+                            <div class="form-group">
+                                <label class="form-label">¿Quién puede registrarse?</label>
+                                <div class="tourn-radio-group">
+                                    <label class="tourn-radio-card">
+                                        <input type="radio" name="tourn-reg-open" value="public" checked>
+                                        <div class="tourn-radio-card-content">
+                                            <strong>Abierto al público</strong>
+                                            <span>Los jugadores pueden registrarse desde el enlace web público o QR en el local.</span>
+                                        </div>
+                                    </label>
+                                    <label class="tourn-radio-card">
+                                        <input type="radio" name="tourn-reg-open" value="admin_only">
+                                        <div class="tourn-radio-card-content">
+                                            <strong>Solo anfitrión / administradores</strong>
+                                            <span>Cerrado: solo el staff de Burgame carga a los participantes manualmente.</span>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                                <div class="form-group">
+                                    <label class="form-label">Tarifa de Inscripción</label>
+                                    <select id="tourn-fee-type" class="form-select">
+                                        <option value="free">Gratis (Sin costo de entrada)</option>
+                                        <option value="paid">De pago (Cuota en Gs.)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" id="tourn-fee-amount-group" style="display: none;">
+                                    <label class="form-label">Monto de la Tarifa (Gs.) *</label>
+                                    <input type="number" id="tourn-fee-amount" class="form-input" placeholder="Ej: 20000" min="0" step="5000">
+                                </div>
+                            </div>
+
+                            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                                <div class="form-group">
+                                    <label class="form-label">¿Cómo compiten los participantes?</label>
+                                    <select id="tourn-modality" class="form-select">
+                                        <option value="1v1">Individuales (1v1)</option>
+                                        <option value="2v2" selected>Equipos (2v2 - Dúos con Capitán)</option>
+                                        <option value="3v3">Equipos (3v3)</option>
+                                        <option value="4v4">Equipos (4v4)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Límite Máx. de Participantes</label>
+                                    <input type="number" id="tourn-participants" class="form-input" placeholder="16" min="4" max="64" value="16">
+                                </div>
+                            </div>
+
+                            <hr style="border: 0; border-top: 1px solid var(--border-subtle); margin: 1.25rem 0;">
+
+                            <h3 class="tourn-wizard-section-title">Fecha, Horarios & Check-in</h3>
+
+                            <div class="form-grid" style="grid-template-columns: 1.2fr 1fr; gap: 0.75rem;">
+                                <div class="form-group">
+                                    <label class="form-label">Fecha del Torneo *</label>
+                                    <input type="date" id="tourn-date" class="form-input" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Hora de Inicio Estimada</label>
+                                    <input type="time" id="tourn-time" class="form-input" value="19:00">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="tourn-checkbox-inline">
+                                    <input type="checkbox" id="tourn-provisional-date">
+                                    <span>🗓️ <strong>Esta fecha y hora son provisionales</strong> (Aún sujetas a confirmación del salón)</span>
+                                </label>
+                            </div>
+
+                            <div class="form-group" style="margin-top: 0.5rem;">
+                                <label class="tourn-checkbox-inline">
+                                    <input type="checkbox" id="tourn-require-checkin" checked>
+                                    <span>✅ <strong>Requerir Check-in de participantes antes del torneo</strong> (Validar presencia al llegar al local antes de armar las llaves)</span>
+                                </label>
+                            </div>
                         </div>
-                    </div>
-                    <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem;">
-                        <div class="form-group">
-                            <label class="form-label">Modalidad</label>
-                            <select id="tourn-modality" class="form-select">
-                                <option value="2v2">2v2 (Equipos)</option>
-                                <option value="1v1">1v1 (Individual)</option>
-                                <option value="3v3">3v3</option>
-                            </select>
+
+                        <!-- TAB 3: Opciones del Bracket -->
+                        <div class="tourn-wizard-pane" id="pane-tab-brackets">
+                            <h3 class="tourn-wizard-section-title">Opciones Avanzadas del Bracket</h3>
+
+                            <div class="form-group">
+                                <label class="form-label">Reglas de Asignación de Cabezas de Serie (Seeding)</label>
+                                <select id="tourn-seeding-rule" class="form-select">
+                                    <option value="traditional">Tradicional (1 vs 16, 2 vs 15 - Distribución competitiva oficial)</option>
+                                    <option value="shuffle">Aleatorio / Shuffle (Sorteo al azar entre todos los inscriptos)</option>
+                                    <option value="sequential">Secuencial (1 vs 2, 3 vs 4 - Según orden de inscripción)</option>
+                                </select>
+                                <span class="form-hint" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.25rem; display: block;">
+                                    El método tradicional separa a los mejores sembrados para que se enfrenten únicamente en las fases avanzadas.
+                                </span>
+                            </div>
+
+                            <div class="form-group" style="margin-top: 1rem;">
+                                <label class="tourn-checkbox-inline">
+                                    <input type="checkbox" id="tourn-quick-advance">
+                                    <span>⚡ <strong>Avance rápido</strong> (Registrar al ganador de cada partido directamente con 1 click, sin requerir marcadores de sets/puntos numéricos)</span>
+                                </label>
+                            </div>
+
+                            <div class="form-group" style="margin-top: 0.75rem;">
+                                <label class="tourn-checkbox-inline">
+                                    <input type="checkbox" id="tourn-hide-preview">
+                                    <span>🔒 <strong>Ocultar la vista previa del cuadro</strong> al público hasta que el torneo dé comienzo oficial</span>
+                                </label>
+                            </div>
+
+                            <div class="form-group" style="margin-top: 1.25rem; background: rgba(0, 176, 255, 0.06); padding: 1rem; border-radius: 6px; border: 1px solid rgba(0, 176, 255, 0.2);">
+                                <h4 style="margin: 0 0 0.5rem; font-size: 0.85rem; color: #00b0ff; display: flex; align-items: center; gap: 0.4rem;">
+                                    <span>🌳</span> Estructura del Árbol Visual
+                                </h4>
+                                <p style="margin: 0; font-size: 0.78rem; color: var(--text-muted); line-height: 1.4;">
+                                    El motor de brackets de Burgame generará automáticamente llaves con líneas bifurcadas estilo Challonge, iluminación de ruta ganadora en verde neón, y showcase del campeón en el podio dorado con medallas de plata y bronce.
+                                </p>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">Estado</label>
-                            <select id="tourn-status" class="form-select">
-                                <option value="upcoming">Próximo / Inscripciones</option>
-                                <option value="active">En Curso</option>
-                                <option value="finished">Finalizado</option>
-                            </select>
+
+                        <!-- TAB 4: Premios Burgame -->
+                        <div class="tourn-wizard-pane" id="pane-tab-premios">
+                            <h3 class="tourn-wizard-section-title">Premios Oficiales Burgame</h3>
+                            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: -0.25rem; margin-bottom: 1rem;">
+                                Configure la premiación oficial. El sistema permite otorgar <strong>Membresías VIP del Club Burgame (Gs. 0)</strong> directamente a los ganadores al finalizar el torneo.
+                            </p>
+
+                            <!-- Podio 1st Place -->
+                            <div class="prize-card-group" style="background: rgba(255, 215, 0, 0.08); border: 1px solid var(--border-gold); padding: 0.85rem; border-radius: 6px; margin-bottom: 0.75rem;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span style="font-weight: 700; font-size: 0.85rem; color: #FFD700; display: flex; align-items: center; gap: 0.35rem;">
+                                        🥇 1.er Puesto (Campeón)
+                                    </span>
+                                    <span class="badge badge--success" style="font-size: 0.68rem;">Integra Club VIP</span>
+                                </div>
+                                <div class="form-grid" style="grid-template-columns: 1fr 1.2fr; gap: 0.5rem;">
+                                    <input type="text" id="tourn-1st-name" class="form-input form-input--sm" placeholder="Nombre/Equipo (autocompletado al finalizar)">
+                                    <input type="text" id="tourn-1st-prize" class="form-input form-input--sm" placeholder="Premio: Membresía Club Burgame 1 Mes + Combo Burger">
+                                </div>
+                            </div>
+
+                            <!-- Podio 2nd Place -->
+                            <div class="prize-card-group" style="background: rgba(224, 224, 224, 0.05); border: 1px solid rgba(224, 224, 224, 0.3); padding: 0.85rem; border-radius: 6px; margin-bottom: 0.75rem;">
+                                <span style="font-weight: 700; font-size: 0.85rem; color: #E0E0E0; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.5rem;">
+                                    🥈 2.º Puesto (Subcampeón)
+                                </span>
+                                <div class="form-grid" style="grid-template-columns: 1fr 1.2fr; gap: 0.5rem;">
+                                    <input type="text" id="tourn-2nd-name" class="form-input form-input--sm" placeholder="Nombre/Equipo (autocompletado al finalizar)">
+                                    <input type="text" id="tourn-2nd-prize" class="form-input form-input--sm" placeholder="Premio: 2x Papas XL + Bebidas">
+                                </div>
+                            </div>
+
+                            <!-- Podio 3rd Place -->
+                            <div class="prize-card-group" style="background: rgba(205, 127, 50, 0.05); border: 1px solid rgba(205, 127, 50, 0.3); padding: 0.85rem; border-radius: 6px; margin-bottom: 0.75rem;">
+                                <span style="font-weight: 700; font-size: 0.85rem; color: #CD7F32; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.5rem;">
+                                    🥉 3.er Puesto (Bronce)
+                                </span>
+                                <div class="form-grid" style="grid-template-columns: 1fr 1.2fr; gap: 0.5rem;">
+                                    <input type="text" id="tourn-3rd-name" class="form-input form-input--sm" placeholder="Nombre/Equipo (autocompletado al finalizar)">
+                                    <input type="text" id="tourn-3rd-prize" class="form-input form-input--sm" placeholder="Premio: Cervezas Artesanales / Gaseosas">
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">Cupo Máx.</label>
-                            <input type="number" id="tourn-participants" class="form-input" placeholder="16" min="4" max="32" value="16">
-                        </div>
+
                     </div>
 
-                    <!-- Podio de Ganadores -->
-                    <div style="background: var(--bg-elevated); padding: 0.85rem; border-radius: 4px; border: 1px solid var(--border-subtle); margin: 0.5rem 0; display: flex; flex-direction: column; gap: 0.6rem;">
-                        <span style="font-size: 0.75rem; font-weight: 700; color: var(--color-primary); text-transform: uppercase;">
-                            🥇 Podio & Premios (Asignación)
-                        </span>
-                        <div class="form-grid" style="grid-template-columns: 1fr 1.2fr; gap: 0.5rem;">
-                            <input type="text" id="tourn-1st-name" class="form-input form-input--sm" placeholder="1º Puesto (Nombre/Equipo)">
-                            <input type="text" id="tourn-1st-prize" class="form-input form-input--sm" placeholder="Premio: Membresía Club Burgame + Burger">
-                        </div>
-                        <div class="form-grid" style="grid-template-columns: 1fr 1.2fr; gap: 0.5rem;">
-                            <input type="text" id="tourn-2nd-name" class="form-input form-input--sm" placeholder="2º Puesto (Nombre/Equipo)">
-                            <input type="text" id="tourn-2nd-prize" class="form-input form-input--sm" placeholder="Premio: 2x Papas XL + Bebidas">
-                        </div>
-                        <div class="form-grid" style="grid-template-columns: 1fr 1.2fr; gap: 0.5rem;">
-                            <input type="text" id="tourn-3rd-name" class="form-input form-input--sm" placeholder="3º Puesto (Nombre/Equipo)">
-                            <input type="text" id="tourn-3rd-prize" class="form-input form-input--sm" placeholder="Premio: Cervezas Artesanales">
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Reglamento / Notas del Evento</label>
-                        <textarea id="tourn-notes" class="form-textarea" rows="2" placeholder="Modalidad al mejor de 3, escenarios legales, etc."></textarea>
-                    </div>
-
-                    <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+                    <!-- Wizard Footer Navigation -->
+                    <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1.5rem; background: rgba(0, 0, 0, 0.4); border-top: 1px solid var(--border-subtle);">
                         <button type="button" class="btn btn--secondary tournament-close-modal">Cancelar</button>
-                        <button type="submit" class="btn btn--primary">Guardar Torneo</button>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button type="button" class="btn btn--secondary btn--sm" id="btn-tourn-wizard-prev" style="display: none;">◀ Anterior</button>
+                            <button type="button" class="btn btn--secondary btn--sm" id="btn-tourn-wizard-next">Siguiente ▶</button>
+                            <button type="submit" class="btn btn--primary btn--sm" id="btn-tourn-wizard-save">Guardar Torneo 🏆</button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -793,7 +1036,8 @@ function openShareModal(container, tourn) {
     const modal = container.querySelector('#tournament-share-modal');
     if (!modal) return;
 
-    const shareUrl = `${window.location.origin}${window.location.pathname.replace('index.html', '')}torneo.html?id=${tourn.id}`;
+    const tournIdentifier = tourn.url_slug || tourn.id;
+    const shareUrl = `${window.location.origin}${window.location.pathname.replace('index.html', '')}torneo.html?id=${tournIdentifier}`;
     
     container.querySelector('#share-modal-title').textContent = `🎮 ${tourn.title}`;
     const urlInput = container.querySelector('#share-modal-url');
@@ -1359,55 +1603,186 @@ function setupModals(container) {
         }
     });
 
+    // ==========================================
+    // WIZARD DE TORNEOS ESTILO CHALLONGE
+    // ==========================================
+    const wizardTabs = container.querySelectorAll('.tourn-wizard-tab-btn');
+    const wizardPanes = container.querySelectorAll('.tourn-wizard-pane');
+    const btnWizardPrev = container.querySelector('#btn-tourn-wizard-prev');
+    const btnWizardNext = container.querySelector('#btn-tourn-wizard-next');
+    let currentWizardStep = 0;
+
+    function setTournamentWizardStep(step) {
+        currentWizardStep = Math.max(0, Math.min(step, wizardTabs.length - 1));
+        wizardTabs.forEach((tab, i) => {
+            tab.classList.toggle('active', i === currentWizardStep);
+        });
+        wizardPanes.forEach((pane, i) => {
+            pane.classList.toggle('active', i === currentWizardStep);
+        });
+        if (btnWizardPrev) btnWizardPrev.style.display = currentWizardStep > 0 ? 'inline-flex' : 'none';
+        if (btnWizardNext) btnWizardNext.style.display = currentWizardStep < wizardTabs.length - 1 ? 'inline-flex' : 'none';
+    }
+
+    wizardTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const idx = parseInt(tab.dataset.tabIdx, 10) || 0;
+            setTournamentWizardStep(idx);
+        });
+    });
+
+    btnWizardPrev?.addEventListener('click', () => setTournamentWizardStep(currentWizardStep - 1));
+    btnWizardNext?.addEventListener('click', () => setTournamentWizardStep(currentWizardStep + 1));
+
+    // Tarifa de inscripción toggle (Gratis vs De pago)
+    const feeSelect = container.querySelector('#tourn-fee-type');
+    const feeGroup = container.querySelector('#tourn-fee-amount-group');
+    feeSelect?.addEventListener('change', () => {
+        if (feeSelect.value === 'paid') {
+            feeGroup.style.display = 'block';
+        } else {
+            feeGroup.style.display = 'none';
+            const feeAmt = container.querySelector('#tourn-fee-amount');
+            if (feeAmt) feeAmt.value = 0;
+        }
+    });
+
+    // Generador de slug aleatorio estilo Challonge
+    function generateTournamentSlug(seedName = '') {
+        const clean = (seedName || '')
+            .toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+        const randomNum = Math.floor(1000 + Math.random() * 9000);
+        return clean ? `${clean}-${randomNum}` : `copa-burgame-${randomNum}`;
+    }
+
+    container.querySelector('#btn-random-slug')?.addEventListener('click', () => {
+        const titleVal = container.querySelector('#tourn-title')?.value || '';
+        const slugInput = container.querySelector('#tourn-slug');
+        if (slugInput) slugInput.value = generateTournamentSlug(titleVal);
+    });
+
+    // Auto-slug al escribir título si slug está vacío o en nuevo torneo
+    const tournTitleInput = container.querySelector('#tourn-title');
+    tournTitleInput?.addEventListener('input', () => {
+        const isNew = !container.querySelector('#tourn-id')?.value;
+        const slugInput = container.querySelector('#tourn-slug');
+        if (isNew && slugInput && (!slugInput.value || slugInput.dataset.autoGenerated === 'true')) {
+            const clean = tournTitleInput.value
+                .toLowerCase()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '');
+            if (clean) {
+                slugInput.value = clean;
+                slugInput.dataset.autoGenerated = 'true';
+            }
+        }
+    });
+
+    const slugInput = container.querySelector('#tourn-slug');
+    slugInput?.addEventListener('input', () => {
+        slugInput.dataset.autoGenerated = 'false';
+    });
+
     // Formulario Crear / Editar Torneo
     const tournForm = container.querySelector('#tournament-form');
     tournForm?.addEventListener('submit', async e => {
         e.preventDefault();
         const id = container.querySelector('#tourn-id').value;
-        const title = container.querySelector('#tourn-title').value;
-        const game = container.querySelector('#tourn-game').value;
-        const date = container.querySelector('#tourn-date').value;
+        const title = container.querySelector('#tourn-title').value.trim();
+        const hostName = container.querySelector('#tourn-host')?.value.trim() || 'Burgame Gaming Arena';
+        const rawSlug = container.querySelector('#tourn-slug')?.value.trim() || '';
+        const cleanSlug = rawSlug
+            .toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9-]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+
+        const game = container.querySelector('#tourn-game').value.trim();
+        const format = container.querySelector('#tourn-format')?.value || 'single_elim';
+        const stageType = container.querySelector('input[name="tourn-stage-type"]:checked')?.value || 'single_stage';
+        const includeThirdPlace = container.querySelector('#tourn-include-third-place')?.checked !== false;
+
+        const regType = container.querySelector('input[name="tourn-reg-open"]:checked')?.value || 'public';
+        const registrationOpen = regType === 'public';
+        const registrationFee = container.querySelector('#tourn-fee-type')?.value || 'free';
+        const feeAmount = registrationFee === 'paid' ? (parseFloat(container.querySelector('#tourn-fee-amount')?.value) || 0) : 0;
+
         const modality = container.querySelector('#tourn-modality')?.value || '2v2';
-        const status = container.querySelector('#tourn-status').value;
         const maxParticipants = parseInt(container.querySelector('#tourn-participants').value, 10) || 16;
-        const notes = container.querySelector('#tourn-notes').value;
+        const date = container.querySelector('#tourn-date').value;
+        const startTime = container.querySelector('#tourn-time')?.value || '19:00';
+        const provisionalDate = container.querySelector('#tourn-provisional-date')?.checked === true;
+        const requireCheckin = container.querySelector('#tourn-require-checkin')?.checked !== false;
+
+        const seedingRule = container.querySelector('#tourn-seeding-rule')?.value || 'traditional';
+        const quickAdvance = container.querySelector('#tourn-quick-advance')?.checked === true;
+        const hideBracketPreview = container.querySelector('#tourn-hide-preview')?.checked === true;
+        const status = container.querySelector('#tourn-status')?.value || 'upcoming';
+        const notes = container.querySelector('#tourn-notes')?.value || '';
 
         const firstPlace = {
-            name: container.querySelector('#tourn-1st-name').value || 'Por definir',
-            prize: container.querySelector('#tourn-1st-prize').value || 'Membresía Club Burgame'
+            name: container.querySelector('#tourn-1st-name').value.trim() || 'Por definir',
+            prize: container.querySelector('#tourn-1st-prize').value.trim() || 'Membresía Club Burgame 1 Mes + Combo Burger'
         };
         const secondPlace = {
-            name: container.querySelector('#tourn-2nd-name').value || 'Por definir',
-            prize: container.querySelector('#tourn-2nd-prize').value || 'Premio secundario'
+            name: container.querySelector('#tourn-2nd-name').value.trim() || 'Por definir',
+            prize: container.querySelector('#tourn-2nd-prize').value.trim() || '2x Papas XL + Bebidas'
         };
         const thirdPlace = {
-            name: container.querySelector('#tourn-3rd-name').value || 'Por definir',
-            prize: container.querySelector('#tourn-3rd-prize').value || 'Consolación'
+            name: container.querySelector('#tourn-3rd-name').value.trim() || 'Por definir',
+            prize: container.querySelector('#tourn-3rd-prize').value.trim() || 'Cervezas Artesanales / Gaseosas'
         };
 
         const newTourn = {
             title,
+            host_name: hostName,
+            url_slug: cleanSlug || id,
             game,
-            date,
+            format,
+            stage_type: stageType,
+            include_third_place: includeThirdPlace,
+            registration_open: registrationOpen,
+            registration_fee: registrationFee,
+            fee_amount: feeAmount,
             modality,
-            status,
             max_participants: maxParticipants,
             participantsCount: maxParticipants,
+            date,
+            start_time: startTime,
+            provisional_date: provisionalDate,
+            require_checkin: requireCheckin,
+            seeding_rule: seedingRule,
+            quick_advance: quickAdvance,
+            hide_bracket_preview: hideBracketPreview,
+            status,
             first_place: firstPlace,
             second_place: secondPlace,
             third_place: thirdPlace,
             firstPlace,
             secondPlace,
             thirdPlace,
+            prize_pool: {
+                first: firstPlace.prize,
+                second: secondPlace.prize,
+                third: thirdPlace.prize
+            },
             notes
         };
 
         if (id) newTourn.id = id;
 
-        await arcadeService.saveTournament(newTourn);
-        showToast({ message: id ? 'Torneo actualizado' : 'Torneo creado con éxito', type: 'success' });
-        container.querySelector('#tournament-modal').classList.add('hidden');
-        refreshAllData(container);
+        try {
+            await arcadeService.saveTournament(newTourn);
+            showToast({ message: id ? 'Torneo actualizado con éxito' : '¡Torneo creado con éxito estilo Challonge!', type: 'success' });
+            container.querySelector('#tournament-modal').classList.add('hidden');
+            refreshAllData(container);
+        } catch (err) {
+            showToast({ message: 'Error al guardar torneo: ' + (err.message || err), type: 'error' });
+        }
     });
 
     // Formulario Match Score
@@ -1525,28 +1900,119 @@ function openTournamentModal(container, tourn = null) {
     const titleEl = container.querySelector('#tournament-modal-title');
     container.querySelector('#tournament-form').reset();
 
+    // Reiniciar wizard al paso 1 (Información Básica)
+    const wizardTabs = container.querySelectorAll('.tourn-wizard-tab-btn');
+    const wizardPanes = container.querySelectorAll('.tourn-wizard-pane');
+    wizardTabs.forEach((tab, i) => tab.classList.toggle('active', i === 0));
+    wizardPanes.forEach((pane, i) => pane.classList.toggle('active', i === 0));
+    const btnPrev = container.querySelector('#btn-tourn-wizard-prev');
+    const btnNext = container.querySelector('#btn-tourn-wizard-next');
+    if (btnPrev) btnPrev.style.display = 'none';
+    if (btnNext) btnNext.style.display = 'inline-flex';
+
+    const feeGroup = container.querySelector('#tourn-fee-amount-group');
+
     if (tourn) {
         titleEl.textContent = '✏️ Editar Torneo Gamer';
         container.querySelector('#tourn-id').value = tourn.id;
+        container.querySelector('#tourn-host').value = tourn.host_name || 'Burgame Gaming Arena';
         container.querySelector('#tourn-title').value = tourn.title || '';
+        container.querySelector('#tourn-slug').value = tourn.url_slug || tourn.id;
+        container.querySelector('#tourn-slug').dataset.autoGenerated = 'false';
+        container.querySelector('#tourn-notes').value = tourn.notes || tourn.rules || '';
+
         container.querySelector('#tourn-game').value = tourn.game || '';
-        container.querySelector('#tourn-date').value = tourn.date || '';
+        container.querySelector('#tourn-format').value = tourn.format || 'single_elim';
+        
+        // Tipo de etapa radio
+        const stageVal = tourn.stage_type || 'single_stage';
+        const stageRadio = container.querySelector(`input[name="tourn-stage-type"][value="${stageVal}"]`);
+        if (stageRadio) stageRadio.checked = true;
+
+        // 3er puesto checkbox
+        const thirdPlaceCb = container.querySelector('#tourn-include-third-place');
+        if (thirdPlaceCb) thirdPlaceCb.checked = tourn.include_third_place !== false;
+
+        // Registro abierto radio
+        const regVal = tourn.registration_open !== false ? 'public' : 'admin_only';
+        const regRadio = container.querySelector(`input[name="tourn-reg-open"][value="${regVal}"]`);
+        if (regRadio) regRadio.checked = true;
+
+        // Tarifa
+        const feeTypeSelect = container.querySelector('#tourn-fee-type');
+        if (feeTypeSelect) feeTypeSelect.value = tourn.registration_fee || 'free';
+        const feeAmtInput = container.querySelector('#tourn-fee-amount');
+        if (feeAmtInput) feeAmtInput.value = tourn.fee_amount || 0;
+        if (feeGroup) feeGroup.style.display = tourn.registration_fee === 'paid' ? 'block' : 'none';
+
+        // Modalidad & participantes
         container.querySelector('#tourn-modality').value = tourn.modality || '2v2';
-        container.querySelector('#tourn-status').value = tourn.status || 'active';
         container.querySelector('#tourn-participants').value = tourn.max_participants || tourn.participantsCount || 16;
+
+        // Fecha & hora
+        container.querySelector('#tourn-date').value = tourn.date || '';
+        container.querySelector('#tourn-time').value = tourn.start_time || '19:00';
+        const provCb = container.querySelector('#tourn-provisional-date');
+        if (provCb) provCb.checked = tourn.provisional_date === true;
+        const checkinCb = container.querySelector('#tourn-require-checkin');
+        if (checkinCb) checkinCb.checked = tourn.require_checkin !== false;
+
+        // Brackets
+        container.querySelector('#tourn-seeding-rule').value = tourn.seeding_rule || 'traditional';
+        const quickAdvCb = container.querySelector('#tourn-quick-advance');
+        if (quickAdvCb) quickAdvCb.checked = tourn.quick_advance === true;
+        const hidePrevCb = container.querySelector('#tourn-hide-preview');
+        if (hidePrevCb) hidePrevCb.checked = tourn.hide_bracket_preview === true;
+
+        container.querySelector('#tourn-status').value = tourn.status || 'active';
+
+        // Podio
         container.querySelector('#tourn-1st-name').value = tourn.firstPlace?.name || tourn.first_place?.name || '';
         container.querySelector('#tourn-1st-prize').value = tourn.firstPlace?.prize || tourn.first_place?.prize || '';
         container.querySelector('#tourn-2nd-name').value = tourn.secondPlace?.name || tourn.second_place?.name || '';
         container.querySelector('#tourn-2nd-prize').value = tourn.secondPlace?.prize || tourn.second_place?.prize || '';
         container.querySelector('#tourn-3rd-name').value = tourn.thirdPlace?.name || tourn.third_place?.name || '';
         container.querySelector('#tourn-3rd-prize').value = tourn.thirdPlace?.prize || tourn.third_place?.prize || '';
-        container.querySelector('#tourn-notes').value = tourn.notes || '';
     } else {
-        titleEl.textContent = '🏆 Nuevo Torneo Gamer';
+        titleEl.textContent = '🏆 Crear Torneo Gamer (Challonge Wizard)';
         container.querySelector('#tourn-id').value = '';
+        container.querySelector('#tourn-host').value = 'Burgame Gaming Arena';
+        container.querySelector('#tourn-title').value = '';
+        const randNum = Math.floor(1000 + Math.random() * 9000);
+        const slugEl = container.querySelector('#tourn-slug');
+        if (slugEl) {
+            slugEl.value = `copa-burgame-${randNum}`;
+            slugEl.dataset.autoGenerated = 'true';
+        }
+        container.querySelector('#tourn-notes').value = '';
+        container.querySelector('#tourn-game').value = '';
+        container.querySelector('#tourn-format').value = 'single_elim';
+        
+        const stageRadio = container.querySelector('input[name="tourn-stage-type"][value="single_stage"]');
+        if (stageRadio) stageRadio.checked = true;
+
+        const regRadio = container.querySelector('input[name="tourn-reg-open"][value="public"]');
+        if (regRadio) regRadio.checked = true;
+
         container.querySelector('#tourn-date').value = new Date().toISOString().split('T')[0];
-        container.querySelector('#tourn-1st-prize').value = 'Membresía Club Burgame 1 Mes';
+        container.querySelector('#tourn-time').value = '19:00';
         container.querySelector('#tourn-status').value = 'upcoming';
+        container.querySelector('#tourn-modality').value = '2v2';
+        container.querySelector('#tourn-participants').value = '16';
+        container.querySelector('#tourn-fee-type').value = 'free';
+        if (feeGroup) feeGroup.style.display = 'none';
+        container.querySelector('#tourn-include-third-place').checked = true;
+        container.querySelector('#tourn-require-checkin').checked = true;
+        container.querySelector('#tourn-seeding-rule').value = 'traditional';
+        container.querySelector('#tourn-quick-advance').checked = false;
+        container.querySelector('#tourn-hide-preview').checked = false;
+
+        container.querySelector('#tourn-1st-name').value = '';
+        container.querySelector('#tourn-1st-prize').value = 'Membresía Club Burgame 1 Mes + Combo Burger';
+        container.querySelector('#tourn-2nd-name').value = '';
+        container.querySelector('#tourn-2nd-prize').value = '2x Papas XL + Bebidas';
+        container.querySelector('#tourn-3rd-name').value = '';
+        container.querySelector('#tourn-3rd-prize').value = 'Cervezas Artesanales / Gaseosas';
     }
 
     modal.classList.remove('hidden');
