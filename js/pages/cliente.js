@@ -275,6 +275,39 @@ function setupEvents(appEl) {
             return;
         }
 
+        // ============================================================
+        // VERIFICACIÓN GEOFENCE GPS (Límite 250m del local)
+        // ============================================================
+        btn.innerHTML = '📍 COMPROBANDO UBICACIÓN...';
+        try {
+            const geoCheck = await qrAuthService.verifyGeofence();
+            if (geoCheck.supported && !geoCheck.inRange) {
+                isSubmittingOrder = false;
+                btn.disabled = false;
+                btn.style.opacity = '';
+                btn.innerHTML = originalText;
+
+                if (geoCheck.permissionDenied) {
+                    showToast({
+                        message: '📍 Por favor activa la ubicación en tu navegador para confirmar que estás en el local.',
+                        type: 'warning',
+                        duration: 6000
+                    });
+                } else {
+                    showToast({
+                        message: `⛔ ${geoCheck.error} Los autopedidos solo se permiten dentro de Burgame.`,
+                        type: 'error',
+                        duration: 7000
+                    });
+                }
+                return;
+            }
+        } catch (e) {
+            console.warn('Error en verificación de geocerca:', e);
+        }
+
+        btn.innerHTML = '⏳ ENVIANDO A COCINA...';
+
         let currentReg = null;
         try {
             currentReg = await cashService.getCurrentRegister();
@@ -473,7 +506,7 @@ function renderSessionBadge() {
     const minsLeft = Math.max(1, Math.round((session.expiresAt - Date.now()) / 60000));
     return `
         <div class="session-badge-bar">
-            <span>🛡️ <strong>SESIÓN EN LOCAL ACTIVA</strong></span>
+            <span>🛡️ <strong>SESIÓN ACTIVA</strong> · 📍 Geocerca 250m</span>
             <span>⏱️ Válida por ~${minsLeft} min</span>
         </div>
     `;

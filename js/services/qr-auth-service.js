@@ -186,5 +186,88 @@ export const qrAuthService = {
             url.searchParams.set('mesa', options.table);
         }
         return url.toString();
+    },
+
+    // ============================================================
+    // GEOFENCING GPS — Límite de radio para autopedidos
+    // ============================================================
+    BURGAME_COORDS: {
+        latitude: -25.28802865549245,
+        longitude: -57.591759482390025,
+        maxRadiusMeters: 250 // 250 metros de tolerancia alrededor del local
+    },
+
+    /**
+     * Calcula la distancia en metros entre dos coordenadas (fórmula de Haversine)
+     */
+    calculateDistanceInMeters(lat1, lon1, lat2, lon2) {
+        const R = 6371e3; // Radio de la Tierra en metros
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    },
+
+    /**
+     * Verifica si el dispositivo del cliente se encuentra físicamente dentro del rango del local
+     */
+    async verifyGeofence() {
+        if (!navigator.geolocation) {
+            return {
+                supported: false,
+                inRange: true, // Si el navegador no soporta GPS, permitimos continuar respaldado por el QR
+                error: null
+            };
+        }
+
+        return new Promise((resolve) => {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const userLat = position.coords.latitude;
+                    const userLng = position.coords.longitude;
+                    const distance = this.calculateDistanceInMeters(
+                        userLat,
+                        userLng,
+                        this.BURGAME_COORDS.latitude,
+                        this.BURGAME_COORDS.longitude
+                    );
+
+                    const distanceRounded = Math.round(distance);
+                    const inRange = distance <= this.BURGAME_COORDS.maxRadiusMeters;
+
+                    resolve({
+                        supported: true,
+                        inRange,
+                        distanceMeters: distanceRounded,
+                        userCoords: { latitude: userLat, longitude: userLng },
+                        error: inRange ? null : `Estás a ${distanceRounded >= 1000 ? (distanceRounded / 1000).toFixed(1) + ' km' : distanceRounded + ' metros'} del local.`
+                    });
+                },
+                (err) => {
+                    let msg = 'No se pudo obtener la ubicación GPS.';
+                    if (err.code === err.PERMISSION_DENIED) {
+                        msg = 'Permiso de ubicación denegado. Activa tu GPS para verificar que estás en el local.';
+                    } else if (err.code === err.TIMEOUT) {
+                        msg = 'Tiempo de espera de GPS agotado.';
+                    }
+                    resolve({
+                        supported: true,
+                        inRange: false,
+                        permissionDenied: err.code === err.PERMISSION_DENIED,
+                        error: msg
+                    });
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 7000,
+                    maximumAge: 30000
+                }
+            );
+        });
     }
 };
+

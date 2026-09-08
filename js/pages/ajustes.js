@@ -61,6 +61,10 @@ export async function renderAjustesPage() {
                             ⏳ Rota en: <strong id="ajustes-timer-label" style="color: var(--color-primary);">${Math.floor(creds.secondsRemaining / 60)}:${String(creds.secondsRemaining % 60).padStart(2, '0')} min</strong>
                         </div>
 
+                        <div style="font-size: 0.8rem; color: var(--text-muted);">
+                            📍 Geocerca GPS: <strong style="color: #00E676;">Activa</strong> (-25.2880, -57.5918) · Radio: <strong>250 metros</strong>
+                        </div>
+
                         <div style="display: flex; gap: 0.6rem; margin-top: 0.3rem;">
                             <a href="${customerUrl}" target="_blank" class="btn btn--secondary btn--sm">
                                 🔗 Probar Portal del Cliente
