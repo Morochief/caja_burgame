@@ -1,19 +1,366 @@
 /* ==========================================================================
-   GASTOS PAGE STYLES (SUPER SAIYAN UI)
+   GASTOS PAGE STYLES (ENTERPRISE GASTRONOMY EDITION)
    ========================================================================== */
 
-.gastos-layout {
-    display: grid;
-    grid-template-columns: 360px 1fr;
-    gap: 1.8rem;
+.gastos-page {
+    animation: fadeIn 0.25s ease-out;
+    padding-bottom: 2.5rem;
 }
 
-.gastos-layout .form-card h3,
-.gastos-layout .table-card h3 {
+/* --------------------------------------------------------------------------
+   Top KPIs Grid
+   -------------------------------------------------------------------------- */
+.gastos-kpis-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.gastos-kpi-card {
+    background: var(--bg-card, #111);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-lg, 10px);
+    padding: 1.1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.gastos-kpi-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 215, 0, 0.3);
+}
+
+.gastos-kpi-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 3px;
+    height: 100%;
+    background: var(--kpi-accent, var(--color-primary, #FFD700));
+}
+
+.gastos-kpi-card--shift { --kpi-accent: #FF5252; }
+.gastos-kpi-card--today { --kpi-accent: #FF9100; }
+.gastos-kpi-card--month { --kpi-accent: #00E5FF; }
+.gastos-kpi-card--topcat { --kpi-accent: #B388FF; }
+
+.gastos-kpi-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.gastos-kpi-title {
+    font-size: 0.72rem;
+    color: var(--text-muted, #8E9BAE);
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.gastos-kpi-icon {
+    font-size: 1.1rem;
+}
+
+.gastos-kpi-value {
+    font-family: var(--font-mono, monospace);
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: #FFF;
+    line-height: 1.1;
+}
+
+.gastos-kpi-card--shift .gastos-kpi-value { color: #FF5252; }
+.gastos-kpi-card--today .gastos-kpi-value { color: #FFB300; }
+.gastos-kpi-card--month .gastos-kpi-value { color: #00E5FF; }
+
+.gastos-kpi-sub {
+    font-size: 0.76rem;
+    color: var(--text-muted, #8E9BAE);
+}
+
+/* --------------------------------------------------------------------------
+   Period Filter Tabs
+   -------------------------------------------------------------------------- */
+.gastos-period-tabs {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+    background: var(--bg-card, #111);
+    padding: 0.35rem;
+    border-radius: var(--radius-md, 6px);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    width: fit-content;
+}
+
+.gastos-tab-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted, #8E9BAE);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.gastos-tab-btn:hover {
+    color: #FFF;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.gastos-tab-btn.active {
+    background: var(--color-primary, #FFD700);
+    color: #000;
+    font-weight: 800;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+/* --------------------------------------------------------------------------
+   Main Layout Grid
+   -------------------------------------------------------------------------- */
+.gastos-layout {
+    display: grid;
+    grid-template-columns: 390px 1fr;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+@media (max-width: 1024px) {
+    .gastos-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   Form Card (Left Column)
+   -------------------------------------------------------------------------- */
+.gastos-form-card {
+    background: var(--bg-card, #111);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-lg, 10px);
+    padding: 1.5rem;
+}
+
+.gastos-form-card h3 {
     font-family: var(--font-title);
-    font-size: 0.95rem;
-    color: var(--color-primary);
-    margin-bottom: 1.2rem;
+    font-size: 0.92rem;
+    color: var(--color-primary, #FFD700);
+    margin-bottom: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Quick 1-Click Presets */
+.gastos-presets-section {
+    margin-bottom: 1.25rem;
+}
+
+.gastos-presets-label {
+    display: block;
+    font-size: 0.74rem;
+    color: var(--text-muted, #8E9BAE);
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 0.45rem;
+}
+
+.gastos-presets-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.gastos-preset-btn {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #D1D5DB;
+    padding: 0.35rem 0.65rem;
+    border-radius: 6px;
+    font-size: 0.76rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.gastos-preset-btn:hover {
+    border-color: var(--color-primary, #FFD700);
+    color: var(--color-primary, #FFD700);
+    background: rgba(255, 215, 0, 0.08);
+    transform: translateY(-1px);
+}
+
+/* Payment Method Segmented Selector */
+.payment-selector {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.payment-radio-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 0.75rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+    background: rgba(255, 255, 255, 0.02);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.8rem;
+}
+
+.payment-radio-label input[type="radio"] {
+    accent-color: var(--color-primary, #FFD700);
+}
+
+.payment-radio-label.selected {
+    border-color: var(--color-primary, #FFD700);
+    background: rgba(255, 215, 0, 0.08);
+}
+
+/* Voucher Details Box */
+.voucher-details-box {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 0.85rem;
+    margin-bottom: 1rem;
+}
+
+.voucher-details-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--color-primary, #FFD700);
+    margin-bottom: 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+/* --------------------------------------------------------------------------
+   Category Analytics Widget (Right Column)
+   -------------------------------------------------------------------------- */
+.gastos-analytics-card {
+    background: var(--bg-card, #111);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-lg, 10px);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.gastos-analytics-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.85rem;
+}
+
+.gastos-analytics-header h4 {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--color-primary, #FFD700);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.gastos-cat-bars {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.85rem;
+}
+
+.gastos-cat-item {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    padding: 0.6rem 0.75rem;
+}
+
+.gastos-cat-item-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.76rem;
+    margin-bottom: 0.35rem;
+}
+
+.gastos-cat-progress-track {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.gastos-cat-progress-bar {
+    height: 100%;
+    background: var(--cat-color, #FFD700);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+/* --------------------------------------------------------------------------
+   Table Card & Toolbar
+   -------------------------------------------------------------------------- */
+.gastos-table-card {
+    background: var(--bg-card, #111);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-lg, 10px);
+    padding: 1.5rem;
+}
+
+.gastos-table-card h3 {
+    font-family: var(--font-title);
+    font-size: 0.92rem;
+    color: var(--color-primary, #FFD700);
+    margin-bottom: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.gastos-toolbar {
+    display: flex;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+    align-items: center;
+}
+
+.gastos-toolbar input,
+.gastos-toolbar select {
+    background: var(--bg-elevated, #161616);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+    color: #FFF;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    outline: none;
+}
+
+.gastos-toolbar input:focus,
+.gastos-toolbar select:focus {
+    border-color: var(--color-primary, #FFD700);
+    box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.2);
 }
 
 .table {
@@ -23,25 +370,112 @@
 }
 
 .table th {
-    background: var(--bg-elevated);
-    color: var(--color-primary);
+    background: var(--bg-elevated, #161616);
+    color: var(--color-primary, #FFD700);
     font-family: var(--font-title);
-    font-size: 0.75rem;
-    padding: 1rem;
-    border-bottom: 2px solid var(--border-subtle);
+    font-size: 0.72rem;
+    padding: 0.85rem 0.75rem;
+    border-bottom: 2px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+    white-space: nowrap;
 }
 
 .table td {
-    padding: 1rem;
-    border-bottom: 1px solid var(--border-subtle);
-    font-size: 0.95rem;
+    padding: 0.85rem 0.75rem;
+    border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+    font-size: 0.88rem;
+    vertical-align: middle;
 }
 
 .table tbody tr:hover {
     background: rgba(255, 255, 255, 0.02);
 }
 
-.text-red {
-    color: var(--color-danger);
+/* Badges for Table */
+.badge-cat {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    color: #E2E8F0;
+    white-space: nowrap;
+}
+
+.badge-payment {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.badge-payment--cash {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10B981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badge-payment--bank {
+    background: rgba(6, 182, 212, 0.15);
+    color: #06B6D4;
+    border: 1px solid rgba(6, 182, 212, 0.3);
+}
+
+.badge-voucher {
+    display: inline-block;
+    background: rgba(255, 215, 0, 0.1);
+    color: var(--color-primary, #FFD700);
+    border: 1px solid rgba(255, 215, 0, 0.25);
+    font-size: 0.68rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    margin-left: 0.35rem;
     font-family: var(--font-mono);
 }
+
+.supplier-text {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--text-muted, #8E9BAE);
+    margin-top: 0.15rem;
+}
+
+/* Actions in Table */
+.gastos-action-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-muted, #8E9BAE);
+    padding: 0.3rem 0.55rem;
+    border-radius: 4px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.gastos-action-btn:hover {
+    color: #FFF;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.gastos-action-btn--edit:hover {
+    color: var(--color-primary, #FFD700);
+    border-color: rgba(255, 215, 0, 0.3);
+}
+
+.gastos-action-btn--del:hover {
+    color: #FF5252;
+    border-color: rgba(255, 82, 82, 0.3);
+}
+
+.text-red {
+    color: #FF5252;
+    font-family: var(--font-mono);
+    font-weight: 700;
+}
+
