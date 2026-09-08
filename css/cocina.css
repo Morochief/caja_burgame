@@ -306,6 +306,395 @@
     padding: 0.4rem 0.8rem;
 }
 
+/* ==========================================================================
+   ZOOM & DENSIDAD DINÁMICA KDS (Smart TV vs Tablet de Mesada)
+   ========================================================================== */
+body[data-kds-zoom="compact"] {
+    --kds-card-min: 250px;
+    --kds-font-scale: 0.88;
+}
+
+body[data-kds-zoom="normal"] {
+    --kds-card-min: 300px;
+    --kds-font-scale: 1;
+}
+
+body[data-kds-zoom="large"] {
+    --kds-card-min: 370px;
+    --kds-font-scale: 1.15;
+}
+
+.cocina-live-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.65rem;
+    font-family: var(--font-mono);
+    color: #00E676;
+    font-weight: 700;
+    margin-top: 0.15rem;
+}
+
+.pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #00E676;
+    box-shadow: 0 0 8px #00E676;
+    animation: pulseGlow 1.5s infinite ease-in-out;
+}
+
+@keyframes pulseGlow {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.3); opacity: 0.6; }
+}
+
+/* Botones de Barra de Herramientas KDS */
+.kds-tool-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: #12141A;
+    border: 1px solid var(--border-subtle);
+    color: var(--text-muted);
+    padding: 0.45rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.kds-tool-btn:hover:not(:disabled) {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: rgba(255, 215, 0, 0.08);
+}
+
+.kds-tool-btn.active {
+    border-color: var(--border-gold);
+    color: var(--color-primary);
+    background: rgba(255, 215, 0, 0.12);
+}
+
+.kds-tool-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.kds-tool-btn--sm {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.75rem;
+}
+
+.kds-tool-btn--danger {
+    color: var(--color-danger);
+    border-color: rgba(255, 61, 113, 0.4);
+}
+
+.kds-tool-btn--danger:hover {
+    background: rgba(255, 61, 113, 0.15);
+    border-color: var(--color-danger);
+    color: #FFF;
+}
+
+.kds-audio-controls, .kds-zoom-group {
+    display: inline-flex;
+    gap: 0.25rem;
+}
+
+/* ==========================================================================
+   SUB-TOOLBAR: PESTAÑAS, FILTROS Y ORDENACIÓN
+   ========================================================================== */
+.kds-subtoolbar {
+    background: #08090C;
+    border-bottom: 2px solid #1A1D24;
+    padding: 0.6rem 1.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.kds-tabs {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.kds-tab-btn {
+    font-family: var(--font-title);
+    font-size: 0.72rem;
+    padding: 0.45rem 0.85rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-subtle);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.kds-tab-btn:hover {
+    color: #FFF;
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.kds-tab-btn.active {
+    background: var(--color-primary);
+    color: #000;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 10px var(--color-primary-glow);
+    font-weight: 800;
+}
+
+.kds-filters {
+    display: flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+
+.kds-filter-pill {
+    padding: 0.3rem 0.65rem;
+    font-size: 0.74rem;
+    font-weight: 700;
+    border-radius: 20px;
+    border: 1px solid var(--border-subtle);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.kds-filter-pill:hover {
+    color: #FFF;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.kds-filter-pill.active {
+    background: rgba(255, 215, 0, 0.15);
+    border-color: var(--border-gold);
+    color: var(--color-primary);
+}
+
+.kds-filter-pill--danger.active {
+    background: rgba(255, 61, 113, 0.2);
+    border-color: var(--color-danger);
+    color: var(--color-danger);
+}
+
+.kds-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.kds-search-box {
+    display: flex;
+    align-items: center;
+    background: #12141A;
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    gap: 0.35rem;
+}
+
+.kds-search-input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #FFF;
+    font-size: 0.78rem;
+    width: 170px;
+}
+
+.kds-search-input::placeholder {
+    color: var(--text-muted);
+}
+
+/* ==========================================================================
+   BARRA DE PRODUCCIÓN EN VIVO ("ALL DAY COUNT" / EN PLANCHA)
+   ========================================================================== */
+.kds-production-panel {
+    background: radial-gradient(circle at 10% 50%, rgba(255, 215, 0, 0.06) 0%, #060709 100%);
+    border-bottom: 1px solid var(--border-gold);
+    padding: 0.6rem 1.75rem;
+    transition: all 0.3s ease;
+}
+
+.kds-production-panel.collapsed .kds-production-chips {
+    display: none;
+}
+
+.kds-production-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.4rem;
+}
+
+.kds-production-title {
+    font-family: var(--font-title);
+    font-size: 0.72rem;
+    color: var(--color-primary);
+    letter-spacing: 0.5px;
+}
+
+.kds-btn-mini-collapse {
+    background: transparent;
+    border: 1px solid var(--border-subtle);
+    color: var(--text-muted);
+    font-size: 0.68rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.kds-btn-mini-collapse:hover {
+    color: #FFF;
+    border-color: #FFF;
+}
+
+.kds-production-chips {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+    scrollbar-width: thin;
+}
+
+.kds-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #111318;
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    white-space: nowrap;
+    box-shadow: 2px 2px 0px #000;
+}
+
+.kds-chip__qty {
+    background: var(--color-primary);
+    color: #000;
+    font-weight: 900;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+}
+
+.kds-chip__name {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #FFF;
+    text-transform: uppercase;
+}
+
+/* ==========================================================================
+   ITEM CHECKOFF & MODALIDAD EN TARJETAS KDS
+   ========================================================================== */
+.kds-item {
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border-radius: 4px;
+    padding: 0.35rem 0.45rem !important;
+}
+
+.kds-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.kds-item--checked {
+    opacity: 0.4;
+    background: rgba(0, 230, 118, 0.05);
+}
+
+.kds-item--checked .kds-item__name {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+
+.kds-item__check-box {
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    border: 1px solid var(--border-subtle);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 900;
+    flex-shrink: 0;
+    margin-right: 0.3rem;
+    color: transparent;
+    transition: all 0.2s ease;
+}
+
+.kds-item--checked .kds-item__check-box {
+    background: #00E676;
+    border-color: #00E676;
+    color: #000;
+}
+
+/* Badges de Modalidad (Salón vs Para Llevar vs Delivery) */
+.kds-badge-modalidad {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.kds-badge-modalidad--salon {
+    background: rgba(255, 215, 0, 0.15);
+    color: #FFD700;
+    border: 1px solid #FFD700;
+}
+
+.kds-badge-modalidad--takeaway {
+    background: rgba(0, 176, 255, 0.18);
+    color: #00b0ff;
+    border: 1px solid #00b0ff;
+    box-shadow: 0 0 8px rgba(0, 176, 255, 0.3);
+}
+
+.kds-badge-modalidad--delivery {
+    background: rgba(0, 230, 118, 0.18);
+    color: #00E676;
+    border: 1px solid #00E676;
+}
+
+/* Footer de Acciones KDS con Botón Revertir */
+.kds-card-footer-grid {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.kds-btn-undo-action {
+    background: #1B1D24 !important;
+    color: var(--text-muted) !important;
+    border: 1px solid var(--border-subtle) !important;
+    padding: 0.6rem 0.75rem !important;
+    font-size: 0.75rem !important;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.kds-btn-undo-action:hover {
+    color: #FFF !important;
+    border-color: #FFF !important;
+}
+
 /* Empty State */
 .cocina-empty {
     grid-column: 1 / -1;
@@ -337,23 +726,35 @@
    ========================================================================== */
 @media (max-width: 900px) {
     .cocina-header {
-        padding: 0.85rem 1rem;
+        padding: 0.75rem 1rem;
+    }
+    .kds-subtoolbar {
+        padding: 0.5rem 1rem;
     }
     .cocina-grid {
         padding: 1rem;
         grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
         gap: 1rem;
     }
+    .kds-tool-label {
+        display: none;
+    }
 }
 
 @media (max-width: 480px) {
     .cocina-header {
-        padding: 0.7rem 0.8rem;
-        gap: 0.6rem;
+        padding: 0.6rem 0.75rem;
+        gap: 0.5rem;
     }
     .cocina-header__title {
         font-size: 0.75rem;
         letter-spacing: 1px;
+    }
+    .kds-subtoolbar {
+        padding: 0.5rem 0.75rem;
+    }
+    .kds-search-input {
+        width: 120px;
     }
     .cocina-grid {
         grid-template-columns: 1fr;

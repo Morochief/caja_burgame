@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Burgame - Kitchen Display System</title>
+    <title>Burgame - Kitchen Display System (KDS Élite)</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,43 +21,128 @@
     <link rel="stylesheet" href="css/cocina.css">
     <link rel="stylesheet" href="css/chat.css">
 </head>
-<body class="cocina-body">
+<body class="cocina-body" data-kds-zoom="normal">
+    <!-- Header Principal KDS -->
     <header class="cocina-header">
         <div class="cocina-header__left">
             <img src="BurgameLogoTrazoAmarillo.png" alt="Burgame" class="cocina-header__logo-img">
-            <h1 class="cocina-header__title">BURGAME KITCHEN</h1>
+            <div>
+                <h1 class="cocina-header__title">BURGAME KDS</h1>
+                <div class="cocina-live-indicator">
+                    <span class="pulse-dot"></span>
+                    <span id="kds-connection-text">REALTIME ACTIVO</span>
+                </div>
+            </div>
         </div>
 
+        <!-- KPIs Operativos en Tiempo Real -->
+        <div class="cocina-header__stats">
+            <div class="cocina-stat" title="Comandas actualmente en preparación">
+                <span class="cocina-stat__number" id="active-count">0</span>
+                <span class="cocina-stat__label">En Marcha</span>
+            </div>
+            <div class="cocina-stat" title="Comandas listas en barra esperando retiro">
+                <span class="cocina-stat__number" id="ready-count" style="color: var(--color-success);">0</span>
+                <span class="cocina-stat__label">En Barra</span>
+            </div>
+            <div class="cocina-stat" title="Tiempo promedio de despacho hoy">
+                <span class="cocina-stat__number" id="avg-prep-time" style="color: #00b0ff;">--</span>
+                <span class="cocina-stat__label">T. Promedio</span>
+            </div>
+            <div class="cocina-stat" title="Comandas con más de 15 minutos">
+                <span class="cocina-stat__number" id="delayed-count" style="color: var(--color-danger);">0</span>
+                <span class="cocina-stat__label">Demorados</span>
+            </div>
+            <div class="cocina-stat" title="Total de productos preparados hoy">
+                <span class="cocina-stat__number" id="total-burgers-count" style="color: var(--color-primary);">0</span>
+                <span class="cocina-stat__label">Burgers Hoy</span>
+            </div>
+        </div>
+
+        <!-- Barra de Herramientas de Pantalla & Hardware -->
         <div class="cocina-header__right">
-            <div class="cocina-tabs" style="display: flex; gap: 0.5rem; margin-right: 1rem;">
-                <button id="tab-cocina-active" class="btn btn--sm btn--primary active" style="font-family: var(--font-title); font-size: 0.72rem; padding: 0.5rem 0.8rem;">
-                    🔥 ACTIVAS (<span id="active-tab-count">0</span>)
+            <!-- Botón Deshacer Último Despacho -->
+            <button id="btn-kds-undo" class="kds-tool-btn" title="Deshacer último estado (Recall comanda)" disabled>
+                ↩️ <span class="kds-tool-label">Deshacer</span>
+            </button>
+
+            <!-- Control de Audio Zelda -->
+            <div class="kds-audio-controls">
+                <button id="btn-kds-sound-toggle" class="kds-tool-btn active" title="Activar / Silenciar Alertas Sonoras">
+                    <span id="kds-sound-icon">🔊</span> <span class="kds-tool-label">Alerta</span>
                 </button>
-                <button id="tab-cocina-history" class="btn btn--sm btn--secondary" style="font-family: var(--font-title); font-size: 0.72rem; padding: 0.5rem 0.8rem; border-color: var(--border-subtle); color: var(--text-muted);">
-                    📜 ENTREGADOS HOY (<span id="history-tab-count">0</span>)
+                <button id="btn-kds-sound-test" class="kds-tool-btn kds-tool-btn--sm" title="Probar Sonido Zelda">
+                    🎵
                 </button>
             </div>
 
-            <div class="cocina-header__stats">
-                <div class="cocina-stat">
-                    <span class="cocina-stat__number" id="active-count">0</span>
-                    <span class="cocina-stat__label">En Marcha</span>
-                </div>
-                <div class="cocina-stat">
-                    <span class="cocina-stat__number" id="ready-count" style="color: var(--color-success);">0</span>
-                    <span class="cocina-stat__label">En Barra</span>
-                </div>
-                <div class="cocina-stat">
-                    <span class="cocina-stat__number" id="total-burgers-count" style="color: var(--color-primary);">0</span>
-                    <span class="cocina-stat__label">Burgers Hoy</span>
-                </div>
+            <!-- Zoom de Pantalla (Lejana vs Cercana) -->
+            <div class="kds-zoom-group">
+                <button id="btn-kds-zoom-out" class="kds-tool-btn kds-tool-btn--sm" title="Reducir tamaño (Más comandas)">A-</button>
+                <button id="btn-kds-zoom-in" class="kds-tool-btn kds-tool-btn--sm" title="Aumentar tamaño (Pantalla lejana)">A+</button>
             </div>
-            <button id="btn-kitchen-logout" class="btn btn--secondary" style="color: var(--color-danger); border-color: rgba(255, 61, 113, 0.4); padding: 0.5rem 0.9rem; font-size: 0.85rem;" title="Cerrar Sesión">
-                🚪 SALIR
+
+            <!-- Pantalla Completa (F11) -->
+            <button id="btn-kds-fullscreen" class="kds-tool-btn" title="Modo Pantalla Completa (F11)">
+                ⛶ <span class="kds-tool-label">TV</span>
+            </button>
+
+            <!-- Salir -->
+            <button id="btn-kitchen-logout" class="kds-tool-btn kds-tool-btn--danger" title="Cerrar Sesión">
+                🚪 <span class="kds-tool-label">Salir</span>
             </button>
         </div>
     </header>
 
+    <!-- Sub-Toolbar: Pestañas & Sub-filtros Operativos -->
+    <section class="kds-subtoolbar">
+        <div class="kds-tabs">
+            <button id="tab-cocina-active" class="kds-tab-btn active">
+                🔥 ACTIVAS (<span id="active-tab-count">0</span>)
+            </button>
+            <button id="tab-cocina-history" class="kds-tab-btn">
+                📜 ENTREGADOS HOY (<span id="history-tab-count">0</span>)
+            </button>
+        </div>
+
+        <!-- Filtros de Estado en Activas -->
+        <div class="kds-filters" id="kds-active-filters">
+            <button class="kds-filter-pill active" data-subfilter="all">Todas (<span id="sub-all-count">0</span>)</button>
+            <button class="kds-filter-pill" data-subfilter="ordered">⚡ Nuevos (<span id="sub-ordered-count">0</span>)</button>
+            <button class="kds-filter-pill" data-subfilter="preparing">🔥 En Plancha (<span id="sub-preparing-count">0</span>)</button>
+            <button class="kds-filter-pill" data-subfilter="ready">✅ En Barra (<span id="sub-ready-count">0</span>)</button>
+            <button class="kds-filter-pill kds-filter-pill--danger" data-subfilter="late">⚠️ Demorados >15m (<span id="sub-late-count">0</span>)</button>
+        </div>
+
+        <!-- Buscador / Ordenador -->
+        <div class="kds-toolbar-actions">
+            <div class="kds-search-box">
+                <span class="kds-search-icon">🔍</span>
+                <input type="text" id="kds-search-input" placeholder="Buscar #pedido o cliente..." class="kds-search-input">
+            </div>
+            <button id="btn-kds-sort" class="kds-tool-btn kds-tool-btn--sm" title="Cambiar ordenación">
+                <span id="kds-sort-label">⏱️ Antiguos primero</span>
+            </button>
+        </div>
+    </section>
+
+    <!-- Barra de Producción Agregada ("All Day Count" / En Plancha Ahora) -->
+    <section class="kds-production-panel" id="kds-production-panel">
+        <div class="kds-production-header">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 1.1rem;">🔥</span>
+                <span class="kds-production-title">EN PLANCHA AHORA MISMO (SUMA TOTAL PENDIENTE):</span>
+            </div>
+            <button id="btn-toggle-production-bar" class="kds-btn-mini-collapse" title="Ocultar / Mostrar Barra de Plancha">
+                ▲ Ocultar
+            </button>
+        </div>
+        <div class="kds-production-chips" id="kds-production-chips">
+            <!-- Chips de items agregados generados dinámicamente -->
+        </div>
+    </section>
+
+    <!-- Main Grid de Comandas -->
     <main class="cocina-main">
         <div class="cocina-grid" id="cocina-grid">
             <!-- Renderizado dinámico de tarjetas KDS -->
