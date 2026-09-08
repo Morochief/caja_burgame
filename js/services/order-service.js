@@ -204,8 +204,21 @@ export async function getOrdersByDateRange(from, to) {
     return data;
 }
 
-export async function cancelOrder(orderId) {
-    return updateStatus(orderId, 'cancelled');
+export async function cancelOrder(orderId, cancelReason = '') {
+    const updateData = { 
+        status: 'cancelled',
+        cancelled_at: new Date().toISOString()
+    };
+    if (cancelReason && cancelReason.trim()) {
+        try {
+            const { data: cur } = await supabase.from('orders').select('notes').eq('id', orderId).maybeSingle();
+            const prevNotes = cur?.notes ? cur.notes + ' | ' : '';
+            updateData.notes = `${prevNotes}[CANCELADO: ${cancelReason.trim()}]`;
+        } catch { /* proceed with basic cancellation */ }
+    }
+    const { data, error } = await supabase.from('orders').update(updateData).eq('id', orderId).select().single();
+    if (error) throw error;
+    return data;
 }
 
 // Registry de canales realtime para limpiarlos al cambiar de página
