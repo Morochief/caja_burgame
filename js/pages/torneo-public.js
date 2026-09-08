@@ -428,36 +428,131 @@ function renderBracketsTreeHtml() {
             <div style="text-align: center; padding: 3rem 1rem; color: var(--text-muted); width: 100%;">
                 <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">⚔️</div>
                 <h4 style="color: #FFF; margin-bottom: 0.25rem;">Cuadro en fase de sorteo</h4>
-                <p style="font-size: 0.85rem;">Las llaves oficiales se publicarán una vez cerradas las inscripciones.</p>
+                <p style="font-size: 0.85rem;">Las llaves oficiales se publicarán una vez confirmados los equipos.</p>
             </div>
         `;
     }
 
-    // Agrupar partidos por round_index
+    // Separar partidos principales del 3er puesto
+    const mainMatches = _matches.filter(m => !m.is_third_place);
+    const thirdPlaceMatch = _matches.find(m => m.is_third_place);
+
     const roundsMap = {};
-    _matches.forEach(m => {
+    mainMatches.forEach(m => {
         if (!roundsMap[m.round_index]) roundsMap[m.round_index] = [];
         roundsMap[m.round_index].push(m);
     });
 
     const roundIndexes = Object.keys(roundsMap).map(Number).sort((a, b) => a - b);
+    const totalRounds = roundIndexes.length;
 
-    return roundIndexes.map(rIdx => {
+    let columnsHtml = roundIndexes.map((rIdx) => {
         const matchesInRound = roundsMap[rIdx].sort((a, b) => a.match_index - b.match_index);
-        const roundTitle = matchesInRound[0]?.round_name || `Ronda ${rIdx}`;
+        const roundTitle = matchesInRound[0]?.round_name || (rIdx === totalRounds ? 'Gran Final' : rIdx === totalRounds - 1 ? 'Semifinales' : 'Cuartos de Final');
+        const isFinalRound = rIdx === totalRounds;
+
+        let pairsHtml = '';
+
+        if (!isFinalRound) {
+            // Agrupar en pares para trazar las ramas estilo Challonge
+            for (let i = 0; i < matchesInRound.length; i += 2) {
+                const mTop = matchesInRound[i];
+                const mBottom = matchesInRound[i + 1] || null;
+
+                const topWon = mTop?.status === 'completed' && mTop.winner_id;
+                const bottomWon = mBottom?.status === 'completed' && mBottom.winner_id;
+
+                let winnerBranchClass = '';
+                if (topWon) winnerBranchClass = 'bracket-fork--winner-top';
+                else if (bottomWon) winnerBranchClass = 'bracket-fork--winner-bottom';
+
+                pairsHtml += `
+                    <div class="bracket-pair">
+                        <div class="bracket-match-slot bracket-match-slot--top">
+                            ${renderMatchCardHtml(mTop)}
+                        </div>
+                        ${mBottom ? `
+                            <div class="bracket-match-slot bracket-match-slot--bottom">
+                                ${renderMatchCardHtml(mBottom)}
+                            </div>
+                            <div class="bracket-fork ${winnerBranchClass}">
+                                <div class="bracket-fork-arm-top"></div>
+                                <div class="bracket-fork-vertical"></div>
+                                <div class="bracket-fork-arm-bottom"></div>
+                                <div class="bracket-fork-stem"></div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+        } else {
+            // Gran Final (Single Match + Branch al Campeón)
+            const finalMatch = matchesInRound[0];
+            pairsHtml = `
+                <div class="bracket-pair bracket-pair--single">
+                    <div class="bracket-match-slot">
+                        ${renderMatchCardHtml(finalMatch)}
+                    </div>
+                    <div class="bracket-single-stem"></div>
+                </div>
+            `;
+
+            if (thirdPlaceMatch) {
+                pairsHtml += `
+                    <div class="third-place-container">
+                        <div class="third-place-title">🥉 3er Puesto (Bronce)</div>
+                        <div class="bracket-match-slot">
+                            ${renderMatchCardHtml(thirdPlaceMatch)}
+                        </div>
+                    </div>
+                `;
+            }
+        }
 
         return `
             <div class="bracket-round-column">
-                <div class="bracket-round-header">${roundTitle}</div>
-                <div class="bracket-round-matches">
-                    ${matchesInRound.map(m => renderMatchCardHtml(m)).join('')}
+                <div class="bracket-round-header">
+                    <span>${rIdx === totalRounds ? '👑' : '⚔️'}</span>
+                    <span>${roundTitle}</span>
+                </div>
+                <div class="bracket-pairs-list">
+                    ${pairsHtml}
                 </div>
             </div>
         `;
     }).join('');
+
+    // Columna del Campeón
+    const finalMatch = mainMatches.find(m => m.round_index === totalRounds);
+    const champ = _tournament.first_place?.name 
+        ? _tournament.first_place 
+        : (finalMatch?.winner_id ? _participants.find(p => p.id === finalMatch.winner_id) : null);
+
+    const champName = champ ? (champ.team_name || champ.name) : 'Por Definir';
+    const isChampDefined = !!champ;
+    const champPrize = _tournament.first_place?.prize || _tournament.prize_pool?.first || 'Membresía Club Burgame VIP';
+
+    columnsHtml += `
+        <div class="bracket-round-column bracket-round-column--champion">
+            <div class="bracket-round-header" style="background: linear-gradient(135deg, rgba(255,215,0,0.2) 0%, rgba(255,165,0,0.2) 100%); border-color: #FFD700; color: #FFD700;">
+                <span>🏆</span>
+                <span>CAMPEÓN BURGAME</span>
+            </div>
+            <div class="champion-podium-card">
+                <div class="champion-trophy-icon">🏆</div>
+                <div class="champion-badge-top">${isChampDefined ? '1º PUESTO OFICIAL' : 'EN DISPUTA'}</div>
+                <div class="champion-team-name">${champName}</div>
+                <div class="champion-prize-tag">${champPrize}</div>
+            </div>
+        </div>
+    `;
+
+    return columnsHtml;
 }
 
 function renderMatchCardHtml(match) {
+    if (!match) return '';
+
     const p1 = _participants.find(p => p.id === match.participant1_id);
     const p2 = _participants.find(p => p.id === match.participant2_id);
 
@@ -467,26 +562,35 @@ function renderMatchCardHtml(match) {
     const p1Name = p1 ? p1.team_name : (match.round_index === 1 ? 'BYE (Pase libre)' : 'Por definir');
     const p2Name = p2 ? p2.team_name : (match.round_index === 1 ? 'BYE (Pase libre)' : 'Por definir');
 
-    const p1Winner = isCompleted && match.winner_id === match.participant1_id;
-    const p2Winner = isCompleted && match.winner_id === match.participant2_id;
+    const p1Won = isCompleted && match.winner_id === match.participant1_id;
+    const p2Won = isCompleted && match.winner_id === match.participant2_id;
+
+    const statusText = isCompleted ? 'Finalizado' : isLive ? '🔥 EN VIVO' : 'Por Jugar';
+    const statusClass = isCompleted ? 'completed' : isLive ? 'in_progress' : 'pending';
 
     return `
         <div class="match-card ${isCompleted ? 'match-card--completed' : ''} ${isLive ? 'match-card--in_progress' : ''}">
-            <div class="match-header">
-                <span>Partida #${(match.match_index || 0) + 1}</span>
-                <span>${isCompleted ? 'Finalizado' : isLive ? '🔥 EN JUEGO' : 'Pendiente'}</span>
+            <div class="match-card-header">
+                <span class="match-card-num">PARTIDA #${(match.match_index || 0) + 1}</span>
+                <span class="match-card-status match-card-status--${statusClass}">${statusText}</span>
             </div>
 
             <!-- Equipo 1 -->
-            <div class="match-team ${p1Winner ? 'match-team--winner' : (isCompleted && !p1Winner ? 'match-team--loser' : '')}">
-                <span class="match-team-name ${!p1 ? 'match-team-name--empty' : ''}">${p1Name}</span>
-                <span class="match-team-score">${match.score1 ?? 0}</span>
+            <div class="match-slot-row ${p1Won ? 'match-slot-row--winner' : (isCompleted && !p1Won ? 'match-slot-row--loser' : '')}">
+                <div class="match-slot-left">
+                    <span class="match-slot-seed">#${p1 ? (p1.seed || '1') : '-'}</span>
+                    <span class="match-slot-name ${!p1 ? 'match-slot-name--empty' : ''}">${p1Name}</span>
+                </div>
+                <span class="match-slot-score">${match.score1 ?? 0}</span>
             </div>
 
             <!-- Equipo 2 -->
-            <div class="match-team ${p2Winner ? 'match-team--winner' : (isCompleted && !p2Winner ? 'match-team--loser' : '')}">
-                <span class="match-team-name ${!p2 ? 'match-team-name--empty' : ''}">${p2Name}</span>
-                <span class="match-team-score">${match.score2 ?? 0}</span>
+            <div class="match-slot-row ${p2Won ? 'match-slot-row--winner' : (isCompleted && !p2Won ? 'match-slot-row--loser' : '')}">
+                <div class="match-slot-left">
+                    <span class="match-slot-seed">#${p2 ? (p2.seed || '2') : '-'}</span>
+                    <span class="match-slot-name ${!p2 ? 'match-slot-name--empty' : ''}">${p2Name}</span>
+                </div>
+                <span class="match-slot-score">${match.score2 ?? 0}</span>
             </div>
         </div>
     `;

@@ -1,0 +1,455 @@
+/* ==========================================================================
+   BURGAME TOURNAMENT BRACKETS ENGINE — CHALLONGE & ESPORTS GRADE
+   Árbol visual interactivo con conectores de bifurcación reales,
+   rutas de ganadores iluminadas (neon green/gold), y podio de campeón.
+   ========================================================================== */
+
+/* Contenedor del Viewport */
+.brackets-viewport {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 1.5rem 1rem 2.5rem 1rem;
+    box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+    background: radial-gradient(circle at 50% 50%, rgba(20, 24, 35, 0.9) 0%, rgba(8, 9, 12, 0.98) 100%);
+    border: 1px solid var(--border-subtle, #2C2F3E);
+    border-radius: 12px;
+    box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.8);
+    position: relative;
+}
+
+/* Árbol completo */
+.brackets-tree-container {
+    display: flex;
+    align-items: stretch;
+    min-width: max-content;
+    padding: 0 1rem;
+}
+
+/* Columna de Ronda */
+.bracket-round-column {
+    display: flex;
+    flex-direction: column;
+    width: 270px;
+    min-width: 270px;
+    position: relative;
+}
+
+.bracket-round-header {
+    text-align: center;
+    padding: 0.65rem 0.85rem;
+    background: linear-gradient(180deg, rgba(26, 29, 40, 0.9) 0%, rgba(16, 18, 25, 0.9) 100%);
+    border: 1px solid var(--border-subtle, #2C2F3E);
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: var(--color-primary, #FFD700);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+}
+
+/* Lista de pares de partidos dentro de la ronda */
+.bracket-pairs-list {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    flex-grow: 1;
+    height: 100%;
+}
+
+/* Par de partidos (Match Top + Match Bottom) que confluyen en 1 partido siguiente */
+.bracket-pair {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+    padding-right: 48px; /* Espacio para el conector de horquilla */
+    flex: 1;
+    min-height: 240px;
+    margin: 0.75rem 0;
+}
+
+.bracket-pair--single {
+    padding-right: 48px;
+    justify-content: center;
+    min-height: 240px;
+}
+
+/* Slots superior e inferior */
+.bracket-match-slot {
+    position: relative;
+    z-index: 2;
+}
+
+.bracket-match-slot--top {
+    margin-bottom: 1.25rem;
+}
+
+.bracket-match-slot--bottom {
+    margin-top: 1.25rem;
+}
+
+/* ==========================================================================
+   CONECTORES DE RAMAS / BIFURCACIÓN ESTILO CHALLONGE (HORIZONTAL + VERTICAL)
+   ========================================================================== */
+
+.bracket-fork {
+    position: absolute;
+    right: 0;
+    top: 52px; /* Centro del primer match slot (~104px / 2) */
+    bottom: 52px; /* Centro del segundo match slot */
+    width: 48px;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Brazo horizontal saliendo del match superior */
+.bracket-fork-arm-top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 24px;
+    height: 2px;
+    background: #383D52;
+    transition: all 0.3s ease;
+}
+
+/* Brazo horizontal saliendo del match inferior */
+.bracket-fork-arm-bottom {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 24px;
+    height: 2px;
+    background: #383D52;
+    transition: all 0.3s ease;
+}
+
+/* Barra vertical que une ambos brazos */
+.bracket-fork-vertical {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 24px;
+    width: 2px;
+    background: #383D52;
+    transition: all 0.3s ease;
+}
+
+/* Tallo horizontal que avanza hacia el partido siguiente */
+.bracket-fork-stem {
+    position: absolute;
+    top: calc(50% - 1px);
+    left: 24px;
+    width: 24px;
+    height: 2px;
+    background: #383D52;
+    transition: all 0.3s ease;
+}
+
+/* Tallo para partido individual (Gran Final a Campeón) */
+.bracket-single-stem {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    width: 48px;
+    height: 2px;
+    background: var(--border-gold, #FFD700);
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+    z-index: 1;
+}
+
+/* ILUMINACIÓN DE RUTA DE GANADOR (LASER / NEON GLOW) */
+.bracket-fork--winner-top .bracket-fork-arm-top,
+.bracket-fork--winner-top .bracket-fork-stem {
+    background: #00E676;
+    box-shadow: 0 0 8px #00E676;
+}
+
+.bracket-fork--winner-bottom .bracket-fork-arm-bottom,
+.bracket-fork--winner-bottom .bracket-fork-stem {
+    background: #00E676;
+    box-shadow: 0 0 8px #00E676;
+}
+
+/* ==========================================================================
+   TARJETA DE PARTIDO (ESPORTS MATCH CARD)
+   ========================================================================== */
+
+.match-card {
+    background: linear-gradient(135deg, #13151D 0%, #0E1017 100%);
+    border: 1px solid var(--border-subtle, #2C2F3E);
+    border-radius: 8px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    width: 100%;
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+}
+
+.match-card:hover {
+    border-color: rgba(255, 215, 0, 0.4);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7);
+}
+
+.match-card--completed {
+    border-color: rgba(255, 215, 0, 0.25);
+}
+
+.match-card--in_progress {
+    border-color: #00E676;
+    box-shadow: 0 0 14px rgba(0, 230, 118, 0.35);
+    animation: matchPulse 2s infinite ease-in-out;
+}
+
+@keyframes matchPulse {
+    0%, 100% { border-color: rgba(0, 230, 118, 0.4); box-shadow: 0 0 10px rgba(0, 230, 118, 0.2); }
+    50% { border-color: #00E676; box-shadow: 0 0 18px rgba(0, 230, 118, 0.6); }
+}
+
+/* Header de la tarjeta */
+.match-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.3rem 0.6rem;
+    background: rgba(0, 0, 0, 0.45);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 0.68rem;
+    color: var(--text-muted, #8E94A8);
+}
+
+.match-card-num {
+    font-family: var(--font-mono, monospace);
+    font-weight: 700;
+}
+
+.match-card-status {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+}
+
+.match-card-status--completed {
+    color: #00E676;
+    background: rgba(0, 230, 118, 0.1);
+}
+
+.match-card-status--in_progress {
+    color: #FF5252;
+    background: rgba(255, 82, 82, 0.15);
+    animation: liveBlink 1.2s infinite ease-in-out;
+}
+
+@keyframes liveBlink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.match-card-status--pending {
+    color: var(--text-muted);
+}
+
+/* Fila de Equipo / Jugador */
+.match-slot-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.65rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    transition: all 0.15s ease;
+    gap: 0.5rem;
+}
+
+.match-slot-row:last-child {
+    border-bottom: none;
+}
+
+.match-slot-row--winner {
+    background: linear-gradient(90deg, rgba(0, 230, 118, 0.14) 0%, rgba(19, 21, 29, 0) 100%);
+    border-left: 3px solid #00E676;
+}
+
+.match-slot-row--loser {
+    opacity: 0.45;
+}
+
+.match-slot-left {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-width: 0;
+    flex-grow: 1;
+}
+
+.match-slot-seed {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: var(--color-primary);
+    background: rgba(255, 215, 0, 0.12);
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.match-slot-name {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #FFF;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.match-slot-name--empty {
+    color: var(--text-muted);
+    font-style: italic;
+    font-weight: 400;
+}
+
+.match-slot-score {
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    font-weight: 800;
+    padding: 0.15rem 0.5rem;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    color: var(--color-primary);
+    min-width: 22px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.match-slot-row--winner .match-slot-score {
+    background: #00E676;
+    color: #000;
+    border-color: #00E676;
+    box-shadow: 0 0 8px rgba(0, 230, 118, 0.4);
+}
+
+/* Barra inferior táctil para Administradores */
+.match-card-admin-action {
+    background: rgba(255, 215, 0, 0.08);
+    border-top: 1px solid rgba(255, 215, 0, 0.2);
+    padding: 0.25rem 0.5rem;
+    text-align: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.match-card-admin-action:hover {
+    background: var(--color-primary);
+    color: #000;
+}
+
+/* ==========================================================================
+   COLUMNA & PODIO DEL CAMPEÓN (GOLDEN TROPHY SHOWCASE)
+   ========================================================================== */
+
+.bracket-round-column--champion {
+    width: 280px;
+    min-width: 280px;
+    display: flex;
+    flex-direction: column;
+}
+
+.champion-podium-card {
+    margin: auto 0;
+    background: linear-gradient(135deg, rgba(35, 30, 15, 0.9) 0%, rgba(18, 16, 10, 0.95) 100%);
+    border: 2px solid var(--color-primary, #FFD700);
+    border-radius: 12px;
+    padding: 1.5rem 1rem;
+    text-align: center;
+    box-shadow: 0 0 35px rgba(255, 215, 0, 0.3), inset 0 0 20px rgba(255, 215, 0, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+.champion-podium-card::before {
+    content: '';
+    position: absolute;
+    top: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 120px;
+    background: radial-gradient(circle, rgba(255, 215, 0, 0.25) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.champion-trophy-icon {
+    font-size: 3.2rem;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+    filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.7));
+    animation: trophyFloat 3s infinite ease-in-out;
+}
+
+@keyframes trophyFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+
+.champion-badge-top {
+    font-size: 0.68rem;
+    font-weight: 900;
+    color: var(--color-primary);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 0.35rem;
+}
+
+.champion-team-name {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: #FFF;
+    margin: 0.2rem 0 0.5rem 0;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+}
+
+.champion-prize-tag {
+    background: rgba(255, 215, 0, 0.15);
+    border: 1px solid var(--border-gold);
+    color: var(--color-primary);
+    padding: 0.3rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    display: inline-block;
+    margin-bottom: 1rem;
+}
+
+/* Partido por el 3er Puesto */
+.third-place-container {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px dashed var(--border-subtle);
+}
+
+.third-place-title {
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: #FF9800;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
