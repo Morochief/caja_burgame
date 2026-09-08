@@ -150,3 +150,94 @@
   border-color: var(--color-primary);
 }
 
+/* Tabs de navegación interna de Reportes */
+.report-view-tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 2px solid var(--border-subtle);
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.2rem;
+}
+
+.report-view-tab {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-title);
+  font-size: 0.8rem;
+  padding: 0.6rem 1.2rem;
+  cursor: pointer;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.report-view-tab:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.report-view-tab.active {
+  color: var(--color-primary);
+  border-bottom: 3px solid var(--color-primary);
+  font-weight: 800;
+  background: rgba(255, 215, 0, 0.05);
+}
+
+/* Auditoría de Ventas (Estilo Comprobantes Desglosados) */
+.audit-ticket-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  margin-bottom: 1rem;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+
+.audit-ticket-card:hover {
+  border-color: var(--border-gold);
+}
+
+.audit-ticket-header {
+  background: var(--bg-elevated);
+  padding: 0.8rem 1.2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.audit-ticket-body {
+  padding: 0.8rem 1.2rem;
+}
+
+.audit-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.audit-items-table th {
+  text-align: left;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.audit-items-table td {
+  padding: 0.5rem 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.audit-items-table tr:last-child td {
+  border-bottom: none;
+}
+
+

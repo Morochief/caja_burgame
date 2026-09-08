@@ -17,6 +17,9 @@ const REPORT_PAGE_SIZE = 8;
 // Cache analítica completa del período actual
 let cachedAnalytics = null;
 
+let currentSubTab = 'overview'; // 'overview' | 'audit'
+let auditSearch = '';
+
 export async function renderReportesPage() {
     const container = document.createElement('div');
     container.className = 'reportes-page';
@@ -40,7 +43,7 @@ export async function renderReportesPage() {
         <div class="reportes-export-bar">
             <div class="reportes-export-info">
                 <h4>📥 EXPORTAR REPORTE COMPLETO A EXCEL</h4>
-                <p>Descarga un libro de 4 hojas (Resumen, Ventas, Productos y Gastos) de cualquier día o rango.</p>
+                <p>Descarga un libro de 4 hojas (Resumen, Ventas con desglose de artículos, Productos y Gastos) de cualquier día o rango.</p>
             </div>
             <div class="reportes-export-actions">
                 <div id="retro-date-container" style="display: inline-flex; align-items: center; gap: 0.5rem;">
@@ -51,6 +54,16 @@ export async function renderReportesPage() {
                     📥 Descargar Excel
                 </button>
             </div>
+        </div>
+
+        <!-- Sub-Tabs de visualización en pantalla -->
+        <div class="report-view-tabs">
+            <button class="report-view-tab ${currentSubTab === 'overview' ? 'active' : ''}" data-tab="overview">
+                📊 RESUMEN Y RANKING DE PRODUCTOS
+            </button>
+            <button class="report-view-tab ${currentSubTab === 'audit' ? 'active' : ''}" data-tab="audit">
+                🧾 AUDITORÍA DE VENTAS (TICKETS Y ARTÍCULOS)
+            </button>
         </div>
 
         <div id="reportes-body" style="margin-top: 1rem;">
@@ -97,6 +110,16 @@ function setupEvents(container) {
             }
 
             loadReportData(container);
+        });
+    });
+
+    // Sub-Tabs
+    container.querySelectorAll('.report-view-tab').forEach(tabBtn => {
+        tabBtn.addEventListener('click', () => {
+            currentSubTab = tabBtn.dataset.tab;
+            container.querySelectorAll('.report-view-tab').forEach(t => t.classList.remove('active'));
+            tabBtn.classList.add('active');
+            renderReport(container);
         });
     });
 
@@ -180,7 +203,7 @@ async function loadReportData(container) {
 }
 
 // ============================================================
-// Render del reporte completo (usa cachedAnalytics)
+// Render del reporte según el Sub-Tab activo
 // ============================================================
 function renderReport(container) {
     const body = container.querySelector('#reportes-body');
@@ -198,7 +221,44 @@ function renderReport(container) {
         payments
     } = cachedAnalytics;
 
-    // Aplicar filtro por método de pago a las órdenes en memoria
+    const totalIva = Math.round(totalSales / 11);
+    const totalSubtotal = totalSales - totalIva;
+
+    // Header común de KPIs Financieros y Fiscales
+    const kpiHtml = `
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+            <div class="card" style="border-left: 4px solid var(--color-primary);">
+                <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">💰 Facturación Total</span>
+                <h2 style="color: var(--color-primary); margin-top: 0.4rem; font-size: 1.4rem;">${formatGs(totalSales)}</h2>
+                <span style="font-size: 0.72rem; color: var(--text-muted);">${orderCount} pedidos cobrados</span>
+            </div>
+            <div class="card" style="border-left: 4px solid #29B6F6;">
+                <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">📑 Liquidación IVA 10%</span>
+                <h2 style="color: #29B6F6; margin-top: 0.4rem; font-size: 1.4rem;">${formatGs(totalIva)}</h2>
+                <span style="font-size: 0.72rem; color: var(--text-muted);">Subtotal: ${formatGs(totalSubtotal)}</span>
+            </div>
+            <div class="card" style="border-left: 4px solid #FF3D71;">
+                <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">💸 Gastos Totales</span>
+                <h2 style="color: #FF3D71; margin-top: 0.4rem; font-size: 1.4rem;">${formatGs(totalExpenses)}</h2>
+                <span style="font-size: 0.72rem; color: var(--text-muted);">${expenses.length} egresos</span>
+            </div>
+            <div class="card" style="border-left: 4px solid #00E676;">
+                <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">📈 Margen Neto</span>
+                <h2 style="color: #00E676; margin-top: 0.4rem; font-size: 1.4rem;">${formatGs(netProfit)}</h2>
+                <span style="font-size: 0.72rem; color: #00E676; font-weight: 700;">Rentabilidad: ${profitMargin}%</span>
+            </div>
+        </div>
+    `;
+
+    if (currentSubTab === 'audit') {
+        renderAuditView(body, kpiHtml, paidOrders);
+    } else {
+        renderOverviewView(body, kpiHtml, paidOrders, payments);
+    }
+}
+
+// Vista 1: Resumen General y Ranking de Productos
+function renderOverviewView(body, kpiHtml, paidOrders, payments) {
     let filteredOrders = paidOrders;
     if (reportFilter.payment !== 'all') {
         filteredOrders = paidOrders.filter(o =>
@@ -206,7 +266,6 @@ function renderReport(container) {
         );
     }
 
-    // Conteo de Productos más Vendidos
     const productStats = {};
     filteredOrders.forEach(order => {
         (order.order_items || []).forEach(item => {
@@ -240,33 +299,9 @@ function renderReport(container) {
     const start = (reportPage - 1) * REPORT_PAGE_SIZE;
     const pageProducts = sortedProducts.slice(start, start + REPORT_PAGE_SIZE);
 
-    // Renderizar Interfaz
     body.innerHTML = `
-        <!-- Tarjetas KPI -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-            <div class="card" style="border-left: 4px solid var(--color-primary);">
-                <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">💰 Ventas Totales</span>
-                <h2 style="color: var(--color-primary); margin-top: 0.4rem; font-size: 1.5rem;">${formatGs(totalSales)}</h2>
-                <span style="font-size: 0.75rem; color: var(--text-muted);">${orderCount} pedidos cobrados</span>
-            </div>
-            <div class="card" style="border-left: 4px solid #FF3D71;">
-                <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">💸 Gastos Totales</span>
-                <h2 style="color: #FF3D71; margin-top: 0.4rem; font-size: 1.5rem;">${formatGs(totalExpenses)}</h2>
-                <span style="font-size: 0.75rem; color: var(--text-muted);">${expenses.length} gastos cargados</span>
-            </div>
-            <div class="card" style="border-left: 4px solid #00E676;">
-                <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">📈 Margen Neto</span>
-                <h2 style="color: #00E676; margin-top: 0.4rem; font-size: 1.5rem;">${formatGs(netProfit)}</h2>
-                <span style="font-size: 0.75rem; color: #00E676; font-weight: 700;">Rentabilidad: ${profitMargin}%</span>
-            </div>
-            <div class="card" style="border-left: 4px solid #29B6F6;">
-                <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">🍔 Ticket Promedio</span>
-                <h2 style="color: #29B6F6; margin-top: 0.4rem; font-size: 1.5rem;">${formatGs(avgTicket)}</h2>
-                <span style="font-size: 0.75rem; color: var(--text-muted);">Por orden cobrada</span>
-            </div>
-        </div>
+        ${kpiHtml}
 
-        <!-- Grilla Principal de Análisis -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
             <!-- Ranking de Productos Más Vendidos -->
             <div class="card">
@@ -274,7 +309,6 @@ function renderReport(container) {
                     🏆 Ranking Productos Más Vendidos
                 </h3>
 
-                <!-- Toolbar del ranking -->
                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem;">
                     <input type="text" id="report-search" placeholder="🔍 Buscar producto..." value="${reportFilter.search}" style="flex: 1; min-width: 120px;">
                     <select id="report-sort" style="min-width: 130px;">
@@ -303,7 +337,6 @@ function renderReport(container) {
                         `).join('')}
                     </div>
 
-                    <!-- Paginación -->
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; flex-wrap: wrap; gap: 0.5rem;">
                         <span style="font-size: 0.85rem; color: var(--text-muted);">
                             ${sortedProducts.length} producto(s) · Página ${reportPage} de ${totalPages}
@@ -354,39 +387,176 @@ function renderReport(container) {
         </div>
     `;
 
-    bindReportToolbar(container);
+    bindReportToolbar(body);
 }
 
-function bindReportToolbar(container) {
+// Vista 2: Auditoría de Ventas (Formato Ticket por Ticket con renglones de artículos e IVA)
+function renderAuditView(body, kpiHtml, paidOrders) {
+    const paymentBadges = {
+        efectivo: '<span class="badge badge--yellow">💵 EFECTIVO</span>',
+        transferencia: '<span class="badge badge--blue">📱 TRANSFERENCIA</span>',
+        debito: '<span class="badge badge--purple">💳 DÉBITO</span>',
+        credito: '<span class="badge badge--orange">💳 CRÉDITO</span>'
+    };
+
+    let list = paidOrders;
+    if (auditSearch.trim()) {
+        const q = auditSearch.toLowerCase();
+        list = list.filter(o =>
+            (o.order_number && String(o.order_number).toLowerCase().includes(q)) ||
+            (o.customer_name && o.customer_name.toLowerCase().includes(q)) ||
+            (o.notes && o.notes.toLowerCase().includes(q))
+        );
+    }
+
+    body.innerHTML = `
+        ${kpiHtml}
+
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+                <h3 style="color: var(--color-primary); font-size: 1rem; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                    🧾 COMPROBANTES DE VENTAS AUDITABLES (${list.length} órdenes)
+                </h3>
+                <div style="width: 260px;">
+                    <input type="text" id="audit-search-input" placeholder="🔍 Buscar por Nº pedido, cliente..." value="${auditSearch}" style="width: 100%; padding: 0.4rem 0.75rem; font-size: 0.85rem;">
+                </div>
+            </div>
+        </div>
+
+        <div id="audit-tickets-list">
+            ${list.length === 0 ? `
+                <div class="card" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                    <p>No se encontraron comprobantes para el filtro seleccionado.</p>
+                </div>
+            ` : list.map(order => {
+                const total = order.total || 0;
+                const iva = Math.round(total / 11);
+                const subtotal = total - iva;
+                const items = order.order_items || [];
+                const methodKey = (order.payment_method || 'efectivo').toLowerCase();
+                const badge = paymentBadges[methodKey] || `<span class="badge badge--yellow">${order.payment_method}</span>`;
+
+                return `
+                    <div class="audit-ticket-card">
+                        <!-- Cabecera del Comprobante -->
+                        <div class="audit-ticket-header">
+                            <div>
+                                <strong style="font-family: var(--font-title); font-size: 0.9rem; color: var(--color-primary);">
+                                    PEDIDO #${order.order_number}
+                                </strong>
+                                <span style="font-size: 0.75rem; color: var(--text-dim); margin-left: 0.5rem; font-family: var(--font-mono);">
+                                    [ID: ${(order.id || '').slice(0, 8)}]
+                                </span>
+                                <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-main); margin-top: 0.2rem;">
+                                    👤 ${order.customer_name || 'Consumidor Final'}
+                                </div>
+                            </div>
+                            <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 0.2rem;">
+                                <div>${badge}</div>
+                                <span style="font-size: 0.78rem; color: var(--text-muted); font-family: var(--font-mono);">
+                                    🕒 ${new Date(order.created_at).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' })} • ${new Date(order.created_at).toLocaleDateString('es-PY')}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Renglones de Artículos -->
+                        <div class="audit-ticket-body">
+                            <table class="audit-items-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 70px;">CANTIDAD</th>
+                                        <th>ARTÍCULO / PRODUCTO</th>
+                                        <th style="text-align: right; width: 120px;">PRECIO UNIT.</th>
+                                        <th style="text-align: right; width: 130px;">SUBTOTAL</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${items.map(it => {
+                                        const qty = it.quantity || 1;
+                                        const price = it.price || 0;
+                                        const sub = price * qty;
+                                        const cleanName = (it.product_name || 'Item').replace(/\s*\[📝\s*[^\]]+\]/, '').trim();
+                                        return `
+                                            <tr>
+                                                <td style="font-family: var(--font-mono); font-weight: 800; color: var(--color-primary);">${qty}x</td>
+                                                <td>
+                                                    <strong>${cleanName}</strong>
+                                                    ${it.is_combo ? '<span class="badge badge--yellow" style="font-size: 0.65rem; margin-left: 0.4rem;">COMBO</span>' : ''}
+                                                </td>
+                                                <td style="text-align: right; font-family: var(--font-mono); color: var(--text-muted);">${formatGs(price)}</td>
+                                                <td style="text-align: right; font-family: var(--font-mono); font-weight: 700; color: var(--text-main);">${formatGs(sub)}</td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+
+                            <!-- Pie de Comprobante: Subtotal, IVA 10% y Total -->
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-subtle); margin-top: 0.75rem; padding-top: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+                                <div style="font-size: 0.8rem; color: var(--text-muted);">
+                                    ${order.notes ? `📝 <em>Notas: ${order.notes}</em>` : 'Sin observaciones adicionales'}
+                                </div>
+                                <div style="display: flex; gap: 1.5rem; align-items: baseline;">
+                                    <div style="font-size: 0.8rem; color: var(--text-muted);">
+                                        Subtotal: <strong style="font-family: var(--font-mono);">${formatGs(subtotal)}</strong>
+                                    </div>
+                                    <div style="font-size: 0.8rem; color: #29B6F6;">
+                                        IVA 10%: <strong style="font-family: var(--font-mono);">${formatGs(iva)}</strong>
+                                    </div>
+                                    <div style="font-size: 1.05rem; font-weight: 900; color: var(--color-primary);">
+                                        TOTAL: <span style="font-family: var(--font-mono);">${formatGs(total)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+
+    // Evento del buscador de auditoría
+    let auditTimer = null;
+    body.querySelector('#audit-search-input')?.addEventListener('input', (e) => {
+        clearTimeout(auditTimer);
+        auditTimer = setTimeout(() => {
+            auditSearch = e.target.value;
+            renderReport(body.parentElement);
+        }, 250);
+    });
+}
+
+function bindReportToolbar(body) {
     let searchTimer = null;
-    container.querySelector('#report-search')?.addEventListener('input', (e) => {
+    body.querySelector('#report-search')?.addEventListener('input', (e) => {
         clearTimeout(searchTimer);
         searchTimer = setTimeout(() => {
             reportFilter.search = e.target.value;
             reportPage = 1;
-            renderReport(container);
+            renderReport(body.parentElement);
         }, 250);
     });
 
-    container.querySelector('#report-sort')?.addEventListener('change', (e) => {
+    body.querySelector('#report-sort')?.addEventListener('change', (e) => {
         const [field, dir] = e.target.value.split('-');
         reportSort = { field, dir };
         reportPage = 1;
-        renderReport(container);
+        renderReport(body.parentElement);
     });
 
-    container.querySelector('#report-filter-payment')?.addEventListener('change', (e) => {
+    body.querySelector('#report-filter-payment')?.addEventListener('change', (e) => {
         reportFilter.payment = e.target.value;
         reportPage = 1;
-        renderReport(container);
+        renderReport(body.parentElement);
     });
 
-    container.querySelector('#btn-report-prev')?.addEventListener('click', () => {
-        if (reportPage > 1) { reportPage--; renderReport(container); }
+    body.querySelector('#btn-report-prev')?.addEventListener('click', () => {
+        if (reportPage > 1) { reportPage--; renderReport(body.parentElement); }
     });
-    container.querySelector('#btn-report-next')?.addEventListener('click', () => {
+    body.querySelector('#btn-report-next')?.addEventListener('click', () => {
         reportPage++;
-        renderReport(container);
+        renderReport(body.parentElement);
     });
 }
+
 
