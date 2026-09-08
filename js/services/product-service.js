@@ -48,6 +48,11 @@ export function invalidateProductCache() {
     sessionStorage.removeItem(CACHE_TS_KEY);
 }
 
+export function invalidateCatCache() {
+    sessionStorage.removeItem(CAT_CACHE_KEY);
+    sessionStorage.removeItem(CAT_CACHE_TS_KEY);
+}
+
 export async function getAll() {
     const cached = readCache();
     if (cached) return cached;
@@ -193,6 +198,40 @@ export async function getCategories() {
     return data;
 }
 
+export async function createCategory(catData) {
+    const { data, error } = await supabase.from('categories').insert([{
+        name: catData.name,
+        icon: catData.icon || '🍔',
+        type: 'product',
+        sort_order: catData.sort_order !== undefined ? Number(catData.sort_order) : 99
+    }]).select().single();
+    if (error) throw error;
+    invalidateCatCache();
+    return data;
+}
+
+export async function updateCategory(id, catData) {
+    const { data, error } = await supabase.from('categories').update({
+        name: catData.name,
+        icon: catData.icon,
+        sort_order: catData.sort_order !== undefined ? Number(catData.sort_order) : 99
+    }).eq('id', id).select().single();
+    if (error) throw error;
+    invalidateCatCache();
+    return data;
+}
+
+export async function deleteCategory(id) {
+    const { count, error: countErr } = await supabase.from('products').select('*', { count: 'exact', head: true }).eq('category_id', id);
+    if (!countErr && count > 0) {
+        throw new Error(`No se puede eliminar la categoría porque contiene ${count} producto(s). Reasigna o elimina los productos primero.`);
+    }
+    const { error } = await supabase.from('categories').delete().eq('id', id);
+    if (error) throw error;
+    invalidateCatCache();
+    return true;
+}
+
 export async function getLowStock(threshold = 10) {
     const { data, error } = await supabase.from('products').select('*, categories(*)').eq('active', true).lt('stock', threshold).order('stock');
     if (error) throw error;
@@ -213,6 +252,10 @@ export const productService = {
     hardDeleteProduct,
     toggleActiveStatus,
     getCategories,
+    createCategory,
+    updateCategory,
+    deleteCategory,
+    invalidateCatCache,
     getLowStock,
     invalidateProductCache
 };
