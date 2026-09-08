@@ -138,7 +138,11 @@ export function initChat(myRole) {
             .map(m => m.id);
         if (unreadIds.length > 0) chatService.markRead(unreadIds);
         renderMessages();
-        input.focus();
+        // En móviles no auto-enfocar para no forzar la apertura abrupta del teclado virtual
+        const isTouch = window.matchMedia('(pointer: coarse)').matches;
+        if (!isTouch) {
+            input.focus();
+        }
     }
 
     function closePanel() {

@@ -59,9 +59,11 @@
 .chat-panel {
     position: fixed;
     top: 0;
+    bottom: 0;
     right: -380px;
     width: 360px;
     height: 100vh;
+    height: 100dvh;
     background: #111;
     border-left: 2px solid #FFD700;
     display: flex;
@@ -69,6 +71,7 @@
     z-index: 1000;
     transition: right 0.28s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: -8px 0 32px rgba(0,0,0,0.6);
+    box-sizing: border-box;
 }
 .chat-panel.open { right: 0; }
 
@@ -263,13 +266,35 @@
 .chat-overlay.visible { display: block; }
 
 @media (max-width: 600px) {
-    .chat-panel { width: 100vw; right: -100vw; }
+    .chat-panel { 
+        width: 100vw; 
+        width: 100dvw;
+        right: -100vw; 
+        right: -100dvw;
+        border-left: none;
+    }
     .chat-fab {
         bottom: 4.8rem;
         right: 1.2rem;
         width: 46px;
         height: 46px;
         font-size: 1.2rem;
+    }
+    .chat-input-area {
+        padding: 0.65rem 0.8rem calc(0.65rem + env(safe-area-inset-bottom, 0px));
+        background: #0d0d0d;
+        border-top: 1px solid #222;
+        position: sticky;
+        bottom: 0;
+        z-index: 10;
+    }
+    .chat-input {
+        font-size: 16px; /* Evita que iOS / Safari haga zoom automático al enfocar */
+        padding: 0.6rem 0.9rem;
+    }
+    .chat-send-btn {
+        width: 40px;
+        height: 40px;
     }
 }
 
