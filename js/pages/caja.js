@@ -1003,14 +1003,21 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
 
         // ---------- HOJA 2: Ventas Detalladas ----------
         const wsVentas = wb.addWorksheet('Ventas Detalladas');
-        const ventasHeader = ['#', 'Pedido Nº', 'Hora', 'Cliente', 'Método de Pago', 'Estado', 'Total (Gs.)', 'Notas'];
+        const ventasHeader = ['#', 'Pedido Nº', 'Hora', 'Cliente', 'Productos Vendidos', 'Método de Pago', 'Estado', 'Total (Gs.)', 'Notas'];
         const ventasData = [[''], [''], [''], [''], [''], ventasHeader];
         paidOrders.forEach((o, i) => {
+            const itemsList = (o.order_items || []).map(it => {
+                const qty = it.quantity || 1;
+                const name = (it.product_name || 'Item').replace(/\s*\[📝\s*[^\]]+\]/, '').trim();
+                return `${qty}x ${name}`;
+            }).join(', ');
+
             ventasData.push([
                 i + 1,
                 o.order_number || '—',
                 new Date(o.created_at).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' }),
                 o.customer_name || '—',
+                itemsList || '—',
                 paymentLabels[o.payment_method] || o.payment_method || 'Efectivo',
                 o.status,
                 o.total || 0,
@@ -1018,7 +1025,7 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
             ]);
         });
         ventasData.push([]);
-        ventasData.push(['', '', '', '', '', 'TOTAL', totalSales, '']);
+        ventasData.push(['', '', '', '', '', '', 'TOTAL', totalSales, '']);
         buildBurgameSheet(wsVentas, ventasData, { imageRows: 5 });
 
         // ---------- HOJA 3: Items Vendidos ----------

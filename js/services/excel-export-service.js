@@ -278,21 +278,28 @@ export async function exportConsolidatedReportExcel(analyticsData, periodLabel =
 
     // 2. Ventas Detalladas
     const wsVentas = wb.addWorksheet('Ventas');
-    const ventasHeader = ['#', 'Nº Pedido', 'Fecha y Hora', 'Cliente', 'Método de Pago', 'Total (Gs.)', 'Notas'];
+    const ventasHeader = ['#', 'Nº Pedido', 'Fecha y Hora', 'Cliente', 'Productos Vendidos', 'Método de Pago', 'Total (Gs.)', 'Notas'];
     const ventasRows = [[''], [''], [''], [''], [''], ventasHeader];
     paidOrders.forEach((o, idx) => {
+        const itemsList = (o.order_items || []).map(it => {
+            const qty = it.quantity || 1;
+            const name = (it.product_name || 'Item').replace(/\s*\[📝\s*[^\]]+\]/, '').trim();
+            return `${qty}x ${name}`;
+        }).join(', ');
+
         ventasRows.push([
             idx + 1,
             o.order_number || '—',
             fmtDate(o.created_at),
             o.customer_name || '—',
+            itemsList || '—',
             paymentLabels[o.payment_method] || o.payment_method || 'Efectivo',
             o.total || 0,
             o.notes || ''
         ]);
     });
     ventasRows.push([]);
-    ventasRows.push(['', '', '', '', 'TOTAL', totalSales, '']);
+    ventasRows.push(['', '', '', '', '', 'TOTAL', totalSales, '']);
     buildBurgameSheet(wsVentas, ventasRows, { imageRows: 5 });
 
     // 3. Ítems / Ranking de Productos
