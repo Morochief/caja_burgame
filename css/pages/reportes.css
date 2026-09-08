@@ -1,4 +1,8 @@
 /* pages/reportes.css */
+.reportes-page {
+  animation: fadeIn 0.25s ease-out;
+}
+
 .reportes-filters {
   display: flex;
   flex-wrap: wrap;
@@ -92,7 +96,7 @@
   flex-shrink: 0;
 }
 
-/* Excel Export & Retro-Download Bar */
+/* Excel Export & Action Bar */
 .reportes-export-bar {
   background: var(--bg-card);
   border: 1px solid var(--border-gold);
@@ -157,6 +161,7 @@
   border-bottom: 2px solid var(--border-subtle);
   margin-bottom: 1.5rem;
   padding-bottom: 0.2rem;
+  overflow-x: auto;
 }
 
 .report-view-tab {
@@ -172,6 +177,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  white-space: nowrap;
 }
 
 .report-view-tab:hover {
@@ -184,6 +190,134 @@
   border-bottom: 3px solid var(--color-primary);
   font-weight: 800;
   background: rgba(255, 215, 0, 0.05);
+}
+
+/* Grillas y tarjetas analíticas Chart.js */
+.report-charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 600px) {
+  .report-charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.report-chart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+}
+
+.report-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.report-chart-header h3 {
+  font-size: 0.95rem;
+  color: var(--color-primary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.report-chart-container {
+  position: relative;
+  height: 280px;
+  width: 100%;
+}
+
+/* Tarjeta de Horas Pico */
+.peak-hours-card {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.05), rgba(255, 61, 113, 0.05));
+  border: 1px solid rgba(255, 215, 0, 0.25);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.peak-hours-info h3 {
+  margin: 0 0 0.3rem 0;
+  font-size: 1rem;
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.peak-hours-info p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.peak-hours-badge {
+  background: rgba(255, 61, 113, 0.15);
+  border: 1px solid #FF3D71;
+  color: #FF3D71;
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 900;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 0 12px rgba(255, 61, 113, 0.2);
+}
+
+/* Desglose P&L de Gastos */
+.pnl-categories-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.pnl-category-item {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+}
+
+.pnl-category-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.88rem;
+  margin-bottom: 0.4rem;
+}
+
+.pnl-category-bar-bg {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.pnl-category-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #FF3D71, #FF8A00);
+  border-radius: 4px;
+  transition: width 0.5s ease;
 }
 
 /* Auditoría de Ventas (Estilo Comprobantes Desglosados) */
@@ -239,5 +373,6 @@
 .audit-items-table tr:last-child td {
   border-bottom: none;
 }
+
 
 

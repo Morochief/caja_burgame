@@ -178,6 +178,36 @@ export async function getAnalyticsByRange(fromIso, toIso) {
         hourlySales[h] += (o.total || 0);
     });
 
+    // Desglose de Gastos por Categoría (P&L)
+    const categoryMap = {};
+    expenses.forEach(e => {
+        const catName = (e.expense_categories && e.expense_categories.name) || 'Otros / Sin categoría';
+        if (!categoryMap[catName]) {
+            categoryMap[catName] = { name: catName, total: 0, count: 0 };
+        }
+        categoryMap[catName].total += (e.amount || 0);
+        categoryMap[catName].count++;
+    });
+    const expenseCategories = Object.values(categoryMap)
+        .map(c => ({
+            name: c.name,
+            total: c.total,
+            count: c.count,
+            pctOfExpenses: totalExpenses > 0 ? ((c.total / totalExpenses) * 100).toFixed(1) : '0',
+            pctOfSales: totalSales > 0 ? ((c.total / totalSales) * 100).toFixed(1) : '0'
+        }))
+        .sort((a, b) => b.total - a.total);
+
+    // Identificar Hora Pico
+    let peakHour = 20;
+    let maxHourlyCount = 0;
+    hourlyDistribution.forEach((cnt, hr) => {
+        if (cnt > maxHourlyCount) {
+            maxHourlyCount = cnt;
+            peakHour = hr;
+        }
+    });
+
     // Ranking de productos
     const productStats = {};
     paidOrders.forEach(order => {
@@ -206,6 +236,9 @@ export async function getAnalyticsByRange(fromIso, toIso) {
         timeline,
         hourlyDistribution,
         hourlySales,
+        peakHour,
+        maxHourlyCount,
+        expenseCategories,
         topProducts
     };
 }
@@ -233,6 +266,164 @@ export async function getDayFullConsolidated(dateStr) {
     };
 }
 
+// Imprime ticket de resumen fiscal y de gestión en impresora térmica (80mm / 58mm)
+export function printThermalReport(analytics, periodLabel = '') {
+    if (!analytics) return;
+
+    const fmt = (n) => (n || 0).toLocaleString('es-PY') + ' Gs.';
+    const totalIva = Math.round((analytics.totalSales || 0) / 11);
+    const totalSubtotal = (analytics.totalSales || 0) - totalIva;
+
+    const now = new Date();
+    const emitDate = now.toLocaleDateString('es-PY') + ' ' + now.toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' });
+
+    let productsRows = '';
+    (analytics.topProducts || []).slice(0, 5).forEach((p, idx) => {
+        productsRows += `
+            <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px;">
+                <span>${idx + 1}. ${p.name.slice(0, 22)} x${p.qty}</span>
+                <span style="font-weight: bold;">${fmt(p.total)}</span>
+            </div>
+        `;
+    });
+
+    let expensesRows = '';
+    (analytics.expenseCategories || []).slice(0, 4).forEach(c => {
+        expensesRows += `
+            <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px;">
+                <span>• ${c.name.slice(0, 20)} (${c.pctOfSales}%)</span>
+                <span>${fmt(c.total)}</span>
+            </div>
+        `;
+    });
+
+    const printHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Reporte_Burgame_${periodLabel}</title>
+            <style>
+                @page { size: 80mm auto; margin: 0; }
+                body {
+                    font-family: 'Courier New', Courier, monospace;
+                    width: 72mm;
+                    margin: 0 auto;
+                    padding: 8px 4px;
+                    color: #000;
+                    background: #fff;
+                    font-size: 12px;
+                    line-height: 1.3;
+                }
+                .text-center { text-align: center; }
+                .text-right { text-align: right; }
+                .bold { font-weight: bold; }
+                .divider { border-top: 1px dashed #000; margin: 6px 0; }
+                .double-divider { border-top: 2px solid #000; margin: 6px 0; }
+                .row { display: flex; justify-content: space-between; }
+                .title { font-size: 14px; font-weight: 900; letter-spacing: 1px; }
+                .subtitle { font-size: 11px; margin-top: 2px; }
+            </style>
+        </head>
+        <body>
+            <div class="text-center">
+                <div class="title">BURGAME BURGERS</div>
+                <div class="subtitle">ARCADE RETRO FOOD</div>
+                <div class="subtitle">=== REPORTE EJECUTIVO ===</div>
+                <div style="font-size: 11px; margin-top: 4px;">Período: <strong style="text-transform: uppercase;">${periodLabel}</strong></div>
+                <div style="font-size: 10px; color: #555;">Emisión: ${emitDate}</div>
+            </div>
+
+            <div class="double-divider"></div>
+
+            <div class="row bold" style="font-size: 13px;">
+                <span>FACTURACIÓN BRUTA:</span>
+                <span>${fmt(analytics.totalSales)}</span>
+            </div>
+            <div class="row" style="font-size: 11px; margin-top: 2px;">
+                <span>Subtotal (Base Imponible):</span>
+                <span>${fmt(totalSubtotal)}</span>
+            </div>
+            <div class="row" style="font-size: 11px;">
+                <span>Liquidación IVA 10%:</span>
+                <span>${fmt(totalIva)}</span>
+            </div>
+            <div class="row" style="font-size: 11px;">
+                <span>Pedidos Cobrados:</span>
+                <span>${analytics.orderCount} ord.</span>
+            </div>
+            <div class="row" style="font-size: 11px;">
+                <span>Ticket Promedio:</span>
+                <span>${fmt(analytics.avgTicket)}</span>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="bold" style="font-size: 11px; margin-bottom: 3px;">DESGLOSE MEDIOS DE PAGO:</div>
+            <div class="row" style="font-size: 11px;">
+                <span>💵 Efectivo:</span>
+                <span>${fmt(analytics.payments.efectivo)}</span>
+            </div>
+            <div class="row" style="font-size: 11px;">
+                <span>📱 Transferencia / QR:</span>
+                <span>${fmt(analytics.payments.transferencia)}</span>
+            </div>
+            <div class="row" style="font-size: 11px;">
+                <span>💳 Débito:</span>
+                <span>${fmt(analytics.payments.debito)}</span>
+            </div>
+            <div class="row" style="font-size: 11px;">
+                <span>💳 Crédito:</span>
+                <span>${fmt(analytics.payments.credito)}</span>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="row bold" style="font-size: 12px; color: #000;">
+                <span>GASTOS OPERATIVOS:</span>
+                <span>${fmt(analytics.totalExpenses)}</span>
+            </div>
+            <div style="font-size: 10px; margin-bottom: 2px;">Total Egresos: ${analytics.expenses.length} registros</div>
+            ${expensesRows}
+
+            <div class="double-divider"></div>
+
+            <div class="row bold" style="font-size: 14px;">
+                <span>UTILIDAD NETA:</span>
+                <span>${fmt(analytics.netProfit)}</span>
+            </div>
+            <div class="row bold" style="font-size: 11px; margin-top: 2px;">
+                <span>MARGEN OPERATIVO:</span>
+                <span>${analytics.profitMargin}%</span>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="bold" style="font-size: 11px; margin-bottom: 3px;">TOP PRODUCTOS MÁS VENDIDOS:</div>
+            ${productsRows}
+
+            <div class="divider"></div>
+            <div class="text-center" style="font-size: 10px; color: #555;">
+                Hora Pico: ${analytics.peakHour}:00 hs (${analytics.maxHourlyCount} pedidos)<br>
+                *** BURGAME POS ENTERPRISE ***
+            </div>
+            <br>
+        </body>
+        </html>
+    `;
+
+    const printWin = window.open('', '_blank', 'width=380,height=600');
+    if (printWin) {
+        printWin.document.open();
+        printWin.document.write(printHtml);
+        printWin.document.close();
+        setTimeout(() => {
+            printWin.focus();
+            printWin.print();
+        }, 300);
+    }
+}
+
 export const reportService = {
     getCurrentShiftSummary,
     getWeeklySales,
@@ -242,6 +433,7 @@ export const reportService = {
     getDailySalesSummary,
     getAnalyticsByRange,
     getDayFullConsolidated,
-    ensureChartJS
+    ensureChartJS,
+    printThermalReport
 };
 
