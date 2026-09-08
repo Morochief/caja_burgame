@@ -3,6 +3,7 @@ import { reportService } from '../services/report-service.js';
 import { appState } from '../app.js';
 import { formatGs } from '../components/currency.js';
 import { showToast } from '../components/toast.js';
+import { exportConsolidatedReportExcel } from '../services/excel-export-service.js';
 
 export async function renderCajaPage() {
     const container = document.createElement('div');
@@ -701,10 +702,20 @@ function renderDayView(historyEl, monthKey, monthData) {
 
 // Vista 3: detalle de cajas de un día específico (con edición y descarga)
 function renderCashDetailView(historyEl, monthKey, dayNum, cashBoxes) {
+    const firstOpened = cashBoxes[0]?.opened_at;
+    const dateIso = firstOpened ? new Date(firstOpened).toISOString().slice(0, 10) : '';
+
     historyEl.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
-            <button class="btn btn--ghost btn-back-day" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">← Volver a días</button>
-            <h4 style="font-family: var(--font-title); color: var(--color-primary); margin: 0;">Cajas del día ${dayNum}</h4>
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <button class="btn btn--ghost btn-back-day" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">← Volver a días</button>
+                <h4 style="font-family: var(--font-title); color: var(--color-primary); margin: 0;">Cajas del día ${dayNum}</h4>
+            </div>
+            ${dateIso ? `
+                <button class="btn btn--primary btn-download-day-full" data-date="${dateIso}" style="font-size: 0.85rem; padding: 0.45rem 0.9rem; font-weight: 700; box-shadow: 0 0 10px var(--color-primary-glow);">
+                    📥 Descargar Día Completo (${dateIso})
+                </button>
+            ` : ''}
         </div>
         <div id="cash-detail-list">
             ${cashBoxes.map(r => {
@@ -737,6 +748,24 @@ function renderCashDetailView(historyEl, monthKey, dayNum, cashBoxes) {
     historyEl.querySelector('.btn-back-day')?.addEventListener('click', () => {
         const byMonth = groupRegistersByMonthDay(_historyCache);
         renderDayView(historyEl, monthKey, byMonth[monthKey]);
+    });
+
+    historyEl.querySelector('.btn-download-day-full')?.addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        const targetDate = btn.dataset.date;
+        const origText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Generando...';
+        try {
+            const dataToExport = await reportService.getDayFullConsolidated(targetDate);
+            await exportConsolidatedReportExcel(dataToExport, `Dia_${targetDate}`);
+            showToast({ message: `✅ Excel consolidado del ${targetDate} descargado`, type: 'success' });
+        } catch (err) {
+            showToast({ message: 'Error al exportar día: ' + err.message, type: 'error' });
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = origText;
+        }
     });
 
     historyEl.querySelectorAll('.btn-download-cash').forEach(btn => {

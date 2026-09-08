@@ -2,8 +2,11 @@ import { reportService } from '../services/report-service.js';
 import { orderService } from '../services/order-service.js';
 import { formatGs } from '../components/currency.js';
 import { showToast } from '../components/toast.js';
+import { exportConsolidatedReportExcel } from '../services/excel-export-service.js';
 
-let selectedPeriod = 'today'; // 'today' | 'week' | 'month'
+let selectedPeriod = 'today'; // 'today' | 'yesterday' | 'week' | 'month' | 'custom'
+let customStartDate = '';
+let customEndDate = '';
 
 // Estados de filtro, ordenamiento y paginación del ranking de productos
 let reportFilter = { search: '', payment: 'all' };
@@ -11,8 +14,8 @@ let reportSort = { field: 'qty', dir: 'desc' };
 let reportPage = 1;
 const REPORT_PAGE_SIZE = 8;
 
-// Cache de órdenes del período actual (evita re-fetchear al cambiar filtros)
-let cachedPaidOrders = [];
+// Cache analítica completa del período actual
+let cachedAnalytics = null;
 
 export async function renderReportesPage() {
     const container = document.createElement('div');
@@ -21,17 +24,36 @@ export async function renderReportesPage() {
     container.innerHTML = `
         <header class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
             <div class="page-header__info">
-                <h1>📈 REPORTES Y ANALÍTICA DE VENTAS</h1>
-                <p>Estadísticas y rendimiento del negocio en tiempo real</p>
+                <h1>📈 REPORTES, AUDITORÍA Y EXPORTACIÓN</h1>
+                <p>Análisis de facturación, gastos y descargas retrospectivas de Excel</p>
             </div>
-            <div class="period-selectors" style="display: flex; gap: 0.5rem; background: var(--bg-card); padding: 0.3rem; border-radius: 8px; border: 1px solid var(--border-subtle);">
+            <div class="period-selectors" style="display: flex; gap: 0.4rem; background: var(--bg-card); padding: 0.35rem; border-radius: 8px; border: 1px solid var(--border-subtle); flex-wrap: wrap;">
                 <button class="btn btn--sm period-btn ${selectedPeriod === 'today' ? 'btn--primary' : 'btn--secondary'}" data-period="today">Hoy</button>
-                <button class="btn btn--sm period-btn ${selectedPeriod === 'week' ? 'btn--primary' : 'btn--secondary'}" data-period="week">Últimos 7 Días</button>
+                <button class="btn btn--sm period-btn ${selectedPeriod === 'yesterday' ? 'btn--primary' : 'btn--secondary'}" data-period="yesterday">Ayer</button>
+                <button class="btn btn--sm period-btn ${selectedPeriod === 'week' ? 'btn--primary' : 'btn--secondary'}" data-period="week">7 Días</button>
                 <button class="btn btn--sm period-btn ${selectedPeriod === 'month' ? 'btn--primary' : 'btn--secondary'}" data-period="month">Este Mes</button>
+                <button class="btn btn--sm period-btn ${selectedPeriod === 'custom' ? 'btn--primary' : 'btn--secondary'}" data-period="custom">Fecha / Rango</button>
             </div>
         </header>
 
-        <div id="reportes-body" style="margin-top: 1.5rem;">
+        <!-- Barra especial de Descarga Rápida de Excel Retrospectivo -->
+        <div class="reportes-export-bar">
+            <div class="reportes-export-info">
+                <h4>📥 EXPORTAR REPORTE COMPLETO A EXCEL</h4>
+                <p>Descarga un libro de 4 hojas (Resumen, Ventas, Productos y Gastos) de cualquier día o rango.</p>
+            </div>
+            <div class="reportes-export-actions">
+                <div id="retro-date-container" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                    <label for="retro-target-date" style="font-size: 0.8rem; color: var(--text-muted);">Día específico:</label>
+                    <input type="date" id="retro-target-date" class="report-date-input">
+                </div>
+                <button id="btn-download-excel" class="btn btn--primary" style="font-weight: 800; font-size: 0.85rem; padding: 0.55rem 1.1rem; box-shadow: 0 0 12px var(--color-primary-glow);">
+                    📥 Descargar Excel
+                </button>
+            </div>
+        </div>
+
+        <div id="reportes-body" style="margin-top: 1rem;">
             <div class="page-loading">
                 <div class="pixel-spinner"></div>
                 <p>Cargando datos analíticos...</p>
@@ -46,6 +68,11 @@ export async function renderReportesPage() {
 }
 
 function setupEvents(container) {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const retroInput = container.querySelector('#retro-target-date');
+    if (retroInput) retroInput.value = todayStr;
+
+    // Selector de Períodos
     container.querySelectorAll('.period-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             selectedPeriod = btn.dataset.period;
@@ -61,8 +88,50 @@ function setupEvents(container) {
             reportSort = { field: 'qty', dir: 'desc' };
             reportPage = 1;
 
+            if (selectedPeriod === 'yesterday') {
+                const y = new Date();
+                y.setDate(y.getDate() - 1);
+                if (retroInput) retroInput.value = y.toISOString().slice(0, 10);
+            } else if (selectedPeriod === 'today') {
+                if (retroInput) retroInput.value = todayStr;
+            }
+
             loadReportData(container);
         });
+    });
+
+    // Botón descargar Excel consolidado
+    container.querySelector('#btn-download-excel')?.addEventListener('click', async () => {
+        const btn = container.querySelector('#btn-download-excel');
+        const origText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Generando Excel...';
+
+        try {
+            const chosenDate = container.querySelector('#retro-target-date')?.value;
+            let dataToExport = cachedAnalytics;
+            let label = selectedPeriod;
+
+            // Si el usuario especificó una fecha manual distinta al período cargado
+            if (chosenDate) {
+                dataToExport = await reportService.getDayFullConsolidated(chosenDate);
+                label = chosenDate;
+            }
+
+            if (!dataToExport || (!dataToExport.paidOrders.length && !dataToExport.expenses.length)) {
+                showToast({ message: 'No hay transacciones ni gastos registrados en la fecha elegida', type: 'warning' });
+                return;
+            }
+
+            await exportConsolidatedReportExcel(dataToExport, label);
+            showToast({ message: `✅ Excel descargado con éxito (${label})`, type: 'success' });
+        } catch (err) {
+            console.error('Error exportando reporte Excel:', err);
+            showToast({ message: 'Error al exportar Excel: ' + err.message, type: 'error' });
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = origText;
+        }
     });
 }
 
@@ -72,20 +141,32 @@ async function loadReportData(container) {
 
     try {
         let fromDate = new Date();
-        fromDate.setHours(0, 0, 0, 0);
+        let toDate = new Date();
 
-        if (selectedPeriod === 'week') {
+        if (selectedPeriod === 'today') {
+            fromDate.setHours(0, 0, 0, 0);
+            toDate.setHours(23, 59, 59, 999);
+        } else if (selectedPeriod === 'yesterday') {
+            fromDate.setDate(fromDate.getDate() - 1);
+            fromDate.setHours(0, 0, 0, 0);
+            toDate.setDate(toDate.getDate() - 1);
+            toDate.setHours(23, 59, 59, 999);
+        } else if (selectedPeriod === 'week') {
             fromDate.setDate(fromDate.getDate() - 7);
+            fromDate.setHours(0, 0, 0, 0);
         } else if (selectedPeriod === 'month') {
             fromDate.setDate(1);
+            fromDate.setHours(0, 0, 0, 0);
+        } else if (selectedPeriod === 'custom') {
+            const chosen = container.querySelector('#retro-target-date')?.value || new Date().toISOString().slice(0, 10);
+            fromDate = new Date(chosen);
+            fromDate.setHours(0, 0, 0, 0);
+            toDate = new Date(chosen);
+            toDate.setHours(23, 59, 59, 999);
         }
 
-        const nowIso = new Date().toISOString();
-        const fromIso = fromDate.toISOString();
-
-        // Cargar órdenes del período (se cachean para filtros sin re-fetch)
-        const orders = await orderService.getOrdersByDateRange(fromIso, nowIso);
-        cachedPaidOrders = (orders || []).filter(o => o.paid_at);
+        const analytics = await reportService.getAnalyticsByRange(fromDate.toISOString(), toDate.toISOString());
+        cachedAnalytics = analytics;
 
         renderReport(container);
     } catch (err) {
@@ -99,41 +180,31 @@ async function loadReportData(container) {
 }
 
 // ============================================================
-// Render del reporte completo (usa cachedPaidOrders)
+// Render del reporte completo (usa cachedAnalytics)
 // ============================================================
 function renderReport(container) {
     const body = container.querySelector('#reportes-body');
-    if (!body) return;
+    if (!body || !cachedAnalytics) return;
 
-    // Aplicar filtro por método de pago
-    let filteredOrders = cachedPaidOrders;
+    const {
+        paidOrders,
+        expenses,
+        totalSales,
+        totalExpenses,
+        netProfit,
+        profitMargin,
+        orderCount,
+        avgTicket,
+        payments
+    } = cachedAnalytics;
+
+    // Aplicar filtro por método de pago a las órdenes en memoria
+    let filteredOrders = paidOrders;
     if (reportFilter.payment !== 'all') {
-        filteredOrders = cachedPaidOrders.filter(o =>
+        filteredOrders = paidOrders.filter(o =>
             (o.payment_method || 'efectivo') === reportFilter.payment
         );
     }
-
-    // Cálculo de Métricas Clave
-    const totalSales = filteredOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-    const orderCount = filteredOrders.length;
-    const avgTicket = orderCount > 0 ? Math.round(totalSales / orderCount) : 0;
-
-    // Desglose de Medios de Pago (siempre sobre todas las órdenes del período)
-    const payments = {
-        efectivo: 0,
-        transferencia: 0,
-        debito: 0,
-        credito: 0
-    };
-
-    cachedPaidOrders.forEach(o => {
-        const method = (o.payment_method || 'efectivo').toLowerCase();
-        if (payments[method] !== undefined) {
-            payments[method] += (o.total || 0);
-        } else {
-            payments.efectivo += (o.total || 0);
-        }
-    });
 
     // Conteo de Productos más Vendidos
     const productStats = {};
@@ -148,7 +219,6 @@ function renderReport(container) {
         });
     });
 
-    // Aplicar búsqueda al ranking
     let sortedProducts = Object.entries(productStats)
         .map(([name, data]) => ({ name, ...data }));
 
@@ -157,7 +227,6 @@ function renderReport(container) {
         sortedProducts = sortedProducts.filter(p => p.name.toLowerCase().includes(q));
     }
 
-    // Ordenamiento
     const { field, dir } = reportSort;
     sortedProducts.sort((a, b) => {
         const va = a[field], vb = b[field];
@@ -166,35 +235,42 @@ function renderReport(container) {
         return 0;
     });
 
-    // Paginación del ranking
     const totalPages = Math.max(1, Math.ceil(sortedProducts.length / REPORT_PAGE_SIZE));
     if (reportPage > totalPages) reportPage = totalPages;
     const start = (reportPage - 1) * REPORT_PAGE_SIZE;
     const pageProducts = sortedProducts.slice(start, start + REPORT_PAGE_SIZE);
 
-    // Renderizar Interfaz de Reportes
+    // Renderizar Interfaz
     body.innerHTML = `
         <!-- Tarjetas KPI -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
             <div class="card" style="border-left: 4px solid var(--color-primary);">
                 <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">💰 Ventas Totales</span>
-                <h2 style="color: var(--color-primary); margin-top: 0.4rem; font-size: 1.6rem;">${formatGs(totalSales)}</h2>
+                <h2 style="color: var(--color-primary); margin-top: 0.4rem; font-size: 1.5rem;">${formatGs(totalSales)}</h2>
+                <span style="font-size: 0.75rem; color: var(--text-muted);">${orderCount} pedidos cobrados</span>
+            </div>
+            <div class="card" style="border-left: 4px solid #FF3D71;">
+                <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">💸 Gastos Totales</span>
+                <h2 style="color: #FF3D71; margin-top: 0.4rem; font-size: 1.5rem;">${formatGs(totalExpenses)}</h2>
+                <span style="font-size: 0.75rem; color: var(--text-muted);">${expenses.length} gastos cargados</span>
             </div>
             <div class="card" style="border-left: 4px solid #00E676;">
-                <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">📦 Órdenes Cobradas</span>
-                <h2 style="color: #00E676; margin-top: 0.4rem; font-size: 1.6rem;">${orderCount} pedidos</h2>
+                <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">📈 Margen Neto</span>
+                <h2 style="color: #00E676; margin-top: 0.4rem; font-size: 1.5rem;">${formatGs(netProfit)}</h2>
+                <span style="font-size: 0.75rem; color: #00E676; font-weight: 700;">Rentabilidad: ${profitMargin}%</span>
             </div>
             <div class="card" style="border-left: 4px solid #29B6F6;">
                 <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">🍔 Ticket Promedio</span>
-                <h2 style="color: #29B6F6; margin-top: 0.4rem; font-size: 1.6rem;">${formatGs(avgTicket)}</h2>
+                <h2 style="color: #29B6F6; margin-top: 0.4rem; font-size: 1.5rem;">${formatGs(avgTicket)}</h2>
+                <span style="font-size: 0.75rem; color: var(--text-muted);">Por orden cobrada</span>
             </div>
         </div>
 
         <!-- Grilla Principal de Análisis -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
-            <!-- Productos Más Vendidos -->
+            <!-- Ranking de Productos Más Vendidos -->
             <div class="card">
-                <h3 style="display: flex; align-items: center; gap: 0.5rem; color: var(--color-primary); font-size: 1.1rem; margin-bottom: 1rem;">
+                <h3 style="display: flex; align-items: center; gap: 0.5rem; color: var(--color-primary); font-size: 1.05rem; margin-bottom: 1rem;">
                     🏆 Ranking Productos Más Vendidos
                 </h3>
 
@@ -202,10 +278,10 @@ function renderReport(container) {
                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem;">
                     <input type="text" id="report-search" placeholder="🔍 Buscar producto..." value="${reportFilter.search}" style="flex: 1; min-width: 120px;">
                     <select id="report-sort" style="min-width: 130px;">
-                        <option value="qty-desc">Más vendidos ↓</option>
-                        <option value="qty-asc">Menos vendidos ↑</option>
-                        <option value="total-desc">Mayor ingreso ↓</option>
-                        <option value="total-asc">Menor ingreso ↑</option>
+                        <option value="qty-desc" ${reportSort.field === 'qty' && reportSort.dir === 'desc' ? 'selected' : ''}>Más vendidos ↓</option>
+                        <option value="qty-asc" ${reportSort.field === 'qty' && reportSort.dir === 'asc' ? 'selected' : ''}>Menos vendidos ↑</option>
+                        <option value="total-desc" ${reportSort.field === 'total' && reportSort.dir === 'desc' ? 'selected' : ''}>Mayor ingreso ↓</option>
+                        <option value="total-asc" ${reportSort.field === 'total' && reportSort.dir === 'asc' ? 'selected' : ''}>Menor ingreso ↑</option>
                     </select>
                 </div>
 
@@ -227,7 +303,7 @@ function renderReport(container) {
                         `).join('')}
                     </div>
 
-                    <!-- Paginación del ranking -->
+                    <!-- Paginación -->
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; flex-wrap: wrap; gap: 0.5rem;">
                         <span style="font-size: 0.85rem; color: var(--text-muted);">
                             ${sortedProducts.length} producto(s) · Página ${reportPage} de ${totalPages}
@@ -242,11 +318,10 @@ function renderReport(container) {
 
             <!-- Desglose por Medio de Pago -->
             <div class="card">
-                <h3 style="display: flex; align-items: center; gap: 0.5rem; color: var(--color-primary); font-size: 1.1rem; margin-bottom: 1rem;">
+                <h3 style="display: flex; align-items: center; gap: 0.5rem; color: var(--color-primary); font-size: 1.05rem; margin-bottom: 1rem;">
                     💳 Ingresos por Medio de Pago
                 </h3>
 
-                <!-- Filtro por método de pago -->
                 <div style="margin-bottom: 1rem;">
                     <select id="report-filter-payment" style="width: 100%;">
                         <option value="all">Todos los métodos</option>
@@ -282,9 +357,6 @@ function renderReport(container) {
     bindReportToolbar(container);
 }
 
-// ============================================================
-// Eventos de los filtros del reporte (sin re-fetch, usa cache)
-// ============================================================
 function bindReportToolbar(container) {
     let searchTimer = null;
     container.querySelector('#report-search')?.addEventListener('input', (e) => {
@@ -317,3 +389,4 @@ function bindReportToolbar(container) {
         renderReport(container);
     });
 }
+

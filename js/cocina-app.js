@@ -325,10 +325,6 @@ function attachEvents() {
 
             try {
                 await orderService.updateStatus(orderId, nextStatus);
-                showToast({ 
-                    message: `Pedido actualizado a ${getStatusLabel(nextStatus)}`, 
-                    type: 'success' 
-                });
                 await loadActiveOrders();
                 renderCocinaView();
             } catch (err) {
@@ -342,7 +338,6 @@ function attachEvents() {
         btn.addEventListener('click', () => {
             const orderId = btn.dataset.id;
             hiddenDeliveredIds.add(orderId);
-            showToast({ message: 'Comanda removida de la pantalla', type: 'info' });
             renderCocinaView();
         });
     });

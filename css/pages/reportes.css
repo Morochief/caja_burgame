@@ -91,3 +91,62 @@
   white-space: nowrap;
   flex-shrink: 0;
 }
+
+/* Excel Export & Retro-Download Bar */
+.reportes-export-bar {
+  background: var(--bg-card);
+  border: 1px solid var(--border-gold);
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.1);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.reportes-export-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.reportes-export-info h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.reportes-export-info p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.reportes-export-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.report-date-input {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  padding: 0.45rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+.report-date-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+

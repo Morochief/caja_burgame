@@ -94,12 +94,154 @@ export async function getDailySalesSummary(days = 30) {
     return Object.values(dailyMap).reverse(); // más reciente primero
 }
 
+// Carga lazy de Chart.js si por alguna razón no terminó de cargar el script defer
+export async function ensureChartJS() {
+    if (window.Chart) return window.Chart;
+    return new Promise((resolve, reject) => {
+        const existing = document.querySelector('script[src*="chart.js"], script[src*="chart.umd.min.js"]');
+        if (existing) {
+            existing.addEventListener('load', () => resolve(window.Chart));
+            existing.addEventListener('error', () => reject(new Error('No se pudo cargar Chart.js')));
+            // Por si ya cargó mientras armábamos la promesa
+            if (window.Chart) resolve(window.Chart);
+        } else {
+            const s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+            s.onload = () => resolve(window.Chart);
+            s.onerror = () => reject(new Error('No se pudo cargar Chart.js'));
+            document.head.appendChild(s);
+        }
+    });
+}
+
+// Análisis completo para rango de fechas (Dashboard y Reportes)
+export async function getAnalyticsByRange(fromIso, toIso) {
+    const [ordersRes, expensesRes] = await Promise.all([
+        supabase.from('orders')
+            .select('*, order_items(*)')
+            .gte('created_at', fromIso)
+            .lte('created_at', toIso)
+            .order('created_at', { ascending: true }),
+        supabase.from('expenses')
+            .select('*, expense_categories(*)')
+            .gte('created_at', fromIso)
+            .lte('created_at', toIso)
+            .order('created_at', { ascending: true })
+    ]);
+
+    if (ordersRes.error) throw ordersRes.error;
+    if (expensesRes.error) throw expensesRes.error;
+
+    const allOrders = ordersRes.data || [];
+    const expenses = expensesRes.data || [];
+    const paidOrders = allOrders.filter(o => o.paid_at);
+
+    // Totales globales
+    const totalSales = paidOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+    const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const netProfit = totalSales - totalExpenses;
+    const profitMargin = totalSales > 0 ? ((netProfit / totalSales) * 100).toFixed(1) : 0;
+    const orderCount = paidOrders.length;
+    const avgTicket = orderCount > 0 ? Math.round(totalSales / orderCount) : 0;
+
+    // Métodos de pago
+    const payments = { efectivo: 0, transferencia: 0, debito: 0, credito: 0 };
+    paidOrders.forEach(o => {
+        const m = (o.payment_method || 'efectivo').toLowerCase();
+        if (payments[m] !== undefined) payments[m] += (o.total || 0);
+        else payments.efectivo += (o.total || 0);
+    });
+
+    // Serie temporal por día (Ventas vs Gastos)
+    const timelineMap = {};
+    paidOrders.forEach(o => {
+        const d = new Date(o.created_at).toISOString().split('T')[0];
+        if (!timelineMap[d]) timelineMap[d] = { date: d, sales: 0, expenses: 0, count: 0 };
+        timelineMap[d].sales += (o.total || 0);
+        timelineMap[d].count += 1;
+    });
+    expenses.forEach(e => {
+        const d = new Date(e.created_at).toISOString().split('T')[0];
+        if (!timelineMap[d]) timelineMap[d] = { date: d, sales: 0, expenses: 0, count: 0 };
+        timelineMap[d].expenses += (e.amount || 0);
+    });
+
+    // Ordenar serie por fecha ascendente
+    const timeline = Object.values(timelineMap).sort((a, b) => a.date.localeCompare(b.date));
+
+    // Horas pico (distribución por hora 0 a 23)
+    const hourlyDistribution = Array(24).fill(0);
+    const hourlySales = Array(24).fill(0);
+    paidOrders.forEach(o => {
+        const h = new Date(o.created_at).getHours();
+        hourlyDistribution[h] += 1;
+        hourlySales[h] += (o.total || 0);
+    });
+
+    // Ranking de productos
+    const productStats = {};
+    paidOrders.forEach(order => {
+        (order.order_items || []).forEach(item => {
+            const name = item.product_name || 'Producto';
+            if (!productStats[name]) productStats[name] = { qty: 0, total: 0 };
+            productStats[name].qty += (item.quantity || 1);
+            productStats[name].total += ((item.price || 0) * (item.quantity || 1));
+        });
+    });
+    const topProducts = Object.entries(productStats)
+        .map(([name, data]) => ({ name, ...data }))
+        .sort((a, b) => b.qty - a.qty);
+
+    return {
+        allOrders,
+        paidOrders,
+        expenses,
+        totalSales,
+        totalExpenses,
+        netProfit,
+        profitMargin,
+        orderCount,
+        avgTicket,
+        payments,
+        timeline,
+        hourlyDistribution,
+        hourlySales,
+        topProducts
+    };
+}
+
+// Obtener datos completos de un día específico para Excel o auditoría
+export async function getDayFullConsolidated(dateStr) {
+    const start = new Date(dateStr);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(dateStr);
+    end.setHours(23, 59, 59, 999);
+
+    const analytics = await getAnalyticsByRange(start.toISOString(), end.toISOString());
+
+    // Cajas que abrieron o cerraron ese día
+    const { data: registers } = await supabase.from('cash_registers')
+        .select('*')
+        .gte('opened_at', start.toISOString())
+        .lte('opened_at', end.toISOString())
+        .order('opened_at', { ascending: true });
+
+    return {
+        ...analytics,
+        registers: registers || [],
+        dateStr
+    };
+}
+
 export const reportService = {
     getCurrentShiftSummary,
     getWeeklySales,
     getTopProducts,
     getPaymentBreakdown,
     getRegisterHistory,
-    getDailySalesSummary
+    getDailySalesSummary,
+    getAnalyticsByRange,
+    getDayFullConsolidated,
+    ensureChartJS
 };
 
