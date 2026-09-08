@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Burgame — Pantalla QR de Autopedidos</title>
+    <meta name="description" content="Pantalla interactiva de código QR dinámico para mostrador y mesas en Burgame.">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@700;800&family=Press+Start+2P&display=swap" rel="stylesheet">
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/components.css">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="BurgameLogoTrazoAmarillo.png">
+
+    <style>
+        body {
+            background: #06070A;
+            color: #FFFFFF;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.5rem;
+            box-sizing: border-box;
+            overflow-x: hidden;
+            user-select: none;
+        }
+
+        .qr-screen-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            text-align: center;
+        }
+
+        .qr-screen-logo {
+            max-height: 85px;
+            filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.4));
+        }
+
+        .qr-screen-badge {
+            font-family: var(--font-title);
+            font-size: 0.75rem;
+            background: rgba(255, 215, 0, 0.12);
+            border: 1px solid var(--color-primary);
+            color: var(--color-primary);
+            padding: 0.4rem 1rem;
+            border-radius: var(--radius-full);
+            letter-spacing: 1px;
+            box-shadow: 0 0 15px var(--color-primary-glow);
+        }
+
+        .qr-display-box {
+            background: #0E1017;
+            border: 3px solid var(--color-primary);
+            border-radius: 24px;
+            box-shadow: 0 0 45px rgba(255, 215, 0, 0.25), inset 0 0 20px rgba(255, 215, 0, 0.06);
+            padding: 2.2rem 2.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.4rem;
+            max-width: 480px;
+            width: 100%;
+            position: relative;
+        }
+
+        .qr-image-wrapper {
+            position: relative;
+            background: #000000;
+            padding: 1rem;
+            border-radius: 16px;
+            border: 2px solid var(--border-gold);
+            box-shadow: 0 0 25px rgba(255, 215, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .qr-image-wrapper img {
+            width: 230px;
+            height: 230px;
+            display: block;
+            border-radius: 8px;
+            image-rendering: pixelated;
+        }
+
+        .qr-corner-tl, .qr-corner-tr, .qr-corner-bl, .qr-corner-br {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border-color: var(--color-primary);
+            border-style: solid;
+        }
+        .qr-corner-tl { top: 6px; left: 6px; border-width: 3px 0 0 3px; }
+        .qr-corner-tr { top: 6px; right: 6px; border-width: 3px 3px 0 0; }
+        .qr-corner-bl { bottom: 6px; left: 6px; border-width: 0 0 3px 3px; }
+        .qr-corner-br { bottom: 6px; right: 6px; border-width: 0 3px 3px 0; }
+
+        .pin-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.35rem;
+            width: 100%;
+        }
+
+        .pin-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 700;
+        }
+
+        .pin-code-badge {
+            font-family: var(--font-mono);
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: var(--color-primary);
+            background: rgba(255, 215, 0, 0.08);
+            border: 2px dashed var(--color-primary);
+            border-radius: 12px;
+            padding: 0.4rem 1.8rem;
+            letter-spacing: 0.5rem;
+            text-shadow: 0 0 15px var(--color-primary-glow);
+        }
+
+        .timer-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .timer-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--text-muted);
+        }
+
+        .timer-bar {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: var(--radius-full);
+            overflow: hidden;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .timer-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #FFD700 0%, #00E676 100%);
+            box-shadow: 0 0 10px var(--color-primary-glow);
+            transition: width 1s linear;
+        }
+
+        .instructions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            font-size: 0.88rem;
+            color: var(--text-main);
+            text-align: center;
+            max-width: 440px;
+        }
+
+        .instruction-item {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 0.6rem 0.9rem;
+        }
+
+        .instruction-num {
+            font-family: var(--font-title);
+            font-size: 0.75rem;
+            color: var(--color-primary);
+            background: rgba(255, 215, 0, 0.15);
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .screen-toolbar {
+            display: flex;
+            gap: 0.8rem;
+            margin-top: 1rem;
+        }
+
+        .btn-toolbar {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-muted);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .btn-toolbar:hover {
+            background: rgba(255, 215, 0, 0.15);
+            border-color: var(--color-primary);
+            color: var(--color-primary);
+        }
+
+        @media (max-height: 700px) {
+            .qr-screen-logo { max-height: 60px; }
+            .qr-image-wrapper img { width: 170px; height: 170px; }
+            .pin-code-badge { font-size: 1.7rem; padding: 0.3rem 1.2rem; }
+            .qr-display-box { padding: 1.2rem 1.6rem; gap: 0.9rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="qr-screen-header">
+        <img src="banner.png" alt="Burgame Logo" class="qr-screen-logo">
+        <div class="qr-screen-badge">⚡ AUTOPEDIDO DIRECTO A COCINA</div>
+    </header>
+
+    <main class="qr-display-box">
+        <div class="qr-image-wrapper">
+            <div class="qr-corner-tl"></div>
+            <div class="qr-corner-tr"></div>
+            <div class="qr-corner-bl"></div>
+            <div class="qr-corner-br"></div>
+            <img id="qr-image" src="" alt="Código QR Autopedido">
+        </div>
+
+        <div class="pin-container">
+            <span class="pin-label">O ingresa este PIN en tu teléfono:</span>
+            <div id="pin-display" class="pin-code-badge">----</div>
+        </div>
+
+        <div class="timer-container">
+            <div class="timer-header">
+                <span>🔄 Código dinámico activo</span>
+                <span id="timer-text">Cambia en --:--</span>
+            </div>
+            <div class="timer-bar">
+                <div id="timer-fill" class="timer-fill" style="width: 100%;"></div>
+            </div>
+        </div>
+    </main>
+
+    <section class="instructions-list">
+        <div class="instruction-item">
+            <span class="instruction-num">1</span>
+            <span>Escanea con tu cámara o ingresa el PIN</span>
+        </div>
+        <div class="instruction-item">
+            <span class="instruction-num">2</span>
+            <span>Elige tus hamburguesas y combos favoritos</span>
+        </div>
+        <div class="instruction-item">
+            <span class="instruction-num">3</span>
+            <span>¡Confirma y cocina empieza a preparar de inmediato!</span>
+        </div>
+    </section>
+
+    <footer class="screen-toolbar">
+        <button id="btn-fullscreen" class="btn-toolbar">
+            ⛶ Pantalla Completa
+        </button>
+        <button id="btn-test-portal" class="btn-toolbar">
+            📱 Probar Portal
+        </button>
+    </footer>
+
+    <script type="module">
+        import { qrAuthService } from './js/services/qr-auth-service.js';
+
+        const qrImg = document.getElementById('qr-image');
+        const pinDisplay = document.getElementById('pin-display');
+        const timerText = document.getElementById('timer-text');
+        const timerFill = document.getElementById('timer-fill');
+        const btnFullscreen = document.getElementById('btn-fullscreen');
+        const btnTestPortal = document.getElementById('btn-test-portal');
+
+        let currentActiveToken = null;
+
+        function updateScreen() {
+            const creds = qrAuthService.getCurrentCredentials();
+
+            // Si cambió el token, actualizamos el QR y el PIN
+            if (creds.token !== currentActiveToken) {
+                currentActiveToken = creds.token;
+                const customerUrl = qrAuthService.buildCustomerUrl(window.location.origin);
+                
+                // Generar QR usando API rápida y estilizada
+                const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(customerUrl)}&color=FFD700&bgcolor=000000`;
+                qrImg.src = qrApiUrl;
+
+                pinDisplay.textContent = creds.pin;
+            }
+
+            // Actualizar cuenta regresiva y barra de progreso
+            const mins = Math.floor(creds.secondsRemaining / 60);
+            const secs = creds.secondsRemaining % 60;
+            timerText.textContent = `Cambia en ${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+            const pct = (creds.msRemaining / qrAuthService.ROTATION_INTERVAL_MS) * 100;
+            timerFill.style.width = `${pct}%`;
+        }
+
+        // Intervalo de actualización cada 1 segundo
+        updateScreen();
+        setInterval(updateScreen, 1000);
+
+        // Botón Pantalla Completa
+        btnFullscreen?.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen().catch(() => {});
+            }
+        });
+
+        // Probar en nueva pestaña
+        btnTestPortal?.addEventListener('click', () => {
+            const customerUrl = qrAuthService.buildCustomerUrl(window.location.origin);
+            window.open(customerUrl, '_blank');
+        });
+    </script>
+</body>
+</html>

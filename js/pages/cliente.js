@@ -6,6 +6,7 @@ import { showToast } from '../components/toast.js';
 import { renderProductCard } from '../components/product-card.js';
 import { createCart } from '../components/cart.js';
 import { supabase } from '../supabase-client.js';
+import { qrAuthService } from '../services/qr-auth-service.js';
 
 let serviceType = 'eat_in'; // 'eat_in' | 'takeaway'
 let tableNumber = '';
@@ -21,6 +22,26 @@ document.addEventListener('DOMContentLoaded', initClienteApp);
 async function initClienteApp() {
     const appEl = document.getElementById('cliente-app');
     if (!appEl) return;
+
+    // 1. Procesar parámetros de URL (token, pin, mesa)
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenParam = urlParams.get('token');
+    const pinParam = urlParams.get('pin');
+    const mesaParam = urlParams.get('mesa') || urlParams.get('table');
+
+    if (mesaParam) {
+        tableNumber = mesaParam.trim();
+        serviceType = 'eat_in';
+    }
+
+    // Validar si vino con token o PIN rotativo válido
+    if (tokenParam && qrAuthService.isValidToken(tokenParam)) {
+        qrAuthService.startClientSession({ method: 'qr', table: tableNumber });
+        window.history.replaceState({}, document.title, window.location.pathname + (tableNumber ? `?mesa=${encodeURIComponent(tableNumber)}` : ''));
+    } else if (pinParam && qrAuthService.isValidPin(pinParam)) {
+        qrAuthService.startClientSession({ method: 'pin', table: tableNumber });
+        window.history.replaceState({}, document.title, window.location.pathname + (tableNumber ? `?mesa=${encodeURIComponent(tableNumber)}` : ''));
+    }
 
     try {
         const [prodData, catData] = await Promise.all([
@@ -39,10 +60,13 @@ async function initClienteApp() {
 function renderView(appEl) {
     if (activeOrder) {
         renderOrderTracker(appEl);
+    } else if (!qrAuthService.isSessionValid()) {
+        renderLockScreen(appEl);
     } else {
         renderMenuCatalog(appEl);
     }
 }
+
 
 // ============================================================
 // Catálogo de productos (autopedido desde la mesa)
@@ -55,6 +79,8 @@ function renderMenuCatalog(appEl) {
                 🎮 HAZ TU PEDIDO DIRECTO DESDE LA MESA
             </p>
         </div>
+
+        ${renderSessionBadge()}
 
         <div class="service-type-selector">
             <button class="btn-service-type ${serviceType === 'eat_in' ? 'active' : ''}" id="btn-eat-in">
@@ -209,7 +235,15 @@ function setupEvents(appEl) {
         const originalText = btn.innerHTML;
         btn.disabled = true;
         btn.style.opacity = '0.6';
-        btn.innerHTML = '⏳ ENVIANDO...';
+        if (!qrAuthService.isSessionValid()) {
+            showToast({ message: 'Tu sesión en el local ha expirado. Por favor ingresa el PIN del local.', type: 'warning' });
+            isSubmittingOrder = false;
+            btn.disabled = false;
+            btn.style.opacity = '';
+            btn.innerHTML = originalText;
+            renderView(appEl);
+            return;
+        }
 
         const nameVal = appEl.querySelector('#cust-name')?.value.trim();
         const tableVal = appEl.querySelector('#cust-table')?.value.trim();
@@ -429,3 +463,96 @@ function cleanupTracker() {
 
 // Limpiar canal al salir de la página / recargar
 window.addEventListener('beforeunload', cleanupTracker);
+
+// ============================================================
+// Funciones de Seguridad, Sesión y Pantalla de Bloqueo
+// ============================================================
+function renderSessionBadge() {
+    const session = qrAuthService.getActiveSession();
+    if (!session) return '';
+    const minsLeft = Math.max(1, Math.round((session.expiresAt - Date.now()) / 60000));
+    return `
+        <div class="session-badge-bar">
+            <span>🛡️ <strong>SESIÓN EN LOCAL ACTIVA</strong></span>
+            <span>⏱️ Válida por ~${minsLeft} min</span>
+        </div>
+    `;
+}
+
+function renderLockScreen(appEl) {
+    appEl.innerHTML = `
+        <div class="cliente-header-banner">
+            <img src="banner.png" alt="Burgame Banner" class="cliente-banner-img">
+        </div>
+
+        <div class="cliente-lock-screen">
+            <div class="lock-card">
+                <div class="lock-icon-badge">🔒</div>
+                <div class="lock-title">ACCESO EXCLUSIVO EN EL LOCAL</div>
+                <p class="lock-desc">
+                    Para realizar un autopedido y evitar pedidos falsos, debes estar dentro de Burgame.
+                </p>
+
+                <div style="background: rgba(255, 215, 0, 0.05); border: 1px dashed var(--border-gold); padding: 0.9rem; border-radius: var(--radius-md); width: 100%; text-align: left; font-size: 0.82rem; color: var(--text-muted); line-height: 1.5;">
+                    <div style="color: var(--color-primary); font-weight: 700; margin-bottom: 0.3rem;">📱 ¿Cómo desbloquear el menú?</div>
+                    <div>1. Escanea el <strong>código QR activo</strong> en la pantalla del mostrador o de tu mesa.</div>
+                    <div style="margin-top: 0.2rem;">2. O ingresa el <strong>PIN de 4 dígitos</strong> visible en la pantalla del local.</div>
+                </div>
+
+                <form id="form-unlock-pin" class="pin-input-group">
+                    <label style="font-size: 0.82rem; font-weight: 700; color: var(--text-main);">
+                        Ingresa el PIN de 4 dígitos:
+                    </label>
+                    <input type="tel" id="input-unlock-pin" class="pin-input-field" maxlength="4" placeholder="• • • •" autocomplete="off" inputmode="numeric">
+                    <button type="submit" class="btn btn--primary btn--block" style="margin-top: 0.5rem; padding: 0.85rem; font-weight: 800;">
+                        🚀 DESBLOQUEAR MENÚ
+                    </button>
+                </form>
+
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">
+                    💡 ¿Tienes dudas? Consulta con el personal de sala o caja.
+                </p>
+            </div>
+        </div>
+    `;
+
+    const form = appEl.querySelector('#form-unlock-pin');
+    const input = appEl.querySelector('#input-unlock-pin');
+    input?.focus();
+
+    // Auto-validar al ingresar 4 números
+    input?.addEventListener('input', (e) => {
+        const val = e.target.value.replace(/\D/g, '');
+        e.target.value = val;
+        if (val.length === 4) {
+            submitPin(val, appEl);
+        }
+    });
+
+    form?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const pinVal = input?.value.trim();
+        submitPin(pinVal, appEl);
+    });
+}
+
+function submitPin(pinVal, appEl) {
+    if (!pinVal || pinVal.length < 4) {
+        showToast({ message: 'Ingresa los 4 dígitos del PIN', type: 'warning' });
+        return;
+    }
+
+    if (qrAuthService.isValidPin(pinVal)) {
+        qrAuthService.startClientSession({ method: 'pin', table: tableNumber });
+        showToast({ message: '🎮 ¡Acceso verificado! Menú habilitado.', type: 'success' });
+        renderView(appEl);
+    } else {
+        showToast({ message: 'PIN incorrecto o vencido. Verifica en la pantalla del local.', type: 'error' });
+        const input = appEl.querySelector('#input-unlock-pin');
+        if (input) {
+            input.value = '';
+            input.focus();
+        }
+    }
+}
+

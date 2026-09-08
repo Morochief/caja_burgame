@@ -9,6 +9,7 @@ import { renderProductCard } from '../components/product-card.js';
 import { createCart } from '../components/cart.js';
 import { navigate } from '../router.js';
 import { initChat } from '../components/chat-ui.js';
+import { qrAuthService } from '../services/qr-auth-service.js';
 
 let currentCategory = 'all';
 let searchQuery = '';
@@ -34,11 +35,14 @@ export async function renderVentasPage() {
                     <div class="pos-banner-container">
                         <img src="banner.png" alt="Burgame Banner" class="pos-banner-img">
                     </div>
-                    <header class="ventas-header">
-                        <div class="search-bar">
+                    <header class="ventas-header" style="display: flex; gap: 0.8rem; align-items: center;">
+                        <div class="search-bar" style="flex: 1;">
                             <i data-lucide="search"></i>
                             <input type="text" id="pos-search" placeholder="Buscar producto por nombre..." value="${searchQuery}">
                         </div>
+                        <button id="btn-pos-quick-qr" class="btn btn--secondary btn--sm" style="white-space: nowrap; display: flex; align-items: center; gap: 0.4rem; height: 38px; border-color: var(--border-gold);" title="Ver PIN y QR de Clientes">
+                            📱 QR Clientes
+                        </button>
                     </header>
                     <nav class="categories-bar" id="categories-bar">
                         <div class="page-loading" style="padding: 1rem;"><div class="pixel-spinner"></div></div>
@@ -163,6 +167,8 @@ function setupEvents(container) {
     const fabBtn = container.querySelector('#btn-floating-cart');
     fabBtn?.addEventListener('click', () => openCartModal(container));
 
+    container.querySelector('#btn-pos-quick-qr')?.addEventListener('click', openQuickQrModal);
+
     // Los listeners del modal (close, clear, send, inputs) se registran
     // directamente en el overlay cuando se abre openCartModal().
     // No usar document.addEventListener aquí: se acumularían en cada navegación.
@@ -170,6 +176,68 @@ function setupEvents(container) {
     attachProductClickEvents(container);
     setupKeyboardShortcuts(container);
 }
+
+// ============================================================
+// Modal rápido de QR y PIN para el cajero
+// ============================================================
+function openQuickQrModal() {
+    const existing = document.querySelector('#quick-qr-modal-overlay');
+    if (existing) existing.remove();
+
+    const creds = qrAuthService.getCurrentCredentials();
+    const customerUrl = qrAuthService.buildCustomerUrl(window.location.origin);
+    const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(customerUrl)}&color=FFD700&bgcolor=0E1017`;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'quick-qr-modal-overlay';
+    overlay.className = 'cart-modal-overlay';
+    overlay.innerHTML = `
+        <div class="cart-modal" style="max-width: 420px; text-align: center; border: 2px solid var(--color-primary); box-shadow: 0 0 35px var(--color-primary-glow);">
+            <div class="cart-modal__header" style="justify-content: space-between; display: flex; align-items: center; padding: 1rem 1.2rem; border-bottom: 1px solid var(--border-subtle);">
+                <h3 style="font-family: var(--font-title); font-size: 0.88rem; color: var(--color-primary); margin: 0;">
+                    📱 CÓDIGO QR Y PIN CLIENTES
+                </h3>
+                <button id="btn-close-qr-modal" class="btn btn--sm" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-muted);">✕</button>
+            </div>
+            <div class="cart-modal__body" style="padding: 1.2rem; display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+                <div style="background: #000; padding: 0.8rem; border-radius: 12px; border: 2px solid var(--border-gold); box-shadow: 0 0 20px rgba(255,215,0,0.2);">
+                    <img src="${qrApiUrl}" alt="QR Clientes" style="width: 190px; height: 190px; display: block; border-radius: 6px;">
+                </div>
+                <div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 0.3rem;">
+                        PIN del Mostrador (Para dictar al cliente):
+                    </div>
+                    <div style="font-family: var(--font-mono); font-size: 2.2rem; font-weight: 800; color: var(--color-primary); letter-spacing: 0.4rem; background: rgba(255,215,0,0.08); padding: 0.3rem 1.2rem; border-radius: 8px; border: 1px dashed var(--color-primary); display: inline-block;">
+                        ${creds.pin}
+                    </div>
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">
+                    ⏳ Código dinámico · Rota automáticamente cada 10 min
+                </div>
+                <div style="display: flex; gap: 0.6rem; width: 100%; margin-top: 0.5rem;">
+                    <a href="pantalla-qr.html" target="_blank" class="btn btn--primary btn--block" style="text-align: center; text-decoration: none; padding: 0.75rem; font-weight: 700;">
+                        🖥️ Pantalla Mostrador (TV / Tablet)
+                    </a>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('open'));
+
+    overlay.querySelector('#btn-close-qr-modal')?.addEventListener('click', () => {
+        overlay.classList.remove('open');
+        setTimeout(() => overlay.remove(), 250);
+    });
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.classList.remove('open');
+            setTimeout(() => overlay.remove(), 250);
+        }
+    });
+}
+
 
 // ============================================================
 // Modal del carrito
