@@ -234,7 +234,8 @@ function getFiltered() {
 
     // Combinar con stats
     filtered = filtered.map(c => {
-        const stats = statsMap[c.name] || {};
+        const key = (c.name || '').trim();
+        const stats = statsMap[key] || statsMap[key.toLowerCase()] || {};
         return {
             ...c,
             total_spent: stats.total_spent || 0,
@@ -651,7 +652,8 @@ function openHistoryModal(container, customer) {
     const modal = container.querySelector('#cli-history-modal');
     if (!modal) return;
 
-    const stats = statsMap[customer.name] || {};
+    const key = (customer.name || '').trim();
+    const stats = statsMap[key] || statsMap[key.toLowerCase()] || {};
     const orders = (stats.orders || []).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     const avgTicket = stats.order_count > 0 ? Math.round(stats.total_spent / stats.order_count) : 0;
 

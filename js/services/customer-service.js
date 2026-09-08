@@ -87,8 +87,8 @@ export async function reassignOrders(fromName, toName) {
 export async function getStatsByName() {
     const { data, error } = await supabase
         .from('orders')
-        .select('customer_name, total, status, created_at')
-        .not('customer_name', 'eq', '')
+        .select('customer_name, total, status, created_at, paid_at')
+        .not('customer_name', 'is', null)
         .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -97,11 +97,20 @@ export async function getStatsByName() {
     (data || []).forEach(order => {
         const name = (order.customer_name || '').trim();
         if (!name) return;
+
+        // Guardar con clave normalizada y con clave exacta
+        const lowerName = name.toLowerCase();
         if (!stats[name]) {
             stats[name] = { total_spent: 0, order_count: 0, last_order: null, orders: [] };
         }
-        if (order.paid_at) {
-            stats[name].total_spent += order.total || 0;
+        if (!stats[lowerName]) {
+            stats[lowerName] = stats[name];
+        }
+
+        // Sumar como gastado si la orden fue pagada o entregada
+        const isPaid = order.paid_at || order.status === 'paid' || order.status === 'delivered';
+        if (isPaid) {
+            stats[name].total_spent += (order.total || 0);
         }
         stats[name].order_count++;
         stats[name].orders.push(order);
