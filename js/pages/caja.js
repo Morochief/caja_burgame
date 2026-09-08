@@ -5,6 +5,20 @@ import { formatGs } from '../components/currency.js';
 import { showToast } from '../components/toast.js';
 import { exportConsolidatedReportExcel } from '../services/excel-export-service.js';
 
+// Denominaciones oficiales de moneda en Paraguay (PYG)
+const DENOMINATIONS = [
+    { value: 100000, label: 'Gs. 100.000', kind: 'Billetes' },
+    { value: 50000,  label: 'Gs. 50.000',  kind: 'Billetes' },
+    { value: 20000,  label: 'Gs. 20.000',  kind: 'Billetes' },
+    { value: 10000,  label: 'Gs. 10.000',  kind: 'Billetes' },
+    { value: 5000,   label: 'Gs. 5.000',   kind: 'Billetes' },
+    { value: 2000,   label: 'Gs. 2.000',   kind: 'Billetes' },
+    { value: 1000,   label: 'Gs. 1.000 (Moneda)', kind: 'Monedas' },
+    { value: 500,    label: 'Gs. 500 (Moneda)',   kind: 'Monedas' },
+    { value: 100,    label: 'Gs. 100 (Moneda)',   kind: 'Monedas' },
+    { value: 50,     label: 'Gs. 50 (Moneda)',    kind: 'Monedas' }
+];
+
 export async function renderCajaPage() {
     const container = document.createElement('div');
     container.className = 'caja-page';
@@ -23,33 +37,61 @@ export async function renderCajaPage() {
     return container;
 }
 
+async function refreshCajaPage(container) {
+    appState.cashRegister = null;
+    appState._registerFetchedAt = 0;
+    container.innerHTML = `
+        <div class="page-loading" style="padding: 4rem;">
+            <div class="pixel-spinner"></div>
+            <p>Actualizando estado de caja...</p>
+        </div>
+    `;
+    await loadCajaData(container);
+}
+
 async function loadCajaData(container) {
     const currentRegister = appState.cashRegister || await cashService.getCurrentRegister();
 
     if (!currentRegister) {
-        // Vista para ABRIR CAJA
+        // Vista para ABRIR CAJA (con Presets de apertura express)
         container.innerHTML = `
             <div class="caja-open-container">
                 <div class="caja-card">
                     <div class="caja-card__header">
                         <div class="caja-icon">🔒</div>
                         <h1>APERTURA DE CAJA</h1>
-                        <p>Ingresa el monto inicial en efectivo para comenzar el turno</p>
+                        <p>Ingresa el monto inicial en efectivo para comenzar el turno operativo</p>
                     </div>
 
                     <form id="form-open-cash" class="caja-form">
                         <div class="form-group">
                             <label for="initial-amount">Monto Inicial en Efectivo (Gs.):</label>
                             <input type="number" id="initial-amount" placeholder="Ej: 500000" min="0" required autofocus>
+                            <div class="open-presets-row" style="display: flex; gap: 0.5rem; margin-top: 0.6rem; flex-wrap: wrap;">
+                                <button type="button" class="open-preset-pill" data-amount="200000">Gs. 200.000</button>
+                                <button type="button" class="open-preset-pill" data-amount="300000">Gs. 300.000</button>
+                                <button type="button" class="open-preset-pill" data-amount="500000">Gs. 500.000</button>
+                                <button type="button" class="open-preset-pill" data-amount="1000000">Gs. 1.000.000</button>
+                            </div>
                         </div>
 
-                        <button type="submit" class="btn btn--primary btn--block">
+                        <button type="submit" class="btn btn--primary btn--block" style="margin-top: 1.25rem;">
                             🔓 ABRIR CAJA E INICIAR TURNO
                         </button>
                     </form>
                 </div>
             </div>
         `;
+
+        container.querySelectorAll('.open-preset-pill').forEach(pill => {
+            pill.addEventListener('click', () => {
+                const inp = container.querySelector('#initial-amount');
+                if (inp) {
+                    inp.value = pill.dataset.amount;
+                    inp.focus();
+                }
+            });
+        });
 
         container.querySelector('#form-open-cash')?.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -68,92 +110,190 @@ async function loadCajaData(container) {
         return;
     }
 
-    // Vista CAJA ABIERTA: mostrar skeleton del summary mientras carga
+    // Vista CAJA ABIERTA
     container.innerHTML = `
-        <header class="page-header">
+        <header class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
             <div class="page-header__info">
                 <h1>💰 ESTADO DE CAJA</h1>
-                <p>Caja abierta desde ${new Date(currentRegister.opened_at).toLocaleString()}</p>
+                <p>Caja abierta desde ${new Date(currentRegister.opened_at).toLocaleString('es-PY')}</p>
             </div>
-            <div class="status-badge badge badge--green">CAJA ABIERTA</div>
+            <div style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;">
+                <div class="status-badge badge badge--green">CAJA ABIERTA</div>
+            </div>
         </header>
         <div id="caja-content">
-            <div class="page-loading" style="padding: 3rem;"><div class="pixel-spinner"></div><p>Calculando resumen...</p></div>
+            <div class="page-loading" style="padding: 3rem;"><div class="pixel-spinner"></div><p>Calculando resumen en tiempo real...</p></div>
         </div>
+        <div id="print-caja-ticket-area" style="display: none;"></div>
     `;
 
     // Cargar summary en background
     try {
         const summary = await cashService.getRegisterSummary(currentRegister.id);
         const contentEl = container.querySelector('#caja-content');
-        if (contentEl) {
-            contentEl.innerHTML = `
-                <div class="caja-grid">
-                    <div class="caja-stats-grid">
-                        <div class="stat-card">
-                            <span class="stat-card__title">Monto Inicial</span>
-                            <span class="stat-card__value">${formatGs(currentRegister.initial_amount)}</span>
-                        </div>
-                        <div class="stat-card">
-                            <span class="stat-card__title">Ventas Totales</span>
-                            <span class="stat-card__value stat-card__value--green">${formatGs(summary.totalSales)}</span>
-                        </div>
-                        <div class="stat-card">
-                            <span class="stat-card__title">Gastos del Turno</span>
-                            <span class="stat-card__value stat-card__value--red">${formatGs(summary.totalExpenses)}</span>
-                        </div>
-                        <div class="stat-card">
-                            <span class="stat-card__title">Efectivo Esperado</span>
-                            <span class="stat-card__value stat-card__value--yellow">${formatGs(summary.expectedCash)}</span>
-                        </div>
+        if (!contentEl) return;
+
+        // Métricas de Mix de Recaudación
+        const totalSales = summary.totalSales || 0;
+        const cashAmt = summary.payments.efectivo || 0;
+        const transferAmt = summary.payments.transferencia || 0;
+        const debitAmt = summary.payments.debito || 0;
+        const creditAmt = summary.payments.credito || 0;
+
+        const cashPct = totalSales > 0 ? Math.round((cashAmt / totalSales) * 100) : 0;
+        const transferPct = totalSales > 0 ? Math.round((transferAmt / totalSales) * 100) : 0;
+        const debitPct = totalSales > 0 ? Math.round((debitAmt / totalSales) * 100) : 0;
+        const creditPct = totalSales > 0 ? Math.round((creditAmt / totalSales) * 100) : 0;
+
+        contentEl.innerHTML = `
+            <!-- Botonera de Acciones Rápidas de Caja -->
+            <div class="caja-quick-actions">
+                <button type="button" id="btn-cash-movement" class="caja-action-btn">
+                    <span>💸</span> Registrar Movimiento (Sangría / Ingreso)
+                </button>
+                <button type="button" id="btn-report-x" class="caja-action-btn">
+                    <span>🧾</span> Arqueo Parcial (Reporte X)
+                </button>
+            </div>
+
+            <!-- Mix de Recaudación por Medios de Pago -->
+            <div class="revenue-mix-card">
+                <div class="revenue-mix-header">
+                    <h4>📊 Mix de Recaudación del Turno</h4>
+                    <span style="font-size: 0.8rem; color: var(--text-muted); font-family: var(--font-mono);">
+                        Ventas Totales: <strong style="color: var(--color-primary);">${formatGs(totalSales)}</strong>
+                    </span>
+                </div>
+                <div class="revenue-mix-bar">
+                    <div class="mix-segment mix-segment--cash" style="width: ${cashPct}%;" title="Efectivo: ${cashPct}%"></div>
+                    <div class="mix-segment mix-segment--transfer" style="width: ${transferPct}%;" title="Transferencia: ${transferPct}%"></div>
+                    <div class="mix-segment mix-segment--debit" style="width: ${debitPct}%;" title="Débito: ${debitPct}%"></div>
+                    <div class="mix-segment mix-segment--credit" style="width: ${creditPct}%;" title="Crédito: ${creditPct}%"></div>
+                </div>
+                <div class="mix-legend">
+                    <div class="mix-legend-item"><span class="mix-legend-dot" style="background:#10B981;"></span> Efectivo: <strong>${cashPct}%</strong> (${formatGs(cashAmt)})</div>
+                    <div class="mix-legend-item"><span class="mix-legend-dot" style="background:#06B6D4;"></span> Transferencia: <strong>${transferPct}%</strong> (${formatGs(transferAmt)})</div>
+                    <div class="mix-legend-item"><span class="mix-legend-dot" style="background:#F59E0B;"></span> Débito: <strong>${debitPct}%</strong> (${formatGs(debitAmt)})</div>
+                    <div class="mix-legend-item"><span class="mix-legend-dot" style="background:#EC4899;"></span> Crédito: <strong>${creditPct}%</strong> (${formatGs(creditAmt)})</div>
+                </div>
+            </div>
+
+            <div class="caja-grid">
+                <!-- Estadísticas Principales -->
+                <div class="caja-stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-card__title">Monto Inicial</span>
+                        <span class="stat-card__value">${formatGs(currentRegister.initial_amount)}</span>
                     </div>
-                    <div class="caja-breakdown-card">
-                        <h3>💳 Desglose por Método de Pago</h3>
-                        <ul class="breakdown-list">
-                            <li><span>💵 Efectivo:</span> <strong>${formatGs(summary.payments.efectivo || 0)}</strong></li>
-                            <li><span>📱 Transferencia:</span> <strong>${formatGs(summary.payments.transferencia || 0)}</strong></li>
-                            <li><span>💳 Débito:</span> <strong>${formatGs(summary.payments.debito || 0)}</strong></li>
-                            <li><span>💳 Crédito:</span> <strong>${formatGs(summary.payments.credito || 0)}</strong></li>
-                        </ul>
+                    <div class="stat-card">
+                        <span class="stat-card__title">Ventas Totales</span>
+                        <span class="stat-card__value stat-card__value--green">${formatGs(summary.totalSales)}</span>
                     </div>
-                    <div class="caja-close-card">
-                        <h3>🔒 Cierre de Caja</h3>
-                        <form id="form-close-cash">
-                            <div class="form-group">
-                                <label for="counted-amount">Monto Contado en Efectivo (Gs.):</label>
-                                <input type="number" id="counted-amount" value="${summary.expectedCash || 0}" placeholder="Monto contado real" required>
+                    <div class="stat-card">
+                        <span class="stat-card__title">Gastos / Sangrías</span>
+                        <span class="stat-card__value stat-card__value--red">${formatGs(summary.totalExpenses)}</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-card__title">Efectivo Esperado</span>
+                        <span class="stat-card__value stat-card__value--yellow">${formatGs(summary.expectedCash)}</span>
+                    </div>
+                </div>
+
+                <!-- Desglose por Método de Pago -->
+                <div class="caja-breakdown-card">
+                    <h3>💳 Desglose por Método de Pago</h3>
+                    <ul class="breakdown-list">
+                        <li><span>💵 Efectivo:</span> <strong>${formatGs(summary.payments.efectivo || 0)}</strong></li>
+                        <li><span>📱 Transferencia:</span> <strong>${formatGs(summary.payments.transferencia || 0)}</strong></li>
+                        <li><span>💳 Débito:</span> <strong>${formatGs(summary.payments.debito || 0)}</strong></li>
+                        <li><span>💳 Crédito:</span> <strong>${formatGs(summary.payments.credito || 0)}</strong></li>
+                    </ul>
+                </div>
+
+                <!-- Cierre de Caja con Billeteo y Auditoría -->
+                <div class="caja-close-card">
+                    <h3>🔒 Cierre de Caja y Arqueo Final</h3>
+                    <form id="form-close-cash">
+                        <div style="margin-bottom: 1rem;">
+                            <button type="button" id="btn-toggle-billeteo" class="btn btn--ghost" style="width: 100%; border: 1px dashed rgba(255,215,0,0.35); color: var(--color-primary); font-size: 0.85rem; padding: 0.6rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                                <span>🧮</span> Abrir Billeteo Interactivo (Monedas y Billetes PYG)
+                            </button>
+                            <div id="billeteo-card" class="billeteo-card" style="display: none; margin-top: 0.75rem;">
+                                <div class="billeteo-header">
+                                    <h4>💵 Arqueo Detallado por Denominación</h4>
+                                    <button type="button" id="btn-clear-billeteo" class="btn btn--ghost" style="font-size: 0.75rem; padding: 0.2rem 0.6rem;">Limpiar</button>
+                                </div>
+                                <table class="billeteo-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Denominación</th>
+                                            <th style="text-align: center; width: 90px;">Cantidad</th>
+                                            <th style="text-align: right;">Subtotal (Gs.)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${DENOMINATIONS.map(d => `
+                                            <tr data-denom="${d.value}">
+                                                <td><strong>${d.label}</strong></td>
+                                                <td style="text-align: center;">
+                                                    <input type="number" min="0" value="0" class="billeteo-input" data-denom="${d.value}">
+                                                </td>
+                                                <td class="billeteo-subtotal" data-subtotal="0">Gs. 0</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                                <div class="billeteo-total-bar">
+                                    <span style="font-weight: 600; color: #FFF;">Total Arqueado por Billeteo:</span>
+                                    <span class="billeteo-total-value" id="billeteo-total-display">Gs. 0</span>
+                                </div>
                             </div>
-                            <div id="cash-diff-indicator" class="cash-diff cash-diff--ok" style="display: none;">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="counted-amount">Monto Contado en Efectivo (Gs.):</label>
+                            <input type="number" id="counted-amount" value="${summary.expectedCash || 0}" placeholder="Monto contado real" required>
+                        </div>
+
+                        <div id="cash-diff-indicator" class="cash-diff cash-diff--ok" style="display: none;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                                 <span class="cash-diff__label">Diferencia (contado − esperado):</span>
                                 <span class="cash-diff__value">Gs. 0</span>
                                 <span class="cash-diff__hint">✅ Cuadrado</span>
                             </div>
-                            <div class="form-group">
-                                <label for="close-notes">Observaciones:</label>
-                                <textarea id="close-notes" placeholder="Notas sobre diferencias, billetes incompletos, etc."></textarea>
+                            <div id="cash-diff-warning" style="display: none; width: 100%; font-size: 0.76rem; color: #F59E0B; margin-top: 0.35rem; border-top: 1px dashed rgba(245, 158, 11, 0.3); padding-top: 0.35rem;">
+                                ⚠️ Se detectó una diferencia. Es <strong>obligatorio justificar el motivo</strong> en las Observaciones para poder cerrar el turno.
                             </div>
-                            <div class="caja-actions">
-                                <button type="button" id="btn-export-excel" class="btn btn--secondary">📥 Descargar Excel del Día</button>
-                                <button type="button" id="btn-send-email" class="btn btn--secondary">📧 Enviar Reporte por Mail</button>
-                                <button type="submit" class="btn btn--danger">🔒 CERRAR CAJA</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+                        </div>
 
-                <!-- Navegador de historial: Mes → Día → Caja -->
-                <div class="card" style="margin-top: 1.5rem;">
-                    <h3 style="font-family: var(--font-title); font-size: 0.9rem; color: var(--color-primary); margin-bottom: 1rem;">
-                        📅 HISTORIAL DE CAJAS
-                    </h3>
-                    <div id="caja-history-container">
-                        <div class="page-loading" style="padding: 1rem;"><div class="pixel-spinner"></div><p>Cargando historial...</p></div>
-                    </div>
+                        <div class="form-group">
+                            <label for="close-notes">Observaciones / Justificación de Cierre:</label>
+                            <textarea id="close-notes" placeholder="Notas sobre diferencias, billetes incompletos, sangrías o incidencias del turno."></textarea>
+                        </div>
+
+                        <div class="caja-actions">
+                            <button type="button" id="btn-print-report-z" class="btn btn--secondary">🖨️ Ticket Z (Térmico)</button>
+                            <button type="button" id="btn-export-excel" class="btn btn--secondary">📥 Descargar Excel del Día</button>
+                            <button type="button" id="btn-send-email" class="btn btn--secondary">📧 Enviar Reporte por Mail</button>
+                            <button type="submit" class="btn btn--danger">🔒 CERRAR CAJA</button>
+                        </div>
+                    </form>
                 </div>
-            `;
-            setupCloseEvents(container, currentRegister, summary);
-            loadCajaHistory(container);
-        }
+            </div>
+
+            <!-- Navegador de historial: Mes → Día → Caja -->
+            <div class="card" style="margin-top: 1.5rem;">
+                <h3 style="font-family: var(--font-title); font-size: 0.9rem; color: var(--color-primary); margin-bottom: 1rem;">
+                    📅 HISTORIAL DE CAJAS
+                </h3>
+                <div id="caja-history-container">
+                    <div class="page-loading" style="padding: 1rem;"><div class="pixel-spinner"></div><p>Cargando historial...</p></div>
+                </div>
+            </div>
+        `;
+
+        setupCajaEvents(container, currentRegister, summary);
+        loadCajaHistory(container);
     } catch (err) {
         const contentEl = container.querySelector('#caja-content');
         if (contentEl) {
@@ -162,18 +302,92 @@ async function loadCajaData(container) {
     }
 }
 
-function setupCloseEvents(container, register, summary) {
+function setupCajaEvents(container, register, summary) {
     const expectedCash = summary.expectedCash || 0;
 
-    // --- #1: Indicador de diferencia (arqueo) en vivo ---
+    // 1. Acciones Rápidas Superiores
+    container.querySelector('#btn-cash-movement')?.addEventListener('click', () => {
+        openCashMovementModal(container, register);
+    });
+
+    container.querySelector('#btn-report-x')?.addEventListener('click', () => {
+        openThermalReportModal({
+            type: 'X',
+            title: 'REPORTE X - ARQUEO PARCIAL',
+            register,
+            summary
+        });
+    });
+
+    // 2. Billeteo Interactivo
+    const billeteoCard = container.querySelector('#billeteo-card');
+    const toggleBilleteoBtn = container.querySelector('#btn-toggle-billeteo');
     const countedInput = container.querySelector('#counted-amount');
     const diffEl = container.querySelector('#cash-diff-indicator');
+    const diffWarning = container.querySelector('#cash-diff-warning');
+    const notesInput = container.querySelector('#close-notes');
 
+    toggleBilleteoBtn?.addEventListener('click', () => {
+        const isHidden = billeteoCard.style.display === 'none';
+        billeteoCard.style.display = isHidden ? 'block' : 'none';
+        toggleBilleteoBtn.innerHTML = isHidden 
+            ? '<span>✖️</span> Ocultar Billeteo' 
+            : '<span>🧮</span> Abrir Billeteo Interactivo (Monedas y Billetes PYG)';
+    });
+
+    function calculateBilleteo() {
+        let total = 0;
+        const breakdown = [];
+
+        container.querySelectorAll('.billeteo-input').forEach(input => {
+            const qty = parseInt(input.value, 10) || 0;
+            const denom = parseInt(input.dataset.denom, 10) || 0;
+            const sub = qty * denom;
+            total += sub;
+
+            const row = input.closest('tr');
+            const subCell = row?.querySelector('.billeteo-subtotal');
+            if (subCell) {
+                subCell.textContent = formatGs(sub);
+                subCell.dataset.subtotal = sub;
+            }
+
+            if (qty > 0) {
+                const label = DENOMINATIONS.find(d => d.value === denom)?.label || `${denom}`;
+                breakdown.push(`${label}: ${qty}`);
+            }
+        });
+
+        const displayEl = container.querySelector('#billeteo-total-display');
+        if (displayEl) displayEl.textContent = formatGs(total);
+
+        // Si se cargaron billetes, actualizar input de efectivo contado
+        if (total > 0 && countedInput) {
+            countedInput.value = total;
+            updateCashDiff();
+        }
+
+        return { total, breakdown };
+    }
+
+    container.querySelectorAll('.billeteo-input').forEach(input => {
+        input.addEventListener('input', calculateBilleteo);
+        input.addEventListener('focus', () => input.select());
+    });
+
+    container.querySelector('#btn-clear-billeteo')?.addEventListener('click', () => {
+        container.querySelectorAll('.billeteo-input').forEach(input => {
+            input.value = 0;
+        });
+        calculateBilleteo();
+    });
+
+    // 3. Indicador de Diferencia (Arqueo) en Vivo
     function updateCashDiff() {
         if (!countedInput || !diffEl) return;
         const counted = parseInt(countedInput.value, 10) || 0;
         const diff = counted - expectedCash;
-        diffEl.style.display = 'flex';
+        diffEl.style.display = 'block';
         diffEl.classList.remove('cash-diff--ok', 'cash-diff--short', 'cash-diff--over');
 
         const valueEl = diffEl.querySelector('.cash-diff__value');
@@ -183,26 +397,46 @@ function setupCloseEvents(container, register, summary) {
             diffEl.classList.add('cash-diff--ok');
             valueEl.textContent = 'Gs. 0';
             hintEl.textContent = '✅ Cuadrado';
+            if (diffWarning) diffWarning.style.display = 'none';
         } else if (diff < 0) {
             diffEl.classList.add('cash-diff--short');
             valueEl.textContent = `- ${formatGs(Math.abs(diff))}`;
             hintEl.textContent = '⚠️ Faltante';
+            if (diffWarning) diffWarning.style.display = 'block';
         } else {
             diffEl.classList.add('cash-diff--over');
             valueEl.textContent = `+ ${formatGs(diff)}`;
             hintEl.textContent = '⚠️ Sobrante';
+            if (diffWarning) diffWarning.style.display = 'block';
         }
     }
     countedInput?.addEventListener('input', updateCashDiff);
-    updateCashDiff(); // cálculo inicial
+    updateCashDiff();
 
-    // --- #7: Confirmación de cierre ---
-    const closeBtn = container.querySelector('#form-close-cash button[type="submit"]');
+    // 4. Ticket Z Térmico (Preview & Imprimir)
+    container.querySelector('#btn-print-report-z')?.addEventListener('click', () => {
+        const counted = parseInt(countedInput?.value, 10) || 0;
+        const diff = counted - expectedCash;
+        const { breakdown } = calculateBilleteo();
 
+        openThermalReportModal({
+            type: 'Z',
+            title: 'REPORTE Z - CIERRE DE TURNO OFICIAL',
+            register,
+            summary,
+            counted,
+            diff,
+            billeteoText: breakdown.join(', '),
+            notes: notesInput?.value || ''
+        });
+    });
+
+    // 5. Excel del Día
     container.querySelector('#btn-export-excel')?.addEventListener('click', () => {
         exportCajaExcel(register, summary);
     });
 
+    // 6. Enviar Email
     container.querySelector('#btn-send-email')?.addEventListener('click', () => {
         const subject = encodeURIComponent(`Cierre de Caja - Burgame - ${new Date().toLocaleDateString()}`);
         const body = encodeURIComponent(
@@ -221,16 +455,42 @@ function setupCloseEvents(container, register, summary) {
         window.location.href = `mailto:gero@burgame.com?subject=${subject}&body=${body}`;
     });
 
+    // 7. Cierre de Caja con Validación de Justificación Obligatoria
+    const closeBtn = container.querySelector('#form-close-cash button[type="submit"]');
+
     container.querySelector('#form-close-cash')?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const counted = parseInt(container.querySelector('#counted-amount').value, 10) || 0;
-        const notes = container.querySelector('#close-notes').value;
+        const counted = parseInt(countedInput.value, 10) || 0;
+        const rawNotes = (notesInput?.value || '').trim();
         const diff = counted - expectedCash;
 
-        // --- #7: Confirmación de cierre ---
+        // Auditoría estricta: si hay diferencia, la justificación es obligatoria
+        if (diff !== 0 && !rawNotes) {
+            showToast({
+                message: `⚠️ La caja tiene una diferencia de ${formatGs(Math.abs(diff))}. Es obligatorio ingresar una justificación en Observaciones.`,
+                type: 'error'
+            });
+            if (notesInput) {
+                notesInput.focus();
+                notesInput.style.borderColor = '#FF5252';
+                notesInput.style.boxShadow = '0 0 10px rgba(255, 82, 82, 0.4)';
+            }
+            return;
+        }
+
+        // Anexar resumen de billeteo si existe
+        const { breakdown } = calculateBilleteo();
+        let finalNotes = rawNotes;
+        if (breakdown.length > 0) {
+            const billeteoSummary = `[BILLETEO: ${breakdown.join(' | ')}]`;
+            if (!finalNotes.includes('[BILLETEO:')) {
+                finalNotes = finalNotes ? `${finalNotes} - ${billeteoSummary}` : billeteoSummary;
+            }
+        }
+
+        // Modal de confirmación
         const confirmed = await confirmCloseCaja(counted, expectedCash, diff);
         if (!confirmed) {
-            // Restaurar botón si el usuario canceló
             if (closeBtn) { closeBtn.disabled = false; closeBtn.innerHTML = '🔒 CERRAR CAJA'; }
             return;
         }
@@ -238,19 +498,13 @@ function setupCloseEvents(container, register, summary) {
         if (closeBtn) { closeBtn.disabled = true; closeBtn.innerHTML = '⏳ Cerrando...'; }
 
         try {
-            await cashService.closeRegister(register.id, counted, notes);
-            // Invalidar caché: la caja ya no está abierta
+            await cashService.closeRegister(register.id, counted, finalNotes);
             appState.cashRegister = null;
             appState._registerFetchedAt = 0;
             showToast({ message: 'Caja cerrada exitosamente. ¡Hasta mañana!', type: 'success' });
-            
-            // Re-renderizar la página de caja para mostrar la pantalla de APERTURA
-            const newContent = await renderCajaPage();
-            const pageContainer = document.getElementById('page-container');
-            if (pageContainer) {
-                pageContainer.innerHTML = '';
-                pageContainer.appendChild(newContent);
-            }
+
+            // Re-renderizar
+            await refreshCajaPage(container);
         } catch (err) {
             showToast({ message: 'Error al cerrar caja: ' + err.message, type: 'error' });
         } finally {
@@ -260,7 +514,268 @@ function setupCloseEvents(container, register, summary) {
 }
 
 // ============================================================
-// #7: Modal de confirmación de cierre de caja
+// Modal de Movimientos de Caja (Sangría / Ingreso Extra)
+// ============================================================
+function openCashMovementModal(container, register) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 1rem;';
+
+    overlay.innerHTML = `
+        <div class="card" style="max-width: 480px; width: 100%; padding: 1.75rem; background: var(--bg-card); border-radius: var(--radius-md); border: 1px solid rgba(255, 215, 0, 0.25);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+                <h3 style="font-family: var(--font-title); color: var(--color-primary); margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <span>💸</span> Movimiento de Caja
+                </h3>
+                <button type="button" class="btn btn--ghost btn-close-modal" style="font-size: 1.2rem; padding: 0.2rem 0.5rem;">✕</button>
+            </div>
+
+            <form id="form-cash-movement">
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-size: 0.85rem; font-weight: 600;">Tipo de Operación:</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; background: rgba(255, 82, 82, 0.1); border: 1px solid rgba(255, 82, 82, 0.3); padding: 0.75rem; border-radius: 8px; cursor: pointer; font-size: 0.82rem;">
+                            <input type="radio" name="movement-type" value="withdrawal" checked>
+                            <span><strong>Sangría / Retiro</strong><br><small style="color: var(--text-muted);">Salida a Caja Fuerte / Dueño</small></span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.5rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.75rem; border-radius: 8px; cursor: pointer; font-size: 0.82rem;">
+                            <input type="radio" name="movement-type" value="deposit">
+                            <span><strong>Ingreso de Sencillo</strong><br><small style="color: var(--text-muted);">Inyección de cambio extra</small></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="movement-amount">Monto (Gs.):</label>
+                    <input type="number" id="movement-amount" placeholder="Ej: 200000" min="1000" step="500" required autofocus>
+                </div>
+
+                <div class="form-group">
+                    <label for="movement-reason">Concepto / Justificación:</label>
+                    <input type="text" id="movement-reason" placeholder="Ej: Retiro preventivo para caja fuerte, pago flete urgente, etc." required>
+                </div>
+
+                <div class="form-group">
+                    <label for="movement-authorized">Autorizado por:</label>
+                    <input type="text" id="movement-authorized" value="Gero" placeholder="Nombre de quien autoriza el movimiento" required>
+                </div>
+
+                <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn--ghost btn-close-modal" style="flex: 1;">Cancelar</button>
+                    <button type="submit" class="btn btn--primary" style="flex: 1;">💾 Registrar</button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const close = () => overlay.remove();
+    overlay.querySelectorAll('.btn-close-modal').forEach(b => b.addEventListener('click', close));
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+    overlay.querySelector('#form-cash-movement')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBtn = overlay.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.textContent = '⏳ Registrando...';
+
+        const type = overlay.querySelector('input[name="movement-type"]:checked').value;
+        const amount = parseInt(overlay.querySelector('#movement-amount').value, 10) || 0;
+        const reason = overlay.querySelector('#movement-reason').value.trim();
+        const authorizedBy = overlay.querySelector('#movement-authorized').value.trim();
+
+        try {
+            await cashService.recordCashMovement({
+                registerId: register.id,
+                type,
+                amount,
+                reason,
+                authorizedBy
+            });
+
+            showToast({
+                message: type === 'withdrawal' 
+                    ? `💸 Sangría de ${formatGs(amount)} registrada exitosamente.` 
+                    : `💵 Ingreso de ${formatGs(amount)} registrado exitosamente.`,
+                type: 'success'
+            });
+
+            close();
+            await refreshCajaPage(container);
+        } catch (err) {
+            showToast({ message: 'Error al registrar movimiento: ' + err.message, type: 'error' });
+            submitBtn.disabled = false;
+            submitBtn.textContent = '💾 Registrar';
+        }
+    });
+}
+
+// ============================================================
+// Modal de Ticket Térmico (Reporte X y Reporte Z)
+// ============================================================
+function openThermalReportModal(opts) {
+    const {
+        type = 'X',
+        title = 'REPORTE TÉRMICO',
+        register,
+        summary,
+        counted = null,
+        diff = null,
+        billeteoText = '',
+        notes = ''
+    } = opts;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 1rem;';
+
+    const nowStr = new Date().toLocaleString('es-PY');
+    const openedStr = new Date(register.opened_at).toLocaleString('es-PY');
+
+    const ticketHtml = `
+        <div class="ticket-z-paper">
+            <div class="ticket-z-logo">🎮 BURGAME 🎮</div>
+            <div style="text-align: center; font-size: 0.72rem; margin-bottom: 0.4rem; color: #444;">
+                CRAFT BURGERS & ARCADE<br>
+                Asunción, Paraguay
+            </div>
+            <div class="receipt-double-line"></div>
+            <div style="text-align: center; font-weight: 800; font-size: 0.88rem; margin: 0.35rem 0;">
+                ${title}
+            </div>
+            <div class="receipt-cut-line"></div>
+
+            <div style="display: flex; justify-content: space-between; font-size: 0.76rem; margin-bottom: 0.2rem;">
+                <span>Fecha/Hora Emisión:</span>
+                <strong>${nowStr}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.76rem; margin-bottom: 0.2rem;">
+                <span>Apertura de Turno:</span>
+                <span>${openedStr}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.76rem; margin-bottom: 0.4rem;">
+                <span>Monto Inicial Apertura:</span>
+                <strong>${formatGs(register.initial_amount)}</strong>
+            </div>
+
+            <div class="receipt-cut-line"></div>
+            <div style="font-weight: 700; font-size: 0.78rem; margin-bottom: 0.3rem;">VENTAS POR MEDIO DE PAGO:</div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.76rem; margin-bottom: 0.15rem;">
+                <span>💵 Efectivo:</span>
+                <span>${formatGs(summary.payments.efectivo || 0)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.76rem; margin-bottom: 0.15rem;">
+                <span>📱 Transferencia:</span>
+                <span>${formatGs(summary.payments.transferencia || 0)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.76rem; margin-bottom: 0.15rem;">
+                <span>💳 Débito:</span>
+                <span>${formatGs(summary.payments.debito || 0)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.76rem; margin-bottom: 0.15rem;">
+                <span>💳 Crédito:</span>
+                <span>${formatGs(summary.payments.credito || 0)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.82rem; font-weight: 800; margin-top: 0.35rem;">
+                <span>TOTAL VENTAS:</span>
+                <span>${formatGs(summary.totalSales)}</span>
+            </div>
+
+            <div class="receipt-cut-line"></div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.76rem; color: #000; margin-bottom: 0.25rem;">
+                <span>Gastos Registrados / Sangrías:</span>
+                <strong>- ${formatGs(summary.totalExpenses)}</strong>
+            </div>
+            <div class="receipt-double-line"></div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.88rem; font-weight: 800; margin-top: 0.35rem;">
+                <span>EFECTIVO ESPERADO:</span>
+                <span>${formatGs(summary.expectedCash)}</span>
+            </div>
+
+            ${counted != null ? `
+                <div style="display: flex; justify-content: space-between; font-size: 0.88rem; font-weight: 800; margin-top: 0.25rem;">
+                    <span>EFECTIVO CONTADO:</span>
+                    <span>${formatGs(counted)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.84rem; font-weight: 800; margin-top: 0.25rem; color: ${diff === 0 ? '#10B981' : (diff < 0 ? '#EF4444' : '#F59E0B')};">
+                    <span>DIFERENCIA:</span>
+                    <span>${diff === 0 ? 'CUADRADO (0 Gs.)' : (diff < 0 ? `- ${formatGs(Math.abs(diff))} (Faltante)` : `+ ${formatGs(diff)} (Sobrante)`)}</span>
+                </div>
+            ` : ''}
+
+            ${billeteoText ? `
+                <div class="receipt-cut-line"></div>
+                <div style="font-size: 0.72rem; line-height: 1.3; color: #222;">
+                    <strong>DESGLOSE BILLETEO:</strong><br>
+                    ${billeteoText}
+                </div>
+            ` : ''}
+
+            ${notes ? `
+                <div class="receipt-cut-line"></div>
+                <div style="font-size: 0.72rem; line-height: 1.3; color: #222;">
+                    <strong>OBSERVACIONES:</strong><br>
+                    ${notes}
+                </div>
+            ` : ''}
+
+            <div class="receipt-cut-line"></div>
+            <div style="margin-top: 1.25rem; display: flex; justify-content: space-between; font-size: 0.7rem; text-align: center;">
+                <div style="border-top: 1px solid #000; width: 45%; padding-top: 0.2rem;">Firma Cajero</div>
+                <div style="border-top: 1px solid #000; width: 45%; padding-top: 0.2rem;">Firma Supervisor</div>
+            </div>
+
+            <div style="text-align: center; font-size: 0.68rem; margin-top: 0.8rem; color: #666;">
+                ${type === 'X' ? '*** ARQUEO INFORMATIVO (NO CIERRA TURNO) ***' : '*** CIERRE DEFINITIVO DE TURNO ***'}
+            </div>
+        </div>
+    `;
+
+    overlay.innerHTML = `
+        <div class="card" style="max-width: 440px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 1.5rem; background: var(--bg-card); border-radius: var(--radius-md);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="font-family: var(--font-title); color: var(--color-primary); margin: 0; font-size: 0.95rem;">
+                    🖨️ Vista Previa Ticket Térmico (${type})
+                </h3>
+                <button type="button" class="btn btn--ghost btn-close-modal" style="font-size: 1.2rem; padding: 0.2rem 0.5rem;">✕</button>
+            </div>
+
+            <div style="margin-bottom: 1.25rem;">
+                ${ticketHtml}
+            </div>
+
+            <div style="display: flex; gap: 0.75rem;">
+                <button type="button" class="btn btn--ghost btn-close-modal" style="flex: 1;">Cerrar</button>
+                <button type="button" class="btn btn--primary btn-print-now" style="flex: 1;">🖨️ Imprimir Ticket</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const close = () => overlay.remove();
+    overlay.querySelectorAll('.btn-close-modal').forEach(b => b.addEventListener('click', close));
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+    overlay.querySelector('.btn-print-now')?.addEventListener('click', () => {
+        const printArea = document.getElementById('print-caja-ticket-area') || (() => {
+            const el = document.createElement('div');
+            el.id = 'print-caja-ticket-area';
+            document.body.appendChild(el);
+            return el;
+        })();
+        printArea.innerHTML = ticketHtml;
+        printArea.style.display = 'block';
+        window.print();
+        setTimeout(() => {
+            printArea.style.display = 'none';
+        }, 1000);
+    });
+}
+
+// ============================================================
+// Modal de Confirmación de Cierre de Caja
 // ============================================================
 function confirmCloseCaja(counted, expected, diff) {
     return new Promise((resolve) => {
@@ -272,10 +787,10 @@ function confirmCloseCaja(counted, expected, diff) {
 
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
-        overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 1rem;';
+        overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 1rem;';
 
         overlay.innerHTML = `
-            <div class="card" style="max-width: 420px; width: 100%; padding: 1.5rem; background: var(--bg-card); border-radius: var(--radius-md); text-align: center;">
+            <div class="card" style="max-width: 420px; width: 100%; padding: 1.5rem; background: var(--bg-card); border-radius: var(--radius-md); text-align: center; border: 1px solid rgba(255, 215, 0, 0.3);">
                 <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🔒</div>
                 <h3 style="font-family: var(--font-title); color: var(--color-primary); margin: 0 0 0.75rem;">¿Confirmar cierre de caja?</h3>
                 <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
@@ -284,7 +799,7 @@ function confirmCloseCaja(counted, expected, diff) {
                     <div style="margin-top: 0.5rem; font-weight: bold;">${diffText}</div>
                 </div>
                 <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.25rem;">
-                    Una vez cerrada, no se podrán agregar ventas ni gastos a este turno.
+                    Una vez cerrada, este turno queda finalizado para el arqueo oficial.
                 </p>
                 <div style="display: flex; gap: 0.75rem;">
                     <button class="btn btn--ghost btn-cancel" style="flex: 1;">Cancelar</button>

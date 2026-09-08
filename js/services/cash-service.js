@@ -142,6 +142,35 @@ export async function getAllRegistersGrouped() {
     return data || [];
 }
 
+// Registra un movimiento de caja (Sangría/Retiro de efectivo o Ingreso de sencillo)
+export async function recordCashMovement({ registerId, type, amount, reason, authorizedBy }) {
+    if (type === 'withdrawal') {
+        // Sangría / Retiro de efectivo
+        const desc = `[SANGRÍA] ${reason || 'Retiro de efectivo'} (Autorizado: ${authorizedBy || 'Gerencia'})`;
+        const { data, error } = await supabase.from('expenses').insert([{
+            description: desc,
+            category_id: 'df34849d-1e1b-4943-8a02-5091e1f51e07',
+            amount: Number(amount),
+            cash_register_id: registerId
+        }]).select().single();
+        if (error) throw error;
+        return data;
+    } else {
+        // Ingreso extraordinario de efectivo / Inyección de cambio
+        const { data: cur, error: curErr } = await supabase.from('cash_registers').select('initial_amount, notes').eq('id', registerId).single();
+        if (curErr) throw curErr;
+        const newInitial = (cur.initial_amount || 0) + Number(amount);
+        const logNote = `[INGRESO EXTRA: +${Number(amount).toLocaleString('es-PY')} Gs. - ${reason || 'Cambio sencillo'} (Autorizado: ${authorizedBy || 'Gerencia'})]`;
+        const updatedNotes = cur.notes ? `${cur.notes} | ${logNote}` : logNote;
+        const { data, error } = await supabase.from('cash_registers').update({
+            initial_amount: newInitial,
+            notes: updatedNotes
+        }).eq('id', registerId).select().single();
+        if (error) throw error;
+        return data;
+    }
+}
+
 export const cashService = {
     openRegister,
     closeRegister,
@@ -150,6 +179,7 @@ export const cashService = {
     getRegisterSummary,
     getRegisterFullDetails,
     updateRegister,
-    getAllRegistersGrouped
+    getAllRegistersGrouped,
+    recordCashMovement
 };
 
