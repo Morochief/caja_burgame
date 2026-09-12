@@ -1,6 +1,6 @@
 import { supabase } from '../supabase-client.js';
 
-export async function createOrder({ items, notes, customerName, cashRegisterId, status = 'ordered' }) {
+export async function createOrder({ items, notes, customerName, cashRegisterId, status = 'ordered', tabId = null }) {
     const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const initialStatus = status || 'ordered';
 
@@ -34,10 +34,21 @@ export async function createOrder({ items, notes, customerName, cashRegisterId, 
     });
 
     if (!rpcError && rpcData) {
-        // Si el estado deseado no es 'ordered' (ej: 'pending_payment' para autopedidos), actualizarlo
-        if (initialStatus !== 'ordered') {
-            await supabase.from('orders').update({ status: initialStatus }).eq('id', rpcData.id);
-            rpcData.status = initialStatus;
+        // Actualizar estado si difiere de 'ordered' y/o vincular tab_id
+        const extraUpdates = {};
+        if (initialStatus !== 'ordered') extraUpdates.status = initialStatus;
+        if (tabId && !String(tabId).startsWith('local-') && !String(tabId).startsWith('fallback-')) {
+            extraUpdates.tab_id = tabId;
+        }
+
+        if (Object.keys(extraUpdates).length > 0) {
+            try {
+                await supabase.from('orders').update(extraUpdates).eq('id', rpcData.id);
+            } catch (e) {
+                console.warn('[orderService] No se pudo guardar tab_id o status extra:', e.message);
+            }
+            if (extraUpdates.status) rpcData.status = extraUpdates.status;
+            if (extraUpdates.tab_id) rpcData.tab_id = extraUpdates.tab_id;
         }
         return rpcData;
     }
@@ -56,6 +67,9 @@ export async function createOrder({ items, notes, customerName, cashRegisterId, 
         total: total,
         customer_name: cName
     };
+    if (tabId && !String(tabId).startsWith('local-') && !String(tabId).startsWith('fallback-')) {
+        basePayload.tab_id = tabId;
+    }
 
     const { data, error } = await supabase
         .from('orders')

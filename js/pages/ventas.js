@@ -10,6 +10,7 @@ import { createCart } from '../components/cart.js';
 import { navigate } from '../router.js';
 import { initChat } from '../components/chat-ui.js';
 import { qrAuthService } from '../services/qr-auth-service.js';
+import { tabService } from '../services/tab-service.js';
 import { supabase } from '../supabase-client.js';
 
 let currentCategory = 'all';
@@ -21,6 +22,8 @@ let currentOrderMode = 'salon'; // 'salon', 'llevar', 'delivery'
 let products = [];
 let categories = [];
 let customers = [];
+let activeTabs = [];
+let selectedTabId = 'none'; // 'none' | 'new' | uuid
 let customerLookupTimer = null;
 let isManualClubOverride = false;
 let _chatInitialized = false; // inicializar chat solo una vez
@@ -37,11 +40,14 @@ export async function renderVentasPage() {
                     <div class="pos-banner-container">
                         <img src="banner.png" alt="Burgame Banner" class="pos-banner-img">
                     </div>
-                    <header class="ventas-header" style="display: flex; gap: 0.8rem; align-items: center;">
-                        <div class="search-bar" style="flex: 1;">
+                    <header class="ventas-header" style="display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap;">
+                        <div class="search-bar" style="flex: 1; min-width: 200px;">
                             <i data-lucide="search"></i>
                             <input type="text" id="pos-search" placeholder="Buscar producto por nombre..." value="${searchQuery}">
                         </div>
+                        <button id="btn-pos-tabs" class="btn btn--secondary btn--sm" style="white-space: nowrap; display: flex; align-items: center; gap: 0.4rem; height: 38px; border-color: var(--border-gold);" title="Ver Cuentas y Mesas Abiertas">
+                            🍻 Cuentas <span id="pos-tabs-badge" style="background: var(--color-primary); color: #000; font-weight: 800; font-size: 0.72rem; padding: 0.1rem 0.45rem; border-radius: 999px;">0</span>
+                        </button>
                         <button id="btn-pos-quick-qr" class="btn btn--secondary btn--sm" style="white-space: nowrap; display: flex; align-items: center; gap: 0.4rem; height: 38px; border-color: var(--border-gold);" title="Ver PIN y QR de Clientes">
                             📱 QR Clientes
                         </button>
@@ -69,19 +75,30 @@ export async function renderVentasPage() {
     // Cargar data en background (no bloquea el render)
     loadVentasData(container);
 
+    // Click en botón de cuentas abiertas
+    container.querySelector('#btn-pos-tabs')?.addEventListener('click', () => {
+        sessionStorage.setItem('ordenes_active_tab', 'cuentas');
+        navigate('#/ordenes');
+    });
+
     return container;
 }
 
 async function loadVentasData(container) {
     try {
-        const [prodData, catData, custData] = await Promise.all([
+        const [prodData, catData, custData, tabsData] = await Promise.all([
             productService.getAllFresh(), // fresco: refleja cambios de precios del Menú
             productService.getCategories(),
-            customerService.getAll().catch(() => [])
+            customerService.getAll().catch(() => []),
+            tabService.getActiveTabs().catch(() => [])
         ]);
         products = prodData || [];
         categories = catData || [];
         customers = custData || [];
+        activeTabs = tabsData || [];
+
+        const badge = container.querySelector('#pos-tabs-badge');
+        if (badge) badge.textContent = activeTabs.length;
     } catch (err) {
         showToast({ message: 'Error al cargar productos', type: 'error' });
     }
@@ -302,6 +319,23 @@ function openCartModal(container) {
                     <div id="club-member-hint" class="club-member-hint" style="display:none; margin-top:0.4rem;"></div>
                 </div>
 
+                <!-- Selector de Cuenta Abierta / Mesa (Cobro al Finalizar) -->
+                <div class="ticket-notes" style="margin-top: 0.35rem; background: rgba(255, 215, 0, 0.05); border: 1px dashed var(--border-gold); padding: 0.6rem 0.75rem; border-radius: var(--radius-sm);">
+                    <label for="pos-tab-select" style="font-size: 0.76rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem;">
+                        <span>🍻 Cuenta Abierta / Mesa:</span>
+                        <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: normal;">(Cobro al salir)</span>
+                    </label>
+                    <select id="pos-tab-select" style="width: 100%; padding: 0.5rem; background: #0E1017; border: 1px solid var(--border-subtle); color: #FFF; border-radius: 6px; font-size: 0.82rem;">
+                        <option value="none" ${selectedTabId === 'none' ? 'selected' : ''}>— Comanda directa (Sin cuenta agrupada) —</option>
+                        ${activeTabs.map(t => `
+                            <option value="${t.id}" ${selectedTabId === t.id ? 'selected' : ''}>
+                                📍 ${t.tab_name} · Acumulado: ${formatGs(t.total_amount)} (${t.orders?.length || 0} pedidos)
+                            </option>
+                        `).join('')}
+                        <option value="new" ${selectedTabId === 'new' ? 'selected' : ''}>➕ Abrir NUEVA Cuenta / Mesa con este pedido...</option>
+                    </select>
+                </div>
+
                 <!-- Toggle Club Burgame -->
                 <div class="ticket-notes club-toggle-row" style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; background: rgba(255,215,0,0.06); border: 1px solid rgba(255,215,0,0.25); border-radius: var(--radius-sm); padding: 0.5rem 0.75rem;">
                     <label for="club-mode-toggle" style="font-size: 0.8rem; font-weight: 800; color: var(--color-primary); cursor: pointer; display: flex; align-items: center; gap: 0.4rem; margin: 0;">
@@ -327,7 +361,7 @@ function openCartModal(container) {
                 </div>
                 <div class="cart-modal__actions-grid">
                     <button id="btn-send-kitchen-only" class="btn btn--secondary btn-cart-send" title="Enviar comanda a cocina y cobrar luego en Órdenes">
-                        🚀 A Cocina (Mesa)
+                        ${selectedTabId !== 'none' ? '🚀 Cargar a Cuenta' : '🚀 A Cocina (Mesa)'}
                     </button>
                     <button id="btn-open-fast-pay" class="btn btn--primary btn-cart-pay" title="Cobrar inmediatamente y enviar comanda a cocina">
                         ⚡ Cobro Rápido
@@ -385,6 +419,27 @@ function openCartModal(container) {
         currentCustomerName = e.target.value;
         isManualClubOverride = false;
         handleCustomerMembershipCheck(container);
+    });
+
+    // Selector de cuenta abierta / mesa
+    overlay.querySelector('#pos-tab-select')?.addEventListener('change', (e) => {
+        selectedTabId = e.target.value;
+        const sendBtn = overlay.querySelector('#btn-send-kitchen-only');
+        if (selectedTabId !== 'none' && selectedTabId !== 'new') {
+            const foundTab = activeTabs.find(t => t.id === selectedTabId);
+            if (foundTab) {
+                const nameInput = overlay.querySelector('#customer-name');
+                if (nameInput) {
+                    nameInput.value = foundTab.customer_name || foundTab.tab_name;
+                    currentCustomerName = nameInput.value;
+                }
+            }
+            if (sendBtn) sendBtn.innerHTML = '🚀 Cargar a Cuenta';
+        } else if (selectedTabId === 'new') {
+            if (sendBtn) sendBtn.innerHTML = '🚀 Abrir Cuenta y Enviar';
+        } else {
+            if (sendBtn) sendBtn.innerHTML = '🚀 A Cocina (Mesa)';
+        }
     });
 
     // Notas
@@ -811,17 +866,41 @@ async function sendOrderToKitchen(container, options = {}) {
     const finalCustomer = customerName ? `${modeTag} ${customerName}` : `${modeTag} Cliente`;
 
     try {
+        let finalTabId = null;
+        if (!fastPayMethod) {
+            if (selectedTabId === 'new') {
+                const newTab = await tabService.openTab({
+                    tabName: customerName || `${modeTag} Mesa / Cliente`,
+                    customerName: customerName,
+                    cashRegisterId: currentRegister.id
+                });
+                finalTabId = newTab?.id || null;
+            } else if (selectedTabId !== 'none') {
+                finalTabId = selectedTabId;
+            }
+        }
+
         const order = await orderService.createOrder({
             items: cart.items,
             notes,
             customerName: finalCustomer,
-            cashRegisterId: currentRegister.id
+            cashRegisterId: currentRegister.id,
+            tabId: finalTabId
         });
+
+        if (finalTabId) {
+            await tabService.addOrderToTab(finalTabId, order.id);
+        }
 
         if (fastPayMethod) {
             await orderService.processPayment(order.id, fastPayMethod);
             showToast({
                 message: `💰 ¡Orden #${order.order_number} cobrada (${fastPayMethod.toUpperCase()}) y enviada a Cocina!`,
+                type: 'success'
+            });
+        } else if (finalTabId) {
+            showToast({
+                message: `🍻 ¡Comanda #${order.order_number} cargada a la Cuenta y enviada a Cocina!`,
                 type: 'success'
             });
         } else {
@@ -837,6 +916,7 @@ async function sendOrderToKitchen(container, options = {}) {
         currentNotes = '';
         currentCustomerName = '';
         currentOrderMode = 'salon';
+        selectedTabId = 'none';
         if (notesInput) notesInput.value = '';
         if (customerInput) customerInput.value = '';
 

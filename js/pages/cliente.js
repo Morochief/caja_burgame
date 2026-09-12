@@ -1,6 +1,7 @@
 import { productService } from '../services/product-service.js';
 import { orderService } from '../services/order-service.js';
 import { cashService } from '../services/cash-service.js';
+import { tabService } from '../services/tab-service.js';
 import { formatGs } from '../components/currency.js';
 import { showToast } from '../components/toast.js';
 import { renderProductCard } from '../components/product-card.js';
@@ -9,10 +10,15 @@ import { supabase } from '../supabase-client.js';
 import { qrAuthService } from '../services/qr-auth-service.js';
 
 let serviceType = 'eat_in'; // 'eat_in' | 'takeaway'
+let payPreference = 'tab'; // 'tab' (pagar al salir) | 'instant' (pagar en caja)
 let tableNumber = '';
 let customerName = '';
 const cart = createCart();
 let activeOrder = null;
+let clientTabId = localStorage.getItem('burgame_client_tab_id') || null;
+let currentTab = null;
+let isShowingTabTracker = false;
+let tabClosedReceipt = null;
 let products = [];
 let categories = [];
 let currentCategory = 'all';
@@ -43,6 +49,24 @@ async function initClienteApp() {
         window.history.replaceState({}, document.title, window.location.pathname + (tableNumber ? `?mesa=${encodeURIComponent(tableNumber)}` : ''));
     }
 
+    // 2. Verificar si el cliente ya tiene una cuenta abierta guardada en su dispositivo
+    if (clientTabId) {
+        try {
+            currentTab = await tabService.getTabById(clientTabId);
+            if (currentTab && currentTab.status === 'closed') {
+                tabClosedReceipt = currentTab;
+                currentTab = null;
+                localStorage.removeItem('burgame_client_tab_id');
+            } else if (currentTab) {
+                if (currentTab.table_number && !tableNumber) tableNumber = currentTab.table_number;
+                if (currentTab.customer_name && !customerName) customerName = currentTab.customer_name;
+                subscribeToTabUpdates(clientTabId, appEl);
+            }
+        } catch (e) {
+            console.warn('[cliente] Error verificando cuenta previa:', e);
+        }
+    }
+
     try {
         const [prodData, catData] = await Promise.all([
             productService.getAllFresh(), // fresco: refleja precios Club actualizados
@@ -58,7 +82,11 @@ async function initClienteApp() {
 }
 
 function renderView(appEl) {
-    if (activeOrder) {
+    if (tabClosedReceipt) {
+        renderTabClosedScreen(appEl);
+    } else if (currentTab && currentTab.status !== 'closed' && isShowingTabTracker) {
+        renderTabTracker(appEl);
+    } else if (activeOrder) {
         renderOrderTracker(appEl);
     } else if (!qrAuthService.isSessionValid()) {
         renderLockScreen(appEl);
@@ -81,6 +109,22 @@ function renderMenuCatalog(appEl) {
         </div>
 
         ${renderSessionBadge()}
+
+        ${currentTab && currentTab.status !== 'closed' ? `
+            <div style="background: rgba(255, 215, 0, 0.1); border: 1px solid var(--border-gold); padding: 0.75rem 1rem; border-radius: var(--radius-md); margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div style="font-family: var(--font-title); font-size: 0.72rem; color: var(--color-primary);">
+                        🍻 TU CUENTA ACTIVA EN MESA
+                    </div>
+                    <div style="font-size: 0.85rem; font-weight: 700; color: #FFF; margin-top: 0.15rem;">
+                        Acumulado: <span style="color: var(--color-primary);">${formatGs(currentTab.total_amount)}</span> (${currentTab.orders?.length || 0} pedidos)
+                    </div>
+                </div>
+                <button id="btn-view-active-tab" class="btn btn--secondary btn--sm" style="border-color: var(--border-gold); font-size: 0.75rem; font-weight: 800; padding: 0.4rem 0.7rem;">
+                    👁️ Ver Cuenta
+                </button>
+            </div>
+        ` : ''}
 
         <div class="service-type-selector">
             <button class="btn-service-type ${serviceType === 'eat_in' ? 'active' : ''}" id="btn-eat-in">
@@ -106,6 +150,26 @@ function renderMenuCatalog(appEl) {
                     </div>
                 ` : ''}
             </div>
+
+            ${serviceType === 'eat_in' ? `
+                <div class="form-group" style="margin-top: 0.75rem; border-top: 1px solid var(--border-subtle); padding-top: 0.7rem;">
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.35rem; display: block;">
+                        Forma de Pago:
+                    </label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button type="button" class="btn btn--sm ${payPreference === 'tab' ? 'btn--primary' : 'btn--secondary'}" id="btn-choice-tab" style="flex: 1; font-weight: 700; font-size: 0.76rem; padding: 0.5rem 0.3rem;">
+                            🍻 Pagar al Salir (Cuenta abierta)
+                        </button>
+                        <button type="button" class="btn btn--sm ${payPreference === 'instant' ? 'btn--primary' : 'btn--secondary'}" id="btn-choice-instant" style="flex: 1; font-weight: 700; font-size: 0.76rem; padding: 0.5rem 0.3rem;">
+                            ⚡ Pagar Ahora en Caja
+                        </button>
+                    </div>
+                    <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.35rem; line-height: 1.3;">
+                        ${payPreference === 'tab' ? '🍔 Tus pedidos van directo a cocina y podrás acumular más consumos durante tu visita.' : '💳 Deberás acercarte a caja a pagar para que comience la preparación.'}
+                    </p>
+                </div>
+            ` : ''}
+
             <div class="club-toggle-row" style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.6rem; background: rgba(255,215,0,0.06); border: 1px solid rgba(255,215,0,0.25); border-radius: var(--radius-sm); padding: 0.55rem 0.7rem;">
                 <label for="club-self-toggle" style="font-size: 0.82rem; font-weight: 800; color: var(--color-primary); cursor: pointer; display: flex; align-items: center; gap: 0.4rem; margin: 0;">
                     👑 Soy del Club Burgame
@@ -136,8 +200,8 @@ function renderMenuCatalog(appEl) {
                 <div class="ticket-items" style="max-height: 25vh; overflow-y: auto; margin-bottom: 0.8rem;">
                     ${cart.renderItems({ showComboToggle: false, noteInputClass: 'input-item-note-cliente', notePlaceholder: '✏️ Aclaración (ej: Sin cebolla, bien cocida...)' })}
                 </div>
-                <button id="btn-submit-self-order" class="btn btn--primary btn--block" style="padding: 0.9rem; font-weight: 800; font-size: 1rem;">
-                    🚀 CONFIRMAR Y ENVIAR PEDIDO
+                <button id="btn-submit-self-order" class="btn btn--primary btn--block" style="padding: 0.9rem; font-weight: 800; font-size: 0.95rem;">
+                    ${serviceType === 'eat_in' && payPreference === 'tab' ? '🚀 ENVIAR A COCINA (CARGAR A MI CUENTA)' : '🚀 CONFIRMAR Y ENVIAR PEDIDO'}
                 </button>
             </div>
         ` : ''}
@@ -183,6 +247,22 @@ function setupEvents(appEl) {
     // Inputs nombre / mesa
     appEl.querySelector('#cust-name')?.addEventListener('input', (e) => customerName = e.target.value);
     appEl.querySelector('#cust-table')?.addEventListener('input', (e) => tableNumber = e.target.value);
+
+    // Botones de elección de pago (Pagar al salir vs Pagar ahora)
+    appEl.querySelector('#btn-choice-tab')?.addEventListener('click', () => {
+        payPreference = 'tab';
+        renderView(appEl);
+    });
+    appEl.querySelector('#btn-choice-instant')?.addEventListener('click', () => {
+        payPreference = 'instant';
+        renderView(appEl);
+    });
+
+    // Ver cuenta activa
+    appEl.querySelector('#btn-view-active-tab')?.addEventListener('click', () => {
+        isShowingTabTracker = true;
+        renderView(appEl);
+    });
 
     // Toggle "Soy del Club Burgame"
     appEl.querySelector('#club-self-toggle')?.addEventListener('change', (e) => {
@@ -317,21 +397,57 @@ function setupEvents(appEl) {
         if (cart.clubMode) fullCustomerName += ' (Club)';
 
         try {
-            const order = await orderService.createOrder({
-                items: cart.items,
-                notes: serviceType === 'eat_in' ? `AUTOPEDIDO MESA ${tableVal}` : `AUTOPEDIDO PARA LLEVAR`,
-                customerName: fullCustomerName,
-                cashRegisterId: currentReg ? currentReg.id : null,
-                status: 'pending_payment'
-            });
+            if (serviceType === 'eat_in' && payPreference === 'tab') {
+                // Modo Cuenta Abierta (Pagar al Salir)
+                if (!clientTabId || !currentTab || currentTab.status === 'closed') {
+                    const newTab = await tabService.openTab({
+                        tabName: `Mesa ${tableVal} — ${nameVal}`,
+                        tableNumber: tableVal,
+                        customerName: nameVal,
+                        cashRegisterId: currentReg ? currentReg.id : null
+                    });
+                    clientTabId = newTab.id;
+                    localStorage.setItem('burgame_client_tab_id', newTab.id);
+                    currentTab = newTab;
+                }
 
-            activeOrder = order;
-            cart.clear();
-            cart.setClubMode(false);
-            showToast({ message: '💳 ¡Pedido enviado a Caja! Acércate a abonar para iniciar preparación.', type: 'info', duration: 6000 });
+                const order = await orderService.createOrder({
+                    items: cart.items,
+                    notes: `AUTOPEDIDO MESA ${tableVal} [CUENTA ABIERTA]`,
+                    customerName: fullCustomerName,
+                    cashRegisterId: currentReg ? currentReg.id : null,
+                    status: 'ordered',
+                    tabId: clientTabId
+                });
 
-            subscribeToLiveTracker(order.id, appEl);
-            renderView(appEl);
+                await tabService.addOrderToTab(clientTabId, order.id);
+                currentTab = await tabService.getTabById(clientTabId);
+
+                cart.clear();
+                cart.setClubMode(false);
+                showToast({ message: '🚀 ¡Comanda enviada directo a Cocina! Se cargó a tu cuenta de mesa.', type: 'success', duration: 5000 });
+
+                isShowingTabTracker = true;
+                subscribeToTabUpdates(clientTabId, appEl);
+                renderView(appEl);
+            } else {
+                // Modo Pago Inmediato en Caja
+                const order = await orderService.createOrder({
+                    items: cart.items,
+                    notes: serviceType === 'eat_in' ? `AUTOPEDIDO MESA ${tableVal}` : `AUTOPEDIDO PARA LLEVAR`,
+                    customerName: fullCustomerName,
+                    cashRegisterId: currentReg ? currentReg.id : null,
+                    status: 'pending_payment'
+                });
+
+                activeOrder = order;
+                cart.clear();
+                cart.setClubMode(false);
+                showToast({ message: '💳 ¡Pedido enviado a Caja! Acércate a abonar para iniciar preparación.', type: 'info', duration: 6000 });
+
+                subscribeToLiveTracker(order.id, appEl);
+                renderView(appEl);
+            }
         } catch (err) {
             showToast({ message: 'Error enviando pedido: ' + err.message, type: 'error' });
         } finally {
@@ -505,7 +621,217 @@ function cleanupTracker() {
 }
 
 // Limpiar canal al salir de la página / recargar
-window.addEventListener('beforeunload', cleanupTracker);
+window.addEventListener('beforeunload', () => {
+    cleanupTracker();
+    cleanupTabSubscription();
+});
+
+// ============================================================
+// Realtime: Tab updates (para la cuenta abierta del cliente)
+// ============================================================
+let activeTabSubscription = null;
+
+function subscribeToTabUpdates(tabId, appEl) {
+    cleanupTabSubscription();
+    activeTabSubscription = tabService.subscribeToTabs(async () => {
+        try {
+            const updated = await tabService.getTabById(tabId);
+            if (updated) {
+                if (updated.status === 'closed') {
+                    tabClosedReceipt = updated;
+                    currentTab = null;
+                    localStorage.removeItem('burgame_client_tab_id');
+                } else {
+                    currentTab = updated;
+                }
+                renderView(appEl);
+            }
+        } catch (e) {
+            console.error('[cliente] Error en realtime tab:', e);
+        }
+    });
+}
+
+function cleanupTabSubscription() {
+    if (activeTabSubscription) {
+        tabService.unsubscribeAllTabs();
+        activeTabSubscription = null;
+    }
+}
+
+// ============================================================
+// Vista de Cuenta Abierta del Cliente (Tab Tracker)
+// ============================================================
+function renderTabTracker(appEl) {
+    if (!currentTab) {
+        isShowingTabTracker = false;
+        renderView(appEl);
+        return;
+    }
+
+    const orders = currentTab.orders || [];
+    const isBillRequested = currentTab.status === 'bill_requested';
+
+    appEl.innerHTML = `
+        <div class="cliente-header-banner">
+            <img src="banner.png" alt="Burgame Banner" class="cliente-banner-img">
+        </div>
+
+        <div class="order-tracker-card" style="margin-top: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.8rem; margin-bottom: 0.8rem;">
+                <div>
+                    <div class="tracker-title" style="margin: 0; text-align: left; font-size: 0.95rem;">
+                        🍻 ${currentTab.tab_name || 'MI CUENTA'}
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">
+                        ${currentTab.table_number ? `Mesa #${currentTab.table_number}` : ''} ${currentTab.customer_name ? `· ${currentTab.customer_name}` : ''}
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <span class="badge ${isBillRequested ? 'badge--warning' : 'badge--info'}" style="font-size: 0.75rem;">
+                        ${isBillRequested ? '🔔 CUENTA SOLICITADA' : '🟢 CUENTA ABIERTA'}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Resumen Total Acumulado -->
+            <div style="background: rgba(255, 215, 0, 0.08); border: 1px solid var(--border-gold); padding: 1rem; border-radius: var(--radius-md); text-align: center; margin-bottom: 1rem;">
+                <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">
+                    Total Acumulado a la Fecha
+                </div>
+                <div style="font-family: var(--font-title); font-size: 1.8rem; color: var(--color-primary); margin: 0.3rem 0;">
+                    ${formatGs(currentTab.total_amount)}
+                </div>
+                <div style="font-size: 0.78rem; color: var(--text-secondary);">
+                    ${orders.length} ronda(s) / comanda(s) acumuladas
+                </div>
+            </div>
+
+            <!-- Lista de Pedidos en la Cuenta -->
+            <div style="text-align: left; margin-bottom: 1.2rem;">
+                <div style="font-size: 0.82rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.6rem; text-transform: uppercase;">
+                    📋 Detalle de Tus Pedidos:
+                </div>
+                <div style="max-height: 28vh; overflow-y: auto; display: flex; flex-direction: column; gap: 0.6rem;">
+                    ${orders.length === 0 ? `
+                        <div style="color: var(--text-muted); font-size: 0.82rem; text-align: center; padding: 1rem;">
+                            No hay pedidos cargados aún.
+                        </div>
+                    ` : orders.map((ord, idx) => {
+                        let statusText = 'En cocina';
+                        let badgeClass = 'badge--secondary';
+                        if (ord.status === 'preparing') { statusText = 'Cocinando 🔥'; badgeClass = 'badge--warning'; }
+                        else if (ord.status === 'ready') { statusText = 'Listo ✅'; badgeClass = 'badge--success'; }
+                        else if (ord.status === 'delivered') { statusText = 'Entregado 🍽️'; badgeClass = 'badge--info'; }
+
+                        const items = ord.order_items || [];
+                        return `
+                            <div style="background: #151821; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 0.7rem;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                                    <span style="font-weight: 700; font-size: 0.82rem; color: var(--text-main);">
+                                        #${ord.order_number || (idx + 1)} · ${new Date(ord.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                    <span class="badge ${badgeClass}" style="font-size: 0.68rem;">${statusText}</span>
+                                </div>
+                                <div style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.4;">
+                                    ${items.map(it => `<div>• ${it.quantity}x ${it.products?.name || 'Producto'} ${it.is_combo ? '(Combo)' : ''}</div>`).join('')}
+                                </div>
+                                <div style="text-align: right; font-weight: 700; font-size: 0.82rem; color: var(--color-primary); margin-top: 0.3rem;">
+                                    ${formatGs(ord.total_amount)}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+
+            <!-- Botones de Acción -->
+            <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+                <button id="btn-back-to-menu" class="btn btn--secondary btn--block" style="font-weight: 700; font-size: 0.85rem;">
+                    ➕ Seguir Pidiendo / Volver al Menú
+                </button>
+
+                ${isBillRequested ? `
+                    <div style="background: rgba(255, 170, 0, 0.12); border: 1px dashed #FFAA00; padding: 0.85rem; border-radius: var(--radius-md); font-size: 0.82rem; color: #FFAA00; text-align: center;">
+                        ⏳ <strong>¡Cuenta solicitada!</strong> El mozo o cajero se acercará con la cuenta o puedes pasar por caja a abonar.
+                    </div>
+                ` : `
+                    <button id="btn-request-bill" class="btn btn--primary btn--block" style="background: linear-gradient(135deg, #FF9800, #E65100); border: none; font-weight: 800; font-size: 0.9rem; padding: 0.85rem;">
+                        🔔 PEDIR LA CUENTA AHORA
+                    </button>
+                `}
+            </div>
+        </div>
+    `;
+
+    appEl.querySelector('#btn-back-to-menu')?.addEventListener('click', () => {
+        isShowingTabTracker = false;
+        renderView(appEl);
+    });
+
+    appEl.querySelector('#btn-request-bill')?.addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Solicitando...';
+        try {
+            await tabService.requestBill(currentTab.id);
+            currentTab.status = 'bill_requested';
+            showToast({ message: '🔔 Notificación enviada a Caja. Te acercamos la cuenta en breve.', type: 'info', duration: 5000 });
+            renderView(appEl);
+        } catch (err) {
+            showToast({ message: 'Error pidiendo la cuenta: ' + err.message, type: 'error' });
+            btn.disabled = false;
+            btn.innerHTML = '🔔 PEDIR LA CUENTA AHORA';
+        }
+    });
+}
+
+// ============================================================
+// Pantalla de Cuenta Cobrada y Finalizada (Recibo al Cliente)
+// ============================================================
+function renderTabClosedScreen(appEl) {
+    const tab = tabClosedReceipt;
+    const orders = tab?.orders || [];
+
+    appEl.innerHTML = `
+        <div class="cliente-header-banner">
+            <img src="banner.png" alt="Burgame Banner" class="cliente-banner-img">
+        </div>
+
+        <div class="order-tracker-card" style="margin-top: 1rem; text-align: center;">
+            <div style="font-size: 3rem; margin-bottom: 0.5rem;">🎉</div>
+            <div class="tracker-title" style="color: var(--color-primary); font-size: 1.2rem;">
+                ¡CUENTA PAGADA CON ÉXITO!
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.2rem;">
+                Muchas gracias por tu visita a Burgame. ¡Esperamos que hayas disfrutado al máximo!
+            </p>
+
+            <div style="background: rgba(46, 204, 113, 0.08); border: 1px solid #2ecc71; padding: 1.2rem; border-radius: var(--radius-md); margin-bottom: 1.2rem;">
+                <div style="font-size: 0.75rem; color: #2ecc71; font-weight: 700; text-transform: uppercase;">
+                    Total Abonado
+                </div>
+                <div style="font-family: var(--font-title); font-size: 1.8rem; color: #FFF; margin: 0.2rem 0;">
+                    ${formatGs(tab?.total_amount || 0)}
+                </div>
+                <div style="font-size: 0.78rem; color: var(--text-muted);">
+                    ${orders.length} comanda(s) canceladas · ${tab?.table_number ? `Mesa ${tab.table_number}` : (tab?.customer_name || 'Cliente')}
+                </div>
+            </div>
+
+            <button id="btn-finish-tab-session" class="btn btn--primary btn--block" style="padding: 0.9rem; font-weight: 800;">
+                🍔 Iniciar Nueva Visita / Menú
+            </button>
+        </div>
+    `;
+
+    appEl.querySelector('#btn-finish-tab-session')?.addEventListener('click', () => {
+        tabClosedReceipt = null;
+        currentTab = null;
+        clientTabId = null;
+        renderView(appEl);
+    });
+}
 
 // ============================================================
 // Funciones de Seguridad, Sesión y Pantalla de Bloqueo
