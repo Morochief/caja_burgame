@@ -168,13 +168,6 @@ async function getFallbackActiveTabs() {
     }
 }
 
-        return Array.from(tabMap.values());
-    } catch (e) {
-        console.error('[tabService] Error en fallback de cuentas:', e);
-        return [];
-    }
-}
-
 /**
  * Obtiene el detalle de una cuenta por su ID
  */
