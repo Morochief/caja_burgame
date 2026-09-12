@@ -225,8 +225,8 @@ function renderProductModal() {
                     <div id="tab-pricing" class="tab-pane">
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="prod-price">Precio Base / Solo (Gs.):</label>
-                                <input type="number" id="prod-price" class="form-input" placeholder="35000" min="0" required>
+                                <label for="prod-price">Precio Base / Solo (Gs.): <span class="label-hint">Obligatorio</span></label>
+                                <input type="number" id="prod-price" class="form-input" placeholder="35000" min="0">
                             </div>
 
                             <div class="form-group">
@@ -973,6 +973,16 @@ function bindStaticPageEvents(container) {
         const product_type = container.querySelector('#prod-type').value;
         const category_id = container.querySelector('#prod-category').value;
         const price = parseInt(container.querySelector('#prod-price').value, 10);
+
+        if (isNaN(price) || price < 0) {
+            switchModalTab(container, 'tab-pricing');
+            container.querySelector('#prod-price').focus();
+            showToast({ message: 'Ingresa un precio base válido para el producto', type: 'warning' });
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Guardar Producto';
+            return;
+        }
+
         const combo_price = container.querySelector('#prod-combo').value ? parseInt(container.querySelector('#prod-combo').value, 10) : null;
         const promo_price = container.querySelector('#prod-promo').value ? parseInt(container.querySelector('#prod-promo').value, 10) : null;
         const club_price = container.querySelector('#prod-club').value ? parseInt(container.querySelector('#prod-club').value, 10) : null;

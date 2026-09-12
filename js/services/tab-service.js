@@ -45,6 +45,8 @@ export async function openTab({ tabName, tableNumber = '', customerName = '', ca
     }
 }
 
+let _customerTabsTableExists = null; // null: no verificado, true: existe, false: usar fallback directo
+
 /**
  * Obtiene todas las cuentas activas (abiertas o pidiendo la cuenta) del turno/día de hoy.
  */
@@ -52,6 +54,11 @@ export async function getActiveTabs() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayIso = today.toISOString();
+
+    // Si ya detectamos previamente que customer_tabs no existe en Supabase, ir directo a fallback sin generar 404
+    if (_customerTabsTableExists === false) {
+        return getFallbackActiveTabs();
+    }
 
     try {
         // 1. Intentar consultar tabla customer_tabs solo de HOY
@@ -62,7 +69,14 @@ export async function getActiveTabs() {
             .gte('opened_at', todayIso)
             .order('opened_at', { ascending: false });
 
-        if (tabsError) throw tabsError;
+        if (tabsError) {
+            if (tabsError.code === '42P01' || tabsError.message?.includes('customer_tabs') || tabsError.message?.includes('schema cache')) {
+                _customerTabsTableExists = false;
+            }
+            throw tabsError;
+        }
+
+        _customerTabsTableExists = true;
 
         // Traer órdenes asociadas a estas cuentas
         const tabIds = (tabs || []).map(t => t.id);
@@ -96,7 +110,6 @@ export async function getActiveTabs() {
         });
 
     } catch (err) {
-        console.warn('[tabService] Fallback de cuentas activas de hoy:', err.message);
         return getFallbackActiveTabs();
     }
 }
