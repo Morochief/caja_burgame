@@ -319,21 +319,37 @@ function openCartModal(container) {
                     <div id="club-member-hint" class="club-member-hint" style="display:none; margin-top:0.4rem;"></div>
                 </div>
 
-                <!-- Selector de Cuenta Abierta / Mesa (Cobro al Finalizar) -->
-                <div class="ticket-notes" style="margin-top: 0.35rem; background: rgba(255, 215, 0, 0.05); border: 1px dashed var(--border-gold); padding: 0.6rem 0.75rem; border-radius: var(--radius-sm);">
-                    <label for="pos-tab-select" style="font-size: 0.76rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem;">
-                        <span>🍻 Cuenta Abierta / Mesa:</span>
-                        <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: normal;">(Cobro al salir)</span>
-                    </label>
-                    <select id="pos-tab-select" style="width: 100%; padding: 0.5rem; background: #0E1017; border: 1px solid var(--border-subtle); color: #FFF; border-radius: 6px; font-size: 0.82rem;">
-                        <option value="none" ${selectedTabId === 'none' ? 'selected' : ''}>— Comanda directa (Sin cuenta agrupada) —</option>
-                        ${activeTabs.map(t => `
-                            <option value="${t.id}" ${selectedTabId === t.id ? 'selected' : ''}>
-                                📍 ${t.tab_name} · Acumulado: ${formatGs(t.total_amount)} (${t.orders?.length || 0} pedidos)
-                            </option>
-                        `).join('')}
-                        <option value="new" ${selectedTabId === 'new' ? 'selected' : ''}>➕ Abrir NUEVA Cuenta / Mesa con este pedido...</option>
-                    </select>
+                <!-- Tipo de Comanda: Normal vs Cuenta Abierta -->
+                <div class="ticket-notes" style="margin-top: 0.35rem; background: rgba(255, 215, 0, 0.05); border: 1px dashed var(--border-gold); padding: 0.7rem 0.85rem; border-radius: var(--radius-sm);">
+                    <div style="font-size: 0.78rem; font-weight: 800; color: var(--color-primary); margin-bottom: 0.5rem; text-transform: uppercase;">
+                        ¿Cómo se gestiona el cobro?
+                    </div>
+                    
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <button type="button" id="btn-choice-pos-normal" class="btn btn--sm ${selectedTabId === 'none' ? 'btn--primary' : 'btn--secondary'}" style="flex: 1; font-weight: 700; font-size: 0.78rem; padding: 0.55rem 0.3rem;">
+                            ⚡ Pedido Normal
+                        </button>
+                        <button type="button" id="btn-choice-pos-tab" class="btn btn--sm ${selectedTabId !== 'none' ? 'btn--primary' : 'btn--secondary'}" style="flex: 1; font-weight: 700; font-size: 0.78rem; padding: 0.55rem 0.3rem;">
+                            🍻 Abrir / Cargar a Cuenta
+                        </button>
+                    </div>
+
+                    <div id="pos-tab-details-box" style="${selectedTabId === 'none' ? 'display: none;' : 'display: block;'} margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(255, 215, 0, 0.2);">
+                        <label for="pos-tab-select" style="font-size: 0.74rem; font-weight: 700; color: #FFF; margin-bottom: 0.3rem; display: block;">
+                            Seleccionar Cuenta o Mesa:
+                        </label>
+                        <select id="pos-tab-select" style="width: 100%; padding: 0.5rem; background: #0E1017; border: 1px solid var(--border-gold); color: #FFF; border-radius: 6px; font-size: 0.82rem;">
+                            <option value="new" ${selectedTabId === 'new' || selectedTabId === 'none' ? 'selected' : ''}>➕ Abrir NUEVA Cuenta para este Cliente / Mesa</option>
+                            ${activeTabs.map(t => `
+                                <option value="${t.id}" ${selectedTabId === t.id ? 'selected' : ''}>
+                                    📍 ${t.tab_name} · Acumulado: ${formatGs(t.total_amount)} (${t.orders?.length || 0} pedidos)
+                                </option>
+                            `).join('')}
+                        </select>
+                        <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.35rem; line-height: 1.3;">
+                            💡 El pedido va directo a cocina y se acumula en la cuenta para cobrar todo junto al salir.
+                        </p>
+                    </div>
                 </div>
 
                 <!-- Toggle Club Burgame -->
@@ -421,6 +437,28 @@ function openCartModal(container) {
         handleCustomerMembershipCheck(container);
     });
 
+    // Selección: Pedido Normal vs Cuenta Abierta
+    overlay.querySelector('#btn-choice-pos-normal')?.addEventListener('click', () => {
+        selectedTabId = 'none';
+        const box = overlay.querySelector('#pos-tab-details-box');
+        if (box) box.style.display = 'none';
+        overlay.querySelector('#btn-choice-pos-normal')?.classList.replace('btn--secondary', 'btn--primary');
+        overlay.querySelector('#btn-choice-pos-tab')?.classList.replace('btn--primary', 'btn--secondary');
+        const sendBtn = overlay.querySelector('#btn-send-kitchen-only');
+        if (sendBtn) sendBtn.innerHTML = '🚀 A Cocina (Mesa)';
+    });
+
+    overlay.querySelector('#btn-choice-pos-tab')?.addEventListener('click', () => {
+        const select = overlay.querySelector('#pos-tab-select');
+        selectedTabId = select ? select.value : 'new';
+        const box = overlay.querySelector('#pos-tab-details-box');
+        if (box) box.style.display = 'block';
+        overlay.querySelector('#btn-choice-pos-tab')?.classList.replace('btn--secondary', 'btn--primary');
+        overlay.querySelector('#btn-choice-pos-normal')?.classList.replace('btn--primary', 'btn--secondary');
+        const sendBtn = overlay.querySelector('#btn-send-kitchen-only');
+        if (sendBtn) sendBtn.innerHTML = selectedTabId === 'new' ? '🚀 Abrir Cuenta y Enviar' : '🚀 Cargar a Cuenta';
+    });
+
     // Selector de cuenta abierta / mesa
     overlay.querySelector('#pos-tab-select')?.addEventListener('change', (e) => {
         selectedTabId = e.target.value;
@@ -429,7 +467,7 @@ function openCartModal(container) {
             const foundTab = activeTabs.find(t => t.id === selectedTabId);
             if (foundTab) {
                 const nameInput = overlay.querySelector('#customer-name');
-                if (nameInput) {
+                if (nameInput && !nameInput.value.trim()) {
                     nameInput.value = foundTab.customer_name || foundTab.tab_name;
                     currentCustomerName = nameInput.value;
                 }

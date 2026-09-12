@@ -46,15 +46,20 @@ export async function openTab({ tabName, tableNumber = '', customerName = '', ca
 }
 
 /**
- * Obtiene todas las cuentas activas (abiertas o pidiendo la cuenta) con sus órdenes e ítems.
+ * Obtiene todas las cuentas activas (abiertas o pidiendo la cuenta) del turno/día de hoy.
  */
 export async function getActiveTabs() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayIso = today.toISOString();
+
     try {
-        // 1. Intentar consultar tabla customer_tabs
+        // 1. Intentar consultar tabla customer_tabs solo de HOY
         const { data: tabs, error: tabsError } = await supabase
             .from('customer_tabs')
             .select('*')
             .in('status', ['open', 'bill_requested'])
+            .gte('opened_at', todayIso)
             .order('opened_at', { ascending: false });
 
         if (tabsError) throw tabsError;
@@ -68,6 +73,7 @@ export async function getActiveTabs() {
                 .from('orders')
                 .select('*, order_items(*)')
                 .in('tab_id', tabIds)
+                .gte('created_at', todayIso)
                 .neq('status', 'cancelled');
 
             if (!ordersError && orders) {
@@ -90,20 +96,24 @@ export async function getActiveTabs() {
         });
 
     } catch (err) {
-        console.warn('[tabService] Fallback de cuentas activas basado en órdenes abiertas:', err.message);
+        console.warn('[tabService] Fallback de cuentas activas de hoy:', err.message);
         return getFallbackActiveTabs();
     }
 }
 
 /**
- * Fallback de cuentas agrupando comandas abiertas de la tabla orders
- * por mesa o nombre de cliente cuando customer_tabs no está disponible.
+ * Fallback de cuentas: solo agrupa pedidos creados HOY que expresamente sean autopedido con cuenta abierta o tengan tab_id
  */
 async function getFallbackActiveTabs() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayIso = today.toISOString();
+
     try {
         const { data: orders, error } = await supabase
             .from('orders')
             .select('*, order_items(*)')
+            .gte('created_at', todayIso)
             .is('paid_at', null)
             .neq('status', 'cancelled')
             .order('created_at', { ascending: true });
@@ -111,18 +121,25 @@ async function getFallbackActiveTabs() {
         if (error) throw error;
         if (!orders || orders.length === 0) return [];
 
+        // Solo incluir pedidos que explícitamente se abrieron como cuenta o tienen tab_id
+        const tabOrders = orders.filter(o => 
+            o.tab_id || 
+            (o.notes && o.notes.includes('[CUENTA ABIERTA]')) || 
+            (o.notes && o.notes.includes('[TAB]'))
+        );
+
+        if (tabOrders.length === 0) return [];
+
         const tabMap = new Map();
 
-        orders.forEach(order => {
-            // Extraer nombre de mesa o cliente
+        tabOrders.forEach(order => {
             const name = (order.customer_name || '').trim();
             const notes = (order.notes || '').trim();
             
-            // Detección de mesa
             const mesaMatch = name.match(/Mesa\s*(\w+)/i) || notes.match(/Mesa\s*(\w+)/i);
             const tableNum = mesaMatch ? mesaMatch[1] : '';
             
-            const groupKey = tableNum ? `mesa-${tableNum.toLowerCase()}` : (name ? `cli-${name.toLowerCase()}` : `ord-${order.id}`);
+            const groupKey = order.tab_id || (tableNum ? `mesa-${tableNum.toLowerCase()}` : (name ? `cli-${name.toLowerCase()}` : `ord-${order.id}`));
             const displayTitle = tableNum ? `Mesa ${tableNum} (${name || 'Salón'})` : (name || `Comanda #${order.order_number}`);
 
             if (!tabMap.has(groupKey)) {
@@ -143,6 +160,13 @@ async function getFallbackActiveTabs() {
             current.orders.push(order);
             current.total_amount += (order.total || 0);
         });
+
+        return Array.from(tabMap.values());
+    } catch (e) {
+        console.error('[tabService] Error en fallback de cuentas:', e);
+        return [];
+    }
+}
 
         return Array.from(tabMap.values());
     } catch (e) {
