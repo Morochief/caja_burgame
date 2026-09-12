@@ -1,6 +1,6 @@
 import { supabase } from '../supabase-client.js';
 
-export async function createOrder({ items, notes, customerName, cashRegisterId, status = 'ordered', tabId = null }) {
+export async function createOrder({ items, notes, customerName, cashRegisterId, status = 'ordered', tabId = null, paymentMethod = null }) {
     const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const initialStatus = status || 'ordered';
 
@@ -34,21 +34,25 @@ export async function createOrder({ items, notes, customerName, cashRegisterId, 
     });
 
     if (!rpcError && rpcData) {
-        // Actualizar estado si difiere de 'ordered' y/o vincular tab_id
+        // Actualizar estado si difiere de 'ordered', vincular tab_id y/o medio de pago seleccionado
         const extraUpdates = {};
         if (initialStatus !== 'ordered') extraUpdates.status = initialStatus;
         if (tabId && !String(tabId).startsWith('local-') && !String(tabId).startsWith('fallback-')) {
             extraUpdates.tab_id = tabId;
+        }
+        if (paymentMethod) {
+            extraUpdates.payment_method = paymentMethod;
         }
 
         if (Object.keys(extraUpdates).length > 0) {
             try {
                 await supabase.from('orders').update(extraUpdates).eq('id', rpcData.id);
             } catch (e) {
-                console.warn('[orderService] No se pudo guardar tab_id o status extra:', e.message);
+                console.warn('[orderService] No se pudo guardar tab_id, status o payment_method extra:', e.message);
             }
             if (extraUpdates.status) rpcData.status = extraUpdates.status;
             if (extraUpdates.tab_id) rpcData.tab_id = extraUpdates.tab_id;
+            if (extraUpdates.payment_method) rpcData.payment_method = extraUpdates.payment_method;
         }
         return rpcData;
     }
@@ -69,6 +73,9 @@ export async function createOrder({ items, notes, customerName, cashRegisterId, 
     };
     if (tabId && !String(tabId).startsWith('local-') && !String(tabId).startsWith('fallback-')) {
         basePayload.tab_id = tabId;
+    }
+    if (paymentMethod) {
+        basePayload.payment_method = paymentMethod;
     }
 
     const { data, error } = await supabase

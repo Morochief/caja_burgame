@@ -677,8 +677,8 @@ function renderOrderCard(order) {
                     ${getStatusLabel(order.status, isPaid)}
                 </span>
                 ${order.payment_method ? `
-                    <span class="badge badge--dark" style="font-size: 0.68rem; text-transform: uppercase;">
-                        ${getPaymentMethodIcon(order.payment_method)} ${order.payment_method}
+                    <span class="badge badge--dark" style="font-size: 0.68rem; text-transform: uppercase; border: 1px solid var(--border-gold); color: var(--color-primary); background: rgba(255,215,0,0.12); font-weight: 800;">
+                        ${getPaymentMethodIcon(order.payment_method)} PAGO: ${order.payment_method.toUpperCase()}
                     </span>
                 ` : ''}
             </div>
@@ -708,21 +708,35 @@ function renderOrderCard(order) {
             <!-- Acciones de Pago (Si no está pagado) -->
             ${!isPaid && order.status !== 'cancelled' ? `
                 <div class="order-card__payments">
-                    <p class="payment-title">
-                        ${order.status === 'pending_payment' ? '💰 Cobrar y Enviar a Cocina:' : '💳 Registrar Medio de Pago:'}
-                    </p>
+                    ${order.payment_method ? `
+                        <div class="preselected-payment-banner" style="background: rgba(255, 215, 0, 0.12); border: 1px solid var(--border-gold); border-radius: 8px; padding: 0.5rem 0.75rem; margin-bottom: 0.6rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                            <div>
+                                <div style="font-size: 0.68rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Elegido en Carrito:</div>
+                                <div style="font-size: 0.85rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 0.35rem;">
+                                    ${getPaymentMethodIcon(order.payment_method)} ${order.payment_method.toUpperCase()}
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn--sm btn--primary btn--confirm-preselected-pay" data-id="${order.id}" data-method="${order.payment_method}" style="font-size: 0.75rem; font-weight: 800; padding: 0.4rem 0.75rem; white-space: nowrap;">
+                                ✅ Confirmar Cobro
+                            </button>
+                        </div>
+                    ` : `
+                        <p class="payment-title">
+                            ${order.status === 'pending_payment' ? '💰 Cobrar y Enviar a Cocina:' : '💳 Registrar Medio de Pago:'}
+                        </p>
+                    `}
                     <div class="payment-grid">
-                        <button class="btn btn--payment btn--cash" data-id="${order.id}" data-method="efectivo">
-                            💵 Efectivo
+                        <button class="btn btn--payment btn--cash ${order.payment_method === 'efectivo' ? 'btn--payment-highlighted' : ''}" data-id="${order.id}" data-method="efectivo" title="Cobrar en Efectivo">
+                            💵 Efectivo ${order.payment_method === 'efectivo' ? '★' : ''}
                         </button>
-                        <button class="btn btn--payment btn--transfer" data-id="${order.id}" data-method="transferencia">
-                            📱 Transferencia
+                        <button class="btn btn--payment btn--transfer ${order.payment_method === 'transferencia' ? 'btn--payment-highlighted' : ''}" data-id="${order.id}" data-method="transferencia" title="Cobrar por Transferencia">
+                            📱 Transferencia ${order.payment_method === 'transferencia' ? '★' : ''}
                         </button>
-                        <button class="btn btn--payment btn--debit" data-id="${order.id}" data-method="debito">
-                            💳 Débito
+                        <button class="btn btn--payment btn--debit ${order.payment_method === 'debito' ? 'btn--payment-highlighted' : ''}" data-id="${order.id}" data-method="debito" title="Cobrar con Débito">
+                            💳 Débito ${order.payment_method === 'debito' ? '★' : ''}
                         </button>
-                        <button class="btn btn--payment btn--credit" data-id="${order.id}" data-method="credito">
-                            💳 Crédito
+                        <button class="btn btn--payment btn--credit ${order.payment_method === 'credito' ? 'btn--payment-highlighted' : ''}" data-id="${order.id}" data-method="credito" title="Cobrar con Crédito">
+                            💳 Crédito ${order.payment_method === 'credito' ? '★' : ''}
                         </button>
                     </div>
 
@@ -849,6 +863,30 @@ function attachCardEvents(container) {
             } catch (err) {
                 showToast({ message: 'Error al procesar cobro: ' + err.message, type: 'error' });
                 btn.disabled = false;
+            }
+        });
+    });
+
+    // 1.1 Confirmar Cobro con Medio Preseleccionado en Carrito
+    container.querySelectorAll('.btn--confirm-preselected-pay').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const orderId = btn.dataset.id;
+            const method = btn.dataset.method;
+            btn.disabled = true;
+            btn.textContent = '⏳ Procesando...';
+
+            try {
+                await orderService.processPayment(orderId, method);
+                showToast({ 
+                    message: `💰 ¡Cobro registrado con éxito (${method.toUpperCase()})!`, 
+                    type: 'success' 
+                });
+                await loadData();
+                updateView(container);
+            } catch (err) {
+                showToast({ message: 'Error al procesar cobro: ' + err.message, type: 'error' });
+                btn.disabled = false;
+                btn.textContent = '✅ Confirmar Cobro';
             }
         });
     });

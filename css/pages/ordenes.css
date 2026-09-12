@@ -424,6 +424,15 @@
     color: var(--color-primary, #FFD700);
 }
 
+.btn--payment-highlighted {
+    border: 2px solid var(--color-primary, #FFD700) !important;
+    background: rgba(255, 215, 0, 0.22) !important;
+    color: var(--color-primary, #FFD700) !important;
+    box-shadow: 0 0 14px rgba(255, 215, 0, 0.35) !important;
+    font-weight: 800 !important;
+    transform: scale(1.02);
+}
+
 /* Secondary Actions Bar inside Card */
 .order-secondary-actions {
     display: flex;

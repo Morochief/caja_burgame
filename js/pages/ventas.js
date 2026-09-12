@@ -24,6 +24,7 @@ let categories = [];
 let customers = [];
 let activeTabs = [];
 let selectedTabId = 'none'; // 'none' | 'new' | uuid
+let currentPaymentMethod = 'efectivo'; // 'efectivo' | 'transferencia' | 'debito' | 'credito'
 let customerLookupTimer = null;
 let isManualClubOverride = false;
 let _chatInitialized = false; // inicializar chat solo una vez
@@ -367,6 +368,35 @@ function openCartModal(container) {
                     </label>
                     <input type="text" id="order-notes" placeholder="Ej: Sin cebolla, extra cheddar..." value="${currentNotes}" style="font-size: 0.85rem;">
                 </div>
+
+                <!-- Selección de Medio de Pago -->
+                <div class="ticket-notes" style="margin-top: 0.35rem; background: rgba(0, 230, 118, 0.05); border: 1px dashed rgba(0, 230, 118, 0.4); padding: 0.65rem 0.85rem; border-radius: var(--radius-sm);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.45rem;">
+                        <span style="font-size: 0.78rem; font-weight: 800; color: #00E676; text-transform: uppercase;">
+                            💳 Medio de Pago:
+                        </span>
+                        <span id="pos-selected-pay-badge" style="font-size: 0.72rem; font-weight: 800; text-transform: uppercase; color: #000; background: #00E676; padding: 2px 7px; border-radius: 4px;">
+                            ${currentPaymentMethod.toUpperCase()}
+                        </span>
+                    </div>
+                    <div class="pos-cart-payment-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.35rem;">
+                        <button type="button" class="btn btn--sm btn-cart-pay-choice ${currentPaymentMethod === 'efectivo' ? 'btn--primary' : 'btn--secondary'}" data-method="efectivo" style="padding: 0.5rem 0.15rem; font-size: 0.75rem; font-weight: 700;">
+                            💵 Efectivo
+                        </button>
+                        <button type="button" class="btn btn--sm btn-cart-pay-choice ${currentPaymentMethod === 'transferencia' ? 'btn--primary' : 'btn--secondary'}" data-method="transferencia" style="padding: 0.5rem 0.15rem; font-size: 0.75rem; font-weight: 700;">
+                            📱 Transf.
+                        </button>
+                        <button type="button" class="btn btn--sm btn-cart-pay-choice ${currentPaymentMethod === 'debito' ? 'btn--primary' : 'btn--secondary'}" data-method="debito" style="padding: 0.5rem 0.15rem; font-size: 0.75rem; font-weight: 700;">
+                            💳 Débito
+                        </button>
+                        <button type="button" class="btn btn--sm btn-cart-pay-choice ${currentPaymentMethod === 'credito' ? 'btn--primary' : 'btn--secondary'}" data-method="credito" style="padding: 0.5rem 0.15rem; font-size: 0.75rem; font-weight: 700;">
+                            💳 Crédito
+                        </button>
+                    </div>
+                    <div style="font-size: 0.68rem; color: var(--text-muted); margin-top: 0.35rem;">
+                        💡 Se marcará automáticamente en Órdenes para recordar cómo pagó el cliente.
+                    </div>
+                </div>
             </div>
 
             <!-- Footer Fijo Sticky Bottom Siempre Visible -->
@@ -394,6 +424,22 @@ function openCartModal(container) {
     // Eventos
     overlay.querySelector('#btn-close-cart-modal')?.addEventListener('click', closeCartModal);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) closeCartModal(); });
+
+    // Selector de medio de pago en el carrito
+    overlay.querySelectorAll('.btn-cart-pay-choice').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            currentPaymentMethod = btn.dataset.method || 'efectivo';
+            overlay.querySelectorAll('.btn-cart-pay-choice').forEach(b => {
+                b.classList.remove('btn--primary');
+                b.classList.add('btn--secondary');
+            });
+            btn.classList.remove('btn--secondary');
+            btn.classList.add('btn--primary');
+            const badge = overlay.querySelector('#pos-selected-pay-badge');
+            if (badge) badge.textContent = currentPaymentMethod.toUpperCase();
+        });
+    });
 
     // Selector de modo (Salón / Llevar / Delivery)
     overlay.querySelectorAll('.order-mode-btn').forEach(btn => {
@@ -537,17 +583,17 @@ function openFastPayModal(container) {
                 </div>
 
                 <div class="payment-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;">
-                    <button class="btn btn--payment btn--cash btn-pos-pay-method" data-method="efectivo" style="padding: 0.8rem; font-size: 0.85rem;">
-                        💵 Efectivo
+                    <button class="btn btn--payment btn--cash btn-pos-pay-method ${currentPaymentMethod === 'efectivo' ? 'btn--payment-highlighted' : ''}" data-method="efectivo" style="padding: 0.8rem; font-size: 0.85rem;">
+                        💵 Efectivo ${currentPaymentMethod === 'efectivo' ? '★' : ''}
                     </button>
-                    <button class="btn btn--payment btn--transfer btn-pos-pay-method" data-method="transferencia" style="padding: 0.8rem; font-size: 0.85rem;">
-                        📱 Transferencia / QR
+                    <button class="btn btn--payment btn--transfer btn-pos-pay-method ${currentPaymentMethod === 'transferencia' ? 'btn--payment-highlighted' : ''}" data-method="transferencia" style="padding: 0.8rem; font-size: 0.85rem;">
+                        📱 Transferencia / QR ${currentPaymentMethod === 'transferencia' ? '★' : ''}
                     </button>
-                    <button class="btn btn--payment btn--debit btn-pos-pay-method" data-method="debito" style="padding: 0.8rem; font-size: 0.85rem;">
-                        💳 Tarjeta Débito
+                    <button class="btn btn--payment btn--debit btn-pos-pay-method ${currentPaymentMethod === 'debito' ? 'btn--payment-highlighted' : ''}" data-method="debito" style="padding: 0.8rem; font-size: 0.85rem;">
+                        💳 Tarjeta Débito ${currentPaymentMethod === 'debito' ? '★' : ''}
                     </button>
-                    <button class="btn btn--payment btn--credit btn-pos-pay-method" data-method="credito" style="padding: 0.8rem; font-size: 0.85rem;">
-                        💳 Tarjeta Crédito
+                    <button class="btn btn--payment btn--credit btn-pos-pay-method ${currentPaymentMethod === 'credito' ? 'btn--payment-highlighted' : ''}" data-method="credito" style="padding: 0.8rem; font-size: 0.85rem;">
+                        💳 Tarjeta Crédito ${currentPaymentMethod === 'credito' ? '★' : ''}
                     </button>
                 </div>
             </div>
@@ -918,12 +964,14 @@ async function sendOrderToKitchen(container, options = {}) {
             }
         }
 
+        const chosenPaymentMethod = fastPayMethod || currentPaymentMethod || 'efectivo';
         const order = await orderService.createOrder({
             items: cart.items,
             notes,
             customerName: finalCustomer,
             cashRegisterId: currentRegister.id,
-            tabId: finalTabId
+            tabId: finalTabId,
+            paymentMethod: chosenPaymentMethod
         });
 
         if (finalTabId) {
@@ -943,7 +991,7 @@ async function sendOrderToKitchen(container, options = {}) {
             });
         } else {
             showToast({
-                message: `🚀 Orden #${order.order_number} enviada a Cocina`,
+                message: `🚀 Orden #${order.order_number} (${chosenPaymentMethod.toUpperCase()}) enviada a Cocina`,
                 type: 'success'
             });
         }
@@ -955,6 +1003,7 @@ async function sendOrderToKitchen(container, options = {}) {
         currentCustomerName = '';
         currentOrderMode = 'salon';
         selectedTabId = 'none';
+        currentPaymentMethod = 'efectivo';
         if (notesInput) notesInput.value = '';
         if (customerInput) customerInput.value = '';
 
