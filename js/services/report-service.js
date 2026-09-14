@@ -1,4 +1,11 @@
 import { supabase } from '../supabase-client.js';
+import {
+    getParaguayToday,
+    formatParaguayDate,
+    getParaguayHour,
+    getParaguayIsoRange,
+    addDaysToYmd
+} from '../utils/date-utils.js';
 
 export async function getCurrentShiftSummary(cashRegisterId) {
     if (!cashRegisterId) {
@@ -31,10 +38,11 @@ export async function getCurrentShiftSummary(cashRegisterId) {
 }
 
 export async function getWeeklySales() {
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const today = getParaguayToday();
+    const start = addDaysToYmd(today, -7);
+    const { fromIso } = getParaguayIsoRange(start, today);
 
-    const { data, error } = await supabase.from('orders').select('*').gte('created_at', sevenDaysAgo.toISOString()).not('paid_at', 'is', null);
+    const { data, error } = await supabase.from('orders').select('*').gte('created_at', fromIso).not('paid_at', 'is', null);
     if (error) throw error;
     return data || [];
 }
@@ -58,23 +66,24 @@ export async function getRegisterHistory() {
 }
 
 export async function getDailySalesSummary(days = 30) {
-    const fromDate = new Date();
-    fromDate.setDate(fromDate.getDate() - days);
-    fromDate.setHours(0, 0, 0, 0);
+    const today = getParaguayToday();
+    const start = addDaysToYmd(today, -days);
+    const { fromIso } = getParaguayIsoRange(start, today);
 
     const { data, error } = await supabase
         .from('orders')
         .select('total, status, payment_method, created_at, paid_at')
-        .gte('created_at', fromDate.toISOString())
+        .gte('created_at', fromIso)
         .not('paid_at', 'is', null)
         .order('created_at', { ascending: true });
 
     if (error) throw error;
 
-    // Agrupar por día
+    // Agrupar por día según zona horaria oficial de Paraguay (America/Asuncion)
     const dailyMap = {};
     (data || []).forEach(order => {
-        const day = new Date(order.created_at).toISOString().split('T')[0];
+        const day = formatParaguayDate(order.created_at);
+        if (!day) return;
         if (!dailyMap[day]) {
             dailyMap[day] = {
                 date: day,
@@ -152,16 +161,18 @@ export async function getAnalyticsByRange(fromIso, toIso) {
         else payments.efectivo += (o.total || 0);
     });
 
-    // Serie temporal por día (Ventas vs Gastos)
+    // Serie temporal por día (Ventas vs Gastos) en hora de Paraguay
     const timelineMap = {};
     paidOrders.forEach(o => {
-        const d = new Date(o.created_at).toISOString().split('T')[0];
+        const d = formatParaguayDate(o.created_at);
+        if (!d) return;
         if (!timelineMap[d]) timelineMap[d] = { date: d, sales: 0, expenses: 0, count: 0 };
         timelineMap[d].sales += (o.total || 0);
         timelineMap[d].count += 1;
     });
     expenses.forEach(e => {
-        const d = new Date(e.created_at).toISOString().split('T')[0];
+        const d = e.expense_date || formatParaguayDate(e.created_at);
+        if (!d) return;
         if (!timelineMap[d]) timelineMap[d] = { date: d, sales: 0, expenses: 0, count: 0 };
         timelineMap[d].expenses += (e.amount || 0);
     });
@@ -169,13 +180,15 @@ export async function getAnalyticsByRange(fromIso, toIso) {
     // Ordenar serie por fecha ascendente
     const timeline = Object.values(timelineMap).sort((a, b) => a.date.localeCompare(b.date));
 
-    // Horas pico (distribución por hora 0 a 23)
+    // Horas pico (distribución por hora 0 a 23 en hora de Paraguay)
     const hourlyDistribution = Array(24).fill(0);
     const hourlySales = Array(24).fill(0);
     paidOrders.forEach(o => {
-        const h = new Date(o.created_at).getHours();
-        hourlyDistribution[h] += 1;
-        hourlySales[h] += (o.total || 0);
+        const h = getParaguayHour(o.created_at);
+        if (h >= 0 && h < 24) {
+            hourlyDistribution[h] += 1;
+            hourlySales[h] += (o.total || 0);
+        }
     });
 
     // Desglose de Gastos por Categoría (P&L)
@@ -245,18 +258,15 @@ export async function getAnalyticsByRange(fromIso, toIso) {
 
 // Obtener datos completos de un día específico para Excel o auditoría
 export async function getDayFullConsolidated(dateStr) {
-    const start = new Date(dateStr);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(dateStr);
-    end.setHours(23, 59, 59, 999);
+    const { fromIso, toIso } = getParaguayIsoRange(dateStr);
 
-    const analytics = await getAnalyticsByRange(start.toISOString(), end.toISOString());
+    const analytics = await getAnalyticsByRange(fromIso, toIso);
 
-    // Cajas que abrieron o cerraron ese día
+    // Cajas que abrieron ese día en hora de Paraguay
     const { data: registers } = await supabase.from('cash_registers')
         .select('*')
-        .gte('opened_at', start.toISOString())
-        .lte('opened_at', end.toISOString())
+        .gte('opened_at', fromIso)
+        .lte('opened_at', toIso)
         .order('opened_at', { ascending: true });
 
     return {

@@ -3,6 +3,11 @@ import { orderService } from '../services/order-service.js';
 import { formatGs } from '../components/currency.js';
 import { showToast } from '../components/toast.js';
 import { exportConsolidatedReportExcel } from '../services/excel-export-service.js';
+import {
+    getParaguayToday,
+    getParaguayIsoRange,
+    getParaguayPresetRange
+} from '../utils/date-utils.js';
 
 let selectedPeriod = 'today'; // 'today' | 'yesterday' | 'week' | 'month' | 'custom'
 let customStartDate = '';
@@ -29,7 +34,7 @@ export async function renderReportesPage() {
     const container = document.createElement('div');
     container.className = 'reportes-page';
 
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = getParaguayToday();
     if (!customStartDate) customStartDate = todayStr;
     if (!customEndDate) customEndDate = todayStr;
 
@@ -105,7 +110,7 @@ export async function renderReportesPage() {
 }
 
 function setupEvents(container) {
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = getParaguayToday();
     const fromInput = container.querySelector('#date-range-from');
     const toInput = container.querySelector('#date-range-to');
 
@@ -120,25 +125,10 @@ function setupEvents(container) {
             btn.classList.remove('btn--secondary');
             btn.classList.add('btn--primary');
 
-            const now = new Date();
-            if (selectedPeriod === 'today') {
-                fromInput.value = todayStr;
-                toInput.value = todayStr;
-            } else if (selectedPeriod === 'yesterday') {
-                const y = new Date();
-                y.setDate(y.getDate() - 1);
-                const yStr = y.toISOString().slice(0, 10);
-                fromInput.value = yStr;
-                toInput.value = yStr;
-            } else if (selectedPeriod === 'week') {
-                const w = new Date();
-                w.setDate(w.getDate() - 7);
-                fromInput.value = w.toISOString().slice(0, 10);
-                toInput.value = todayStr;
-            } else if (selectedPeriod === 'month') {
-                const m = new Date(now.getFullYear(), now.getMonth(), 1);
-                fromInput.value = m.toISOString().slice(0, 10);
-                toInput.value = todayStr;
+            if (selectedPeriod !== 'custom') {
+                const preset = getParaguayPresetRange(selectedPeriod);
+                fromInput.value = preset.startYmd;
+                toInput.value = preset.endYmd;
             }
 
             customStartDate = fromInput.value;
@@ -241,21 +231,19 @@ async function loadReportData(container) {
         const startStr = fromInput ? fromInput.value : customStartDate;
         const endStr = toInput ? toInput.value : customEndDate;
 
-        const fromDate = new Date(startStr);
-        fromDate.setHours(0, 0, 0, 0);
-
-        const toDate = new Date(endStr);
-        toDate.setHours(23, 59, 59, 999);
+        const { fromIso, toIso } = getParaguayIsoRange(startStr, endStr);
 
         // Actualizar etiqueta del período
         const statusLabel = container.querySelector('#period-status-label');
         if (statusLabel) {
-            const fPretty = fromDate.toLocaleDateString('es-PY');
-            const tPretty = toDate.toLocaleDateString('es-PY');
+            const [sy, sm, sd] = (startStr || '').split('-');
+            const [ey, em, ed] = (endStr || '').split('-');
+            const fPretty = sd && sm && sy ? `${sd}/${sm}/${sy}` : startStr;
+            const tPretty = ed && em && ey ? `${ed}/${em}/${ey}` : endStr;
             statusLabel.textContent = `Período activo: ${fPretty} - ${tPretty} (${selectedPeriod.toUpperCase()})`;
         }
 
-        const analytics = await reportService.getAnalyticsByRange(fromDate.toISOString(), toDate.toISOString());
+        const analytics = await reportService.getAnalyticsByRange(fromIso, toIso);
         cachedAnalytics = analytics;
 
         renderReport(container);

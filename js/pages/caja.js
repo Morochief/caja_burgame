@@ -4,6 +4,7 @@ import { appState } from '../app.js';
 import { formatGs } from '../components/currency.js';
 import { showToast } from '../components/toast.js';
 import { exportConsolidatedReportExcel } from '../services/excel-export-service.js';
+import { formatParaguayDate } from '../utils/date-utils.js';
 
 // Denominaciones oficiales de moneda en Paraguay (PYG)
 const DENOMINATIONS = [
@@ -1218,7 +1219,7 @@ function renderDayView(historyEl, monthKey, monthData) {
 // Vista 3: detalle de cajas de un día específico (con edición y descarga)
 function renderCashDetailView(historyEl, monthKey, dayNum, cashBoxes) {
     const firstOpened = cashBoxes[0]?.opened_at;
-    const dateIso = firstOpened ? new Date(firstOpened).toISOString().slice(0, 10) : '';
+    const dateIso = firstOpened ? formatParaguayDate(firstOpened) : '';
 
     historyEl.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem;">
@@ -1655,7 +1656,7 @@ async function downloadClosedCajaExcel(registerId, dateLabel, btn) {
         buildBurgameSheet(wsCat, catData, { imageRows: 5 });
 
         // ---------- Nombre del archivo ----------
-        const dateStr = new Date(register.opened_at).toISOString().slice(0, 10);
+        const dateStr = formatParaguayDate(register.opened_at);
         await downloadBurgameExcel(wb, `Caja_Burgame_${dateStr}.xlsx`, {
             logoSheets: ['Resumen', 'Ventas Detalladas', 'Items Vendidos', 'Gastos Detallados', 'Gastos por Categoría'],
             bannerSheet: 'Resumen'

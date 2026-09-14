@@ -8,6 +8,7 @@ import { renderProductCard } from '../components/product-card.js';
 import { createCart } from '../components/cart.js';
 import { supabase } from '../supabase-client.js';
 import { qrAuthService } from '../services/qr-auth-service.js';
+import { getParaguayDayOfWeek } from '../utils/date-utils.js';
 
 let serviceType = 'eat_in'; // 'eat_in' | 'takeaway'
 let payPreference = 'tab'; // 'tab' (pagar al salir) | 'instant' (pagar en caja)
@@ -219,7 +220,7 @@ function renderProductsGrid() {
     if (currentCategory !== 'all') {
         filtered = filtered.filter(p => p.category_id === currentCategory);
     }
-    return filtered.map(product => renderProductCard(product, { compact: true })).join('');
+    return filtered.map(product => renderProductCard(product, { compact: true, isClient: true })).join('');
 }
 
 // ============================================================
@@ -298,6 +299,18 @@ function setupEvents(appEl) {
             e.stopPropagation();
             const product = products.find(p => p.id === btn.dataset.id);
             if (!product) return;
+            const vname = btn.dataset.vname || '';
+            const dayPy = getParaguayDayOfWeek();
+
+            if (vname.toLowerCase().includes('viernes') && dayPy !== 5) {
+                showToast({ message: '⚠️ La Promo Viernes solo está disponible los días Viernes.', type: 'warning' });
+                return;
+            }
+            if (vname.toLowerCase().includes('jueves') && dayPy !== 4) {
+                showToast({ message: '⚠️ La Promo Jueves solo está disponible los días Jueves.', type: 'warning' });
+                return;
+            }
+
             cart.addVariant(product, btn.dataset.vname, parseInt(btn.dataset.vprice, 10));
             updateCartPanel(appEl);
         });
@@ -348,6 +361,29 @@ function setupEvents(appEl) {
 
         if (cart.items.length === 0) {
             showToast({ message: 'Tu pedido está vacío', type: 'warning' });
+            isSubmittingOrder = false;
+            btn.disabled = false;
+            btn.style.opacity = '';
+            btn.innerHTML = originalText;
+            return;
+        }
+
+        // Validación de promociones por día (Defensa en profundidad)
+        const currentDayPy = getParaguayDayOfWeek();
+        const invalidPromoItem = cart.items.find(item => {
+            const vName = (item.variant || '').toLowerCase();
+            const pName = (item.name || '').toLowerCase();
+            if ((vName.includes('viernes') || pName.includes('viernes')) && currentDayPy !== 5) return true;
+            if ((vName.includes('jueves') || pName.includes('jueves')) && currentDayPy !== 4) return true;
+            return false;
+        });
+
+        if (invalidPromoItem) {
+            showToast({
+                message: `⛔ El producto "${invalidPromoItem.name}" solo está disponible en su día de promoción.`,
+                type: 'error',
+                duration: 6000
+            });
             isSubmittingOrder = false;
             btn.disabled = false;
             btn.style.opacity = '';

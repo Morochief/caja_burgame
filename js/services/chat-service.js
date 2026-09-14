@@ -1,4 +1,5 @@
 import { supabase } from '../supabase-client.js';
+import { getParaguayIsoRange } from '../utils/date-utils.js';
 
 const TABLE = 'kitchen_messages';
 
@@ -26,12 +27,11 @@ export const chatService = {
     },
 
     async getTodayMessages() {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const { fromIso } = getParaguayIsoRange();
         const { data, error } = await supabase
             .from(TABLE)
             .select('*')
-            .gte('created_at', today.toISOString())
+            .gte('created_at', fromIso)
             .order('created_at', { ascending: true });
         if (error) throw error;
         return data || [];
@@ -67,12 +67,11 @@ export const chatService = {
 
     /** Limpiar mensajes del dia actual (para admin) */
     async clearTodayMessages() {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const { fromIso } = getParaguayIsoRange();
         const { error } = await supabase
             .from(TABLE)
             .delete()
-            .gte('created_at', today.toISOString());
+            .gte('created_at', fromIso);
         if (error) throw error;
     },
 

@@ -5,27 +5,36 @@
 
 import { formatGs } from './currency.js';
 import { getProductType, getComboPrice, getClubPrice } from '../utils/product-types.js';
+import { getParaguayDayOfWeek } from '../utils/date-utils.js';
 
 /**
  * Devuelve el HTML de una tarjeta de producto con sus botones de acción.
  * @param {Object} product - Producto de la DB
  * @param {Object} [opts] - Opciones de render
  * @param {boolean} [opts.compact=false] - Versión compacta (cliente móvil)
+ * @param {boolean} [opts.isClient=false] - Indica si es el portal público de clientes (oculta promos fuera de día)
  * @returns {string} HTML string
  */
 export function renderProductCard(product, opts = {}) {
     const compact = opts.compact || false;
+    const isClient = opts.isClient || false;
     const imageSrc = product.image_url || 'assets/placeholders/burger-placeholder.svg';
     const type = getProductType(product);
     const comboPrice = getComboPrice(product);
     const clubPrice = getClubPrice(product);
+    const currentDayPy = getParaguayDayOfWeek();
 
     // Badges flotantes sobre la imagen (estilo Arcade HUD)
+    // En el portal del cliente (isClient), solo se muestran en su día correspondiente
     const floatingBadges = [];
     if (type === 'bowser') {
-        floatingBadges.push(`<span class="product-badge product-badge--promo">🔥 VIERNES</span>`);
+        if (!isClient || currentDayPy === 5) {
+            floatingBadges.push(`<span class="product-badge product-badge--promo">🔥 VIERNES</span>`);
+        }
     } else if (type === 'cheat') {
-        floatingBadges.push(`<span class="product-badge product-badge--promo">⚡ 3x50K</span>`);
+        if (!isClient || currentDayPy === 4) {
+            floatingBadges.push(`<span class="product-badge product-badge--promo">⚡ 3x50K</span>`);
+        }
     }
 
     if (clubPrice) {
@@ -36,7 +45,7 @@ export function renderProductCard(product, opts = {}) {
         ? `<div class="product-card__badges">${floatingBadges.join('')}</div>` 
         : '';
 
-    const btnActions = renderActionsByType(type, product, comboPrice, { compact });
+    const btnActions = renderActionsByType(type, product, comboPrice, { compact, isClient });
 
     return `
         <div class="product-card ${compact ? 'product-card--compact' : ''}" data-id="${product.id}">
@@ -90,7 +99,14 @@ function renderActionsByType(type, product, comboPrice, s) {
 
 // Hamburguesa con promo 3x50.000 (Jueves)
 function renderCheatActions(product, comboPrice, s) {
-    const promoLabel = s.compact ? 'PROMO JUEVES' : '🔥 PROMO JUEVES';
+    const isCheatDay = getParaguayDayOfWeek() === 4;
+
+    // En el portal público de clientes, la promo SOLO se muestra los días Jueves
+    if (s.isClient && !isCheatDay) {
+        return renderSingleComboButtons(product, comboPrice);
+    }
+
+    const promoLabel = s.compact ? 'PROMO JUEVES' : (`🔥 PROMO JUEVES${isCheatDay ? ' [HOY]' : ''}`);
     const promoName = 'Promo Jueves Cheat';
     const promoPrice = product.promo_price || 50000;
 
@@ -110,7 +126,14 @@ function renderCheatActions(product, comboPrice, s) {
 
 // Hamburguesa con promo Viernes (Bowser) - Estilo Cyber-Amber sin rojo chillón
 function renderBowserActions(product, comboPrice, s) {
-    const promoLabel = s.compact ? 'PROMO VIERNES' : '🔥 PROMO VIERNES';
+    const isBowserDay = getParaguayDayOfWeek() === 5;
+
+    // En el portal público de clientes, la promo SOLO se muestra los días Viernes
+    if (s.isClient && !isBowserDay) {
+        return renderSingleComboButtons(product, comboPrice);
+    }
+
+    const promoLabel = s.compact ? 'PROMO VIERNES' : (`🔥 PROMO VIERNES${isBowserDay ? ' [HOY]' : ''}`);
     const promoName = 'Promo Viernes Bowser';
     const promoPrice = product.promo_price || 35000;
 

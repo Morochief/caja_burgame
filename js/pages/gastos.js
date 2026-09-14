@@ -4,6 +4,7 @@ import { appState } from '../app.js';
 import { formatGs } from '../components/currency.js';
 import { showToast } from '../components/toast.js';
 import { loadExcelJS, downloadBurgameExcel, buildBurgameSheet } from '../services/excel-export-service.js';
+import { getParaguayToday, formatParaguayDate } from '../utils/date-utils.js';
 
 let allExpenses = [];
 let categories = [];
@@ -91,7 +92,7 @@ async function loadData() {
 // --------------------------------------------------------------------------
 function calculateMetrics() {
     const now = new Date();
-    const todayStr = now.toISOString().slice(0, 10);
+    const todayStr = getParaguayToday();
     const curYear = now.getFullYear();
     const curMonth = now.getMonth();
 
@@ -114,8 +115,8 @@ function calculateMetrics() {
             shiftCount++;
         }
 
-        // Hoy
-        const isToday = (e.expense_date && e.expense_date === todayStr) || d.toISOString().slice(0, 10) === todayStr;
+        // Hoy (en zona horaria de Paraguay)
+        const isToday = (e.expense_date && e.expense_date === todayStr) || formatParaguayDate(e.created_at) === todayStr;
         if (isToday) {
             todayTotal += amt;
             todayCount++;
@@ -551,7 +552,7 @@ function bindToolbar(container) {
 // --------------------------------------------------------------------------
 function getFilteredExpenses() {
     const now = new Date();
-    const todayStr = now.toISOString().slice(0, 10);
+    const todayStr = getParaguayToday();
     const curYear = now.getFullYear();
     const curMonth = now.getMonth();
 
@@ -562,7 +563,7 @@ function getFilteredExpenses() {
             return currentRegister ? e.cash_register_id === currentRegister.id : false;
         }
         if (activePeriod === 'today') {
-            return (e.expense_date && e.expense_date === todayStr) || d.toISOString().slice(0, 10) === todayStr;
+            return (e.expense_date && e.expense_date === todayStr) || formatParaguayDate(e.created_at) === todayStr;
         }
         if (activePeriod === 'month') {
             return d.getFullYear() === curYear && d.getMonth() === curMonth;

@@ -1,4 +1,5 @@
 import { supabase } from '../supabase-client.js';
+import { getParaguayIsoRange } from '../utils/date-utils.js';
 
 export async function createOrder({ items, notes, customerName, cashRegisterId, status = 'ordered', tabId = null, paymentMethod = null }) {
     const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -206,9 +207,8 @@ export async function getPendingPayment() {
 }
 
 export async function getTodaysOrders() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const { data, error } = await supabase.from('orders').select(`*, order_items(*)`).gte('created_at', today.toISOString()).order('created_at', { ascending: false });
+    const { fromIso } = getParaguayIsoRange();
+    const { data, error } = await supabase.from('orders').select(`*, order_items(*)`).gte('created_at', fromIso).order('created_at', { ascending: false });
     if (error) throw error;
     return data;
 }

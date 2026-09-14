@@ -6,8 +6,13 @@ import { customerService } from '../services/customer-service.js';
 import { appState } from '../app.js';
 import { formatGs } from '../components/currency.js';
 import { showToast } from '../components/toast.js';
+import {
+    getParaguayPresetRange,
+    formatParaguayTime,
+    getParaguayToday
+} from '../utils/date-utils.js';
 
-let activePeriod = '30d'; // 'today' | '7d' | '30d' | 'month' | 'custom'
+let activePeriod = '30d'; // 'today' | 'yesterday' | '7d' | '30d' | 'month' | 'custom'
 let chartSalesTrend = null;
 let chartIncomeVsExpense = null;
 let chartHourly = null;
@@ -72,6 +77,7 @@ export async function renderDashboardPage() {
                 📅 Período de Análisis:
             </span>
             <button class="period-filter-btn ${activePeriod === 'today' ? 'active' : ''}" data-period="today">Hoy</button>
+            <button class="period-filter-btn ${activePeriod === 'yesterday' ? 'active' : ''}" data-period="yesterday">Ayer</button>
             <button class="period-filter-btn ${activePeriod === '7d' ? 'active' : ''}" data-period="7d">Últimos 7 Días</button>
             <button class="period-filter-btn ${activePeriod === '30d' ? 'active' : ''}" data-period="30d">Últimos 30 Días</button>
             <button class="period-filter-btn ${activePeriod === 'month' ? 'active' : ''}" data-period="month">Este Mes</button>
@@ -255,69 +261,14 @@ function setupDashboardEvents(container) {
 
 // Calcula los rangos de fecha actual y el período equivalente anterior para medir crecimiento
 function getComparisonRanges(period, container) {
-    let from = new Date();
-    let to = new Date();
-    let prevFrom = new Date();
-    let prevTo = new Date();
+    const fromVal = container.querySelector('#dash-date-from')?.value;
+    const toVal = container.querySelector('#dash-date-to')?.value;
 
-    if (period === 'today') {
-        from.setHours(0, 0, 0, 0);
-        to.setHours(23, 59, 59, 999);
-
-        // Período anterior: Ayer
-        prevFrom.setDate(prevFrom.getDate() - 1);
-        prevFrom.setHours(0, 0, 0, 0);
-        prevTo.setDate(prevTo.getDate() - 1);
-        prevTo.setHours(23, 59, 59, 999);
-    } else if (period === '7d') {
-        from.setDate(from.getDate() - 7);
-        from.setHours(0, 0, 0, 0);
-
-        // Período anterior: 7 a 14 días atrás
-        prevFrom.setDate(prevFrom.getDate() - 14);
-        prevFrom.setHours(0, 0, 0, 0);
-        prevTo.setDate(prevTo.getDate() - 7);
-        prevTo.setHours(23, 59, 59, 999);
-    } else if (period === '30d') {
-        from.setDate(from.getDate() - 30);
-        from.setHours(0, 0, 0, 0);
-
-        // Período anterior: 30 a 60 días atrás
-        prevFrom.setDate(prevFrom.getDate() - 60);
-        prevFrom.setHours(0, 0, 0, 0);
-        prevTo.setDate(prevTo.getDate() - 30);
-        prevTo.setHours(23, 59, 59, 999);
-    } else if (period === 'month') {
-        const now = new Date();
-        from = new Date(now.getFullYear(), now.getMonth(), 1);
-        from.setHours(0, 0, 0, 0);
-
-        // Período anterior: Mes pasado completo
-        prevFrom = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        prevFrom.setHours(0, 0, 0, 0);
-        prevTo = new Date(now.getFullYear(), now.getMonth(), 0);
-        prevTo.setHours(23, 59, 59, 999);
-    } else if (period === 'custom') {
-        const fromVal = container.querySelector('#dash-date-from')?.value;
-        const toVal = container.querySelector('#dash-date-to')?.value;
-        if (fromVal) {
-            from = new Date(fromVal);
-            from.setHours(0, 0, 0, 0);
-        } else {
-            from.setDate(from.getDate() - 7);
-        }
-        if (toVal) {
-            to = new Date(toVal);
-            to.setHours(23, 59, 59, 999);
-        }
-        const diffMs = to.getTime() - from.getTime();
-        prevTo = new Date(from.getTime() - 1);
-        prevFrom = new Date(prevTo.getTime() - diffMs);
-    }
+    const preset = getParaguayPresetRange(period, fromVal, toVal);
 
     return {
-        current: { fromIso: from.toISOString(), toIso: to.toISOString() },
-        previous: { fromIso: prevFrom.toISOString(), toIso: prevTo.toISOString() }
+        current: { fromIso: preset.fromIso, toIso: preset.toIso },
+        previous: { fromIso: preset.prevFromIso, toIso: preset.prevToIso }
     };
 }
 
@@ -355,11 +306,10 @@ async function loadDashboardData(container) {
     try {
         const { current, previous } = getComparisonRanges(activePeriod, container);
 
-        // Actualizar reloj de sincronización
+        // Actualizar reloj de sincronización en hora paraguaya
         const syncClock = container.querySelector('#dash-sync-clock');
         if (syncClock) {
-            const now = new Date();
-            lastSyncTime = now.toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            lastSyncTime = formatParaguayTime(new Date(), true);
             syncClock.textContent = `Última sincronización: ${lastSyncTime}`;
         }
 
