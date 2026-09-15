@@ -33,7 +33,19 @@ export async function renderVentasPage() {
     const container = document.createElement('div');
     container.className = 'ventas-page';
 
-    // Mostrar layout inmediatamente (sin esperar data de Supabase)
+    // Carga síncrona instantánea desde caché local (0 ms)
+    const cachedProducts = productService.getCached();
+    const cachedCategories = productService.getCachedCategories();
+    if (cachedProducts && cachedProducts.length > 0) {
+        products = cachedProducts;
+    }
+    if (cachedCategories && cachedCategories.length > 0) {
+        categories = cachedCategories;
+    }
+
+    const hasCached = products.length > 0;
+
+    // Mostrar layout inmediatamente
     container.innerHTML = `
         <div class="ventas-layout-full">
             <section class="ventas-catalog">
@@ -47,21 +59,23 @@ export async function renderVentasPage() {
                             <input type="text" id="pos-search" placeholder="Buscar producto por nombre..." value="${searchQuery}">
                         </div>
                         <button id="btn-pos-tabs" class="btn btn--secondary btn--sm" style="white-space: nowrap; display: flex; align-items: center; gap: 0.4rem; height: 38px; border-color: var(--border-gold);" title="Ver Cuentas y Mesas Abiertas">
-                            🍻 Cuentas <span id="pos-tabs-badge" style="background: var(--color-primary); color: #000; font-weight: 800; font-size: 0.72rem; padding: 0.1rem 0.45rem; border-radius: 999px;">0</span>
+                            🍻 Cuentas <span id="pos-tabs-badge" style="background: var(--color-primary); color: #000; font-weight: 800; font-size: 0.72rem; padding: 0.1rem 0.45rem; border-radius: 999px;">${activeTabs.length}</span>
                         </button>
                         <button id="btn-pos-quick-qr" class="btn btn--secondary btn--sm" style="white-space: nowrap; display: flex; align-items: center; gap: 0.4rem; height: 38px; border-color: var(--border-gold);" title="Ver PIN y QR de Clientes">
                             📱 QR Clientes
                         </button>
                     </header>
                     <nav class="categories-bar" id="categories-bar">
-                        <div class="page-loading" style="padding: 1rem;"><div class="pixel-spinner"></div></div>
+                        ${hasCached ? renderCategoriesHtml() : '<div class="page-loading" style="padding: 1rem;"><div class="pixel-spinner"></div></div>'}
                     </nav>
                 </div>
                 <div class="products-grid" id="products-grid">
-                    <div class="page-loading">
-                        <div class="pixel-spinner"></div>
-                        <p>Cargando productos...</p>
-                    </div>
+                    ${hasCached ? renderProductsGrid() : `
+                        <div class="page-loading">
+                            <div class="pixel-spinner"></div>
+                            <p>Cargando productos...</p>
+                        </div>
+                    `}
                 </div>
             </section>
 
@@ -73,8 +87,13 @@ export async function renderVentasPage() {
         </div>
     `;
 
-    // Cargar data en background (no bloquea el render)
-    loadVentasData(container);
+    // Si teníamos caché local, registrar eventos inmediatamente (0 ms interactivo)
+    if (hasCached) {
+        setupEvents(container);
+    }
+
+    // Cargar data en background (SWR / Revalidación sin congelar la UI)
+    loadVentasData(container, hasCached);
 
     // Click en botón de cuentas abiertas
     container.querySelector('#btn-pos-tabs')?.addEventListener('click', () => {
@@ -85,47 +104,74 @@ export async function renderVentasPage() {
     return container;
 }
 
-async function loadVentasData(container) {
-    try {
-        const [prodData, catData, custData, tabsData] = await Promise.all([
-            productService.getAllFresh(), // fresco: refleja cambios de precios del Menú
-            productService.getCategories(),
-            customerService.getAll().catch(() => []),
-            tabService.getActiveTabs().catch(() => [])
-        ]);
-        products = prodData || [];
-        categories = catData || [];
-        customers = custData || [];
-        activeTabs = tabsData || [];
-
-        const badge = container.querySelector('#pos-tabs-badge');
-        if (badge) badge.textContent = activeTabs.length;
-    } catch (err) {
-        showToast({ message: 'Error al cargar productos', type: 'error' });
-    }
-
-    // Render categorías
-    const catBar = container.querySelector('#categories-bar');
-    if (catBar) {
-        catBar.innerHTML = `
-            <button class="category-tab ${currentCategory === 'all' ? 'active' : ''}" data-cat="all">
-                ⚡ Todos
+function renderCategoriesHtml() {
+    return `
+        <button class="category-tab ${currentCategory === 'all' ? 'active' : ''}" data-cat="all">
+            ⚡ Todos
+        </button>
+        ${categories.map(cat => `
+            <button class="category-tab ${currentCategory === cat.id ? 'active' : ''}" data-cat="${cat.id}">
+                ${cat.icon || '🍔'} ${cat.name}
             </button>
-            ${categories.map(cat => `
-                <button class="category-tab ${currentCategory === cat.id ? 'active' : ''}" data-cat="${cat.id}">
-                    ${cat.icon || '🍔'} ${cat.name}
-                </button>
-            `).join('')}
-        `;
-    }
+        `).join('')}
+    `;
+}
 
-    // Render productos
+function renderProductsGridToContainer(container) {
     const grid = container.querySelector('#products-grid');
     if (grid) {
         grid.innerHTML = renderProductsGrid();
+        attachProductClickEvents(container);
+    }
+}
+
+async function loadVentasData(container, hadCachedInitial = false) {
+    // 1. Revalidar productos en segundo plano (~20 KB ultra liviano)
+    productService.getAllFresh().then(freshProducts => {
+        if (freshProducts) {
+            const changed = !hadCachedInitial || JSON.stringify(freshProducts) !== JSON.stringify(products);
+            products = freshProducts;
+            if (changed) {
+                renderProductsGridToContainer(container);
+            }
+        }
+    }).catch(err => {
+        console.warn('[ventas] Error cargando productos frescos:', err);
+        if (!products.length) {
+            showToast({ message: 'Error al cargar productos', type: 'error' });
+        }
+    });
+
+    // 2. Revalidar categorías en segundo plano
+    productService.getCategories().then(catData => {
+        if (catData) {
+            const changed = !hadCachedInitial || JSON.stringify(catData) !== JSON.stringify(categories);
+            categories = catData;
+            if (changed) {
+                const catBar = container.querySelector('#categories-bar');
+                if (catBar) {
+                    catBar.innerHTML = renderCategoriesHtml();
+                    setupCategoryEvents(container);
+                }
+            }
+        }
+    }).catch(() => {});
+
+    // 3. Clientes y Cuentas desacoplados (no retrasan los productos)
+    customerService.getAll().then(custData => {
+        customers = custData || [];
+    }).catch(() => []);
+
+    tabService.getActiveTabs().then(tabsData => {
+        activeTabs = tabsData || [];
+        const badge = container.querySelector('#pos-tabs-badge');
+        if (badge) badge.textContent = activeTabs.length;
+    }).catch(() => []);
+
+    if (!hadCachedInitial) {
+        setupEvents(container);
     }
 
-    setupEvents(container);
     if (window.lucide) window.lucide.createIcons();
 
     // Inicializar chat Admin <-> Cocina (solo una vez aunque se navegue varias veces)
@@ -136,6 +182,19 @@ async function loadVentasData(container) {
 
     // Escuchar autopedidos entrantes que requieren cobro en caja
     setupIncomingOrdersListener(container);
+
+    // Escuchar actualizaciones globales de productos en tiempo real
+    const onProductsUpdated = (e) => {
+        if (!document.body.contains(container)) {
+            window.removeEventListener('bg:products-updated', onProductsUpdated);
+            return;
+        }
+        if (e.detail && Array.isArray(e.detail)) {
+            products = e.detail;
+            renderProductsGridToContainer(container);
+        }
+    };
+    window.addEventListener('bg:products-updated', onProductsUpdated);
 }
 
 // ============================================================
@@ -166,19 +225,22 @@ function renderProductsGrid() {
     return filtered.map(product => renderProductCard(product)).join('');
 }
 
+function setupCategoryEvents(container) {
+    container.querySelectorAll('.category-tab').forEach(btn => {
+        btn.onclick = (e) => {
+            currentCategory = e.currentTarget.dataset.cat;
+            container.querySelectorAll('.category-tab').forEach(b => b.classList.remove('active'));
+            e.currentTarget.classList.add('active');
+            renderProductsGridToContainer(container);
+        };
+    });
+}
+
 // ============================================================
 // Eventos de la página
 // ============================================================
 function setupEvents(container) {
-    container.querySelectorAll('.category-tab').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            currentCategory = e.currentTarget.dataset.cat;
-            container.querySelectorAll('.category-tab').forEach(b => b.classList.remove('active'));
-            e.currentTarget.classList.add('active');
-            container.querySelector('#products-grid').innerHTML = renderProductsGrid();
-            attachProductClickEvents(container);
-        });
-    });
+    setupCategoryEvents(container);
 
     const searchInput = container.querySelector('#pos-search');
     searchInput?.addEventListener('input', (e) => {

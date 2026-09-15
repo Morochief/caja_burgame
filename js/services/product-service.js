@@ -1,75 +1,97 @@
 import { supabase } from '../supabase-client.js';
 
-// ====== CACHE de productos en sessionStorage ======
-// Evita un fetch a Supabase en cada carga de página (cliente/ventas/menu)
-const CACHE_KEY = 'bg_products_cache';
-const CACHE_TS_KEY = 'bg_products_cache_ts';
-const CACHE_TTL = 120000; // 2 minutos
+// ====== CACHE de productos y categorías en localStorage ======
+// Permite carga ULTRA RÁPIDA (0 ms) instantánea en POS y portal de clientes
+const CACHE_KEY = 'bg_products_cache_v2';
+const CACHE_TS_KEY = 'bg_products_cache_ts_v2';
+const CACHE_TTL = 300000; // 5 minutos (revalidación SWR en background)
+
+const CAT_CACHE_KEY = 'bg_categories_cache_v2';
+const CAT_CACHE_TS_KEY = 'bg_categories_cache_ts_v2';
+const CAT_CACHE_TTL = 600000; // 10 minutos
+
+export function getCached() {
+    try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+}
+
+export function getCachedCategories() {
+    try {
+        const raw = localStorage.getItem(CAT_CACHE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+}
 
 function readCache() {
     try {
-        const ts = sessionStorage.getItem(CACHE_TS_KEY);
+        const ts = localStorage.getItem(CACHE_TS_KEY);
         if (!ts || Date.now() - parseInt(ts, 10) > CACHE_TTL) return null;
-        const raw = sessionStorage.getItem(CACHE_KEY);
+        const raw = localStorage.getItem(CACHE_KEY);
         return raw ? JSON.parse(raw) : null;
     } catch { return null; }
 }
 
 function writeCache(data) {
     try {
-        sessionStorage.setItem(CACHE_KEY, JSON.stringify(data));
-        sessionStorage.setItem(CACHE_TS_KEY, Date.now().toString());
-    } catch { /* sessionStorage lleno o inaccesible */ }
+        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+        localStorage.setItem(CACHE_TS_KEY, Date.now().toString());
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('bg:products-updated', { detail: data }));
+        }
+    } catch (e) {
+        console.warn('[product-service] Error escribiendo cache:', e);
+    }
 }
-
-// Categorías: cacheadas también (cambian muy rara vez)
-const CAT_CACHE_KEY = 'bg_categories_cache';
-const CAT_CACHE_TS_KEY = 'bg_categories_cache_ts';
-const CAT_CACHE_TTL = 300000; // 5 minutos
 
 function readCatCache() {
     try {
-        const ts = sessionStorage.getItem(CAT_CACHE_TS_KEY);
+        const ts = localStorage.getItem(CAT_CACHE_TS_KEY);
         if (!ts || Date.now() - parseInt(ts, 10) > CAT_CACHE_TTL) return null;
-        const raw = sessionStorage.getItem(CAT_CACHE_KEY);
+        const raw = localStorage.getItem(CAT_CACHE_KEY);
         return raw ? JSON.parse(raw) : null;
     } catch { return null; }
 }
 
 function writeCatCache(data) {
     try {
-        sessionStorage.setItem(CAT_CACHE_KEY, JSON.stringify(data));
-        sessionStorage.setItem(CAT_CACHE_TS_KEY, Date.now().toString());
+        localStorage.setItem(CAT_CACHE_KEY, JSON.stringify(data));
+        localStorage.setItem(CAT_CACHE_TS_KEY, Date.now().toString());
     } catch { /* */ }
 }
 
 export function invalidateProductCache() {
-    sessionStorage.removeItem(CACHE_KEY);
-    sessionStorage.removeItem(CACHE_TS_KEY);
+    try {
+        localStorage.removeItem(CACHE_KEY);
+        localStorage.removeItem(CACHE_TS_KEY);
+    } catch { /* */ }
 }
 
 export function invalidateCatCache() {
-    sessionStorage.removeItem(CAT_CACHE_KEY);
-    sessionStorage.removeItem(CAT_CACHE_TS_KEY);
+    try {
+        localStorage.removeItem(CAT_CACHE_KEY);
+        localStorage.removeItem(CAT_CACHE_TS_KEY);
+    } catch { /* */ }
 }
 
 export async function getAll() {
     const cached = readCache();
-    if (cached) return cached;
-
-    // OPTIMIZACIÓN: select solo de products sin el join categories(*).
-    // Las categorías ya se cachean por separado en getCategories().
-    const { data, error } = await supabase.from('products').select('*').eq('active', true).order('name');
-    if (error) throw error;
-    writeCache(data);
-    return data;
+    if (cached) {
+        // En background revalidar suavemente
+        getAllFresh().catch(() => {});
+        return cached;
+    }
+    return getAllFresh();
 }
 
-// Fuerza un fetch fresco (sin caché) y actualiza la caché con el resultado.
-// Lo usan el POS y el autopedido para no quedarse con productos viejos
-// (ej: después de editar un club_price en el módulo Menú).
+// Fetch fresco que actualiza localStorage y emite evento global
 export async function getAllFresh() {
-    const { data, error } = await supabase.from('products').select('*').eq('active', true).order('name');
+    const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('active', true)
+        .order('name');
     if (error) throw error;
     writeCache(data);
     return data;

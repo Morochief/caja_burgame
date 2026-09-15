@@ -68,18 +68,41 @@ async function initClienteApp() {
         }
     }
 
-    try {
-        const [prodData, catData] = await Promise.all([
-            productService.getAllFresh(), // fresco: refleja precios Club actualizados
-            productService.getCategories()
-        ]);
-        products = prodData || [];
-        categories = catData || [];
-    } catch {
-        showToast({ message: 'Error cargando carta de productos', type: 'error' });
+    // 3. Carga instantánea desde caché local (0 ms para el cliente)
+    const cachedProds = productService.getCached();
+    const cachedCats = productService.getCachedCategories();
+    if (cachedProds && cachedProds.length > 0) {
+        products = cachedProds;
+        categories = cachedCats || [];
+        renderView(appEl);
     }
 
-    renderView(appEl);
+    // 4. Revalidación en segundo plano (SWR)
+    try {
+        const [prodData, catData] = await Promise.all([
+            productService.getAllFresh(),
+            productService.getCategories()
+        ]);
+        const changed = !cachedProds || JSON.stringify(prodData) !== JSON.stringify(products);
+        products = prodData || [];
+        categories = catData || [];
+        if (changed || !cachedProds) {
+            renderView(appEl);
+        }
+    } catch (err) {
+        console.warn('[cliente] Error revalidando carta:', err);
+        if (!products.length) {
+            showToast({ message: 'Error cargando carta de productos', type: 'error' });
+        }
+    }
+
+    // Escuchar actualizaciones de productos en tiempo real
+    window.addEventListener('bg:products-updated', (e) => {
+        if (e.detail && Array.isArray(e.detail)) {
+            products = e.detail;
+            renderView(appEl);
+        }
+    });
 }
 
 function renderView(appEl) {
