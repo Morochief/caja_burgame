@@ -1009,15 +1009,21 @@ async function sendOrderToKitchen(container, options = {}) {
 
     const modeLabels = { salon: '🍽️ SALÓN', llevar: '🥡 LLEVAR', delivery: '🛵 DELIVERY' };
     const modeTag = `[${modeLabels[currentOrderMode] || '🍽️ SALÓN'}]`;
-    const finalCustomer = customerName ? `${modeTag} ${customerName}` : `${modeTag} Cliente`;
+
+    // 1. La modalidad va en NOTAS para que Cocina (KDS) y tickets la vean claramente.
+    // NUNCA en el nombre del cliente para evitar ensuciar la base de datos de clientes CRM.
+    const finalNotes = notes ? `${modeTag} ${notes}` : modeTag;
+
+    // 2. Limpiar el nombre del cliente de posibles prefijos anteriores.
+    const cleanCustomer = customerName ? customerName.replace(/^(\[\s*[^\]]+\s*\]\s*)+/gi, '').trim() : '';
 
     try {
         let finalTabId = null;
         if (!fastPayMethod) {
             if (selectedTabId === 'new') {
                 const newTab = await tabService.openTab({
-                    tabName: customerName || `${modeTag} Mesa / Cliente`,
-                    customerName: customerName,
+                    tabName: cleanCustomer ? `${cleanCustomer} (${modeLabels[currentOrderMode] || 'Salón'})` : `${modeLabels[currentOrderMode] || 'Salón'} / Mesa`,
+                    customerName: cleanCustomer || null,
                     cashRegisterId: currentRegister.id
                 });
                 finalTabId = newTab?.id || null;
@@ -1029,8 +1035,8 @@ async function sendOrderToKitchen(container, options = {}) {
         const chosenPaymentMethod = fastPayMethod || currentPaymentMethod || 'efectivo';
         const order = await orderService.createOrder({
             items: cart.items,
-            notes,
-            customerName: finalCustomer,
+            notes: finalNotes,
+            customerName: cleanCustomer, // Nombre limpio sin tags
             cashRegisterId: currentRegister.id,
             tabId: finalTabId,
             paymentMethod: chosenPaymentMethod

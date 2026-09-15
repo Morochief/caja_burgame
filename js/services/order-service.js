@@ -6,9 +6,12 @@ export async function createOrder({ items, notes, customerName, cashRegisterId, 
     const initialStatus = status || 'ordered';
 
     // El nombre del cliente va en su propia columna (customer_name),
-    // no embebido en notes. Notes queda solo para notas de cocina reales.
+    // no embebido en notes. Notes queda solo para notas de cocina reales y modalidad.
     let finalNotes = notes || '';
-    let cName = customerName ? customerName.trim() : '';
+    let cName = customerName ? customerName.replace(/^(\[\s*[^\]]+\s*\]\s*)+/gi, '').trim() : '';
+    if (['cliente', 'consumidor final', 'anonimo', 'anónimo', 'mesa', 'salon', 'salón'].includes(cName.toLowerCase())) {
+        cName = '';
+    }
 
     // Mapear items al formato JSON que espera la función RPC
     const rpcItems = items.map(item => {

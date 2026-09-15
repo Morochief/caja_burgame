@@ -452,17 +452,17 @@ function setupEvents(appEl) {
             currentReg = await cashService.getCurrentRegister();
         } catch { }
 
-        let fullCustomerName = serviceType === 'eat_in' ? `${nameVal} (Mesa ${tableVal})` : `${nameVal} (Para Llevar)`;
-        if (cart.clubMode) fullCustomerName += ' (Club)';
+        const cleanName = (nameVal || '').replace(/^(\[\s*[^\]]+\s*\]\s*)+/gi, '').trim();
+        const modalityTag = serviceType === 'eat_in' ? `[🍽️ SALÓN]` : `[🥡 LLEVAR]`;
 
         try {
             if (serviceType === 'eat_in' && payPreference === 'tab') {
                 // Modo Cuenta Abierta (Pagar al Salir)
                 if (!clientTabId || !currentTab || currentTab.status === 'closed') {
                     const newTab = await tabService.openTab({
-                        tabName: `Mesa ${tableVal} — ${nameVal}`,
+                        tabName: `Mesa ${tableVal} — ${cleanName || 'Cliente'}`,
                         tableNumber: tableVal,
-                        customerName: nameVal,
+                        customerName: cleanName || null,
                         cashRegisterId: currentReg ? currentReg.id : null
                     });
                     clientTabId = newTab.id;
@@ -472,8 +472,8 @@ function setupEvents(appEl) {
 
                 const order = await orderService.createOrder({
                     items: cart.items,
-                    notes: `AUTOPEDIDO MESA ${tableVal} [CUENTA ABIERTA]`,
-                    customerName: fullCustomerName,
+                    notes: `${modalityTag} AUTOPEDIDO MESA ${tableVal} [CUENTA ABIERTA]`,
+                    customerName: cleanName,
                     cashRegisterId: currentReg ? currentReg.id : null,
                     status: 'ordered',
                     tabId: clientTabId
@@ -493,8 +493,8 @@ function setupEvents(appEl) {
                 // Modo Pago Inmediato en Caja
                 const order = await orderService.createOrder({
                     items: cart.items,
-                    notes: serviceType === 'eat_in' ? `AUTOPEDIDO MESA ${tableVal}` : `AUTOPEDIDO PARA LLEVAR`,
-                    customerName: fullCustomerName,
+                    notes: serviceType === 'eat_in' ? `${modalityTag} AUTOPEDIDO MESA ${tableVal}` : `${modalityTag} AUTOPEDIDO PARA LLEVAR`,
+                    customerName: cleanName,
                     cashRegisterId: currentReg ? currentReg.id : null,
                     status: 'pending_payment'
                 });

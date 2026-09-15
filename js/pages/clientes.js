@@ -434,7 +434,11 @@ async function loadClientesData(container) {
             })
         ]);
 
-        allCustomers = customersData || [];
+        // Filtrar clientes genéricos (como 'Cliente' o 'Mesa') para que el CRM muestre exclusivamente clientes reales
+        allCustomers = (customersData || []).filter(c => {
+            const n = (c.name || '').trim().toLowerCase();
+            return n && !['cliente', 'consumidor final', 'anonimo', 'anónimo'].includes(n) && !n.startsWith('mesa ');
+        });
         statsMap = statsData || {};
 
         enrichData();

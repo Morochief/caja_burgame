@@ -105,7 +105,11 @@ export async function getStatsByName() {
 
     const stats = {};
     (data || []).forEach(order => {
-        const name = (order.customer_name || '').trim();
+        let name = (order.customer_name || '').trim();
+        if (!name) return;
+
+        // Limpiar cualquier prefijo histórico entre corchetes para vincular las compras al cliente limpio
+        name = name.replace(/^(\[\s*[^\]]+\s*\]\s*)+/gi, '').trim();
         if (!name) return;
 
         // Guardar con clave normalizada y con clave exacta
