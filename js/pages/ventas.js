@@ -34,8 +34,8 @@ export async function renderVentasPage() {
     container.className = 'ventas-page';
 
     // Carga síncrona instantánea desde caché local (0 ms)
-    const cachedProducts = productService.getCached();
-    const cachedCategories = productService.getCachedCategories();
+    const cachedProducts = typeof productService?.getCached === 'function' ? productService.getCached() : null;
+    const cachedCategories = typeof productService?.getCachedCategories === 'function' ? productService.getCachedCategories() : null;
     if (cachedProducts && cachedProducts.length > 0) {
         products = cachedProducts;
     }

@@ -69,8 +69,8 @@ async function initClienteApp() {
     }
 
     // 3. Carga instantánea desde caché local (0 ms para el cliente)
-    const cachedProds = productService.getCached();
-    const cachedCats = productService.getCachedCategories();
+    const cachedProds = typeof productService?.getCached === 'function' ? productService.getCached() : null;
+    const cachedCats = typeof productService?.getCachedCategories === 'function' ? productService.getCachedCategories() : null;
     if (cachedProds && cachedProds.length > 0) {
         products = cachedProds;
         categories = cachedCats || [];

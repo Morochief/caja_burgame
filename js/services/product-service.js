@@ -1,7 +1,8 @@
 import { supabase } from '../supabase-client.js';
 
-// ====== CACHE de productos y categorías en localStorage ======
-// Permite carga ULTRA RÁPIDA (0 ms) instantánea en POS y portal de clientes
+// ====== CACHE de productos y categorías en localStorage con memoria fallback ======
+// Permite carga ULTRA RÁPIDA (0 ms) instantánea en POS y portal de clientes,
+// tolerando Edge Tracking Prevention y modos de navegación restringida sin errores.
 const CACHE_KEY = 'bg_products_cache_v2';
 const CACHE_TS_KEY = 'bg_products_cache_ts_v2';
 const CACHE_TTL = 300000; // 5 minutos (revalidación SWR en background)
@@ -10,33 +11,63 @@ const CAT_CACHE_KEY = 'bg_categories_cache_v2';
 const CAT_CACHE_TS_KEY = 'bg_categories_cache_ts_v2';
 const CAT_CACHE_TTL = 600000; // 10 minutos
 
+const memoryStore = new Map();
+
+function safeGetItem(key) {
+    try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+            return window.localStorage.getItem(key);
+        }
+    } catch { /* Tracking Prevention o cookies bloqueadas */ }
+    return memoryStore.get(key) || null;
+}
+
+function safeSetItem(key, value) {
+    try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.setItem(key, value);
+            return;
+        }
+    } catch { /* QuotaExceeded o Tracking Prevention */ }
+    memoryStore.set(key, value);
+}
+
+function safeRemoveItem(key) {
+    try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.removeItem(key);
+        }
+    } catch { /* */ }
+    memoryStore.delete(key);
+}
+
 export function getCached() {
     try {
-        const raw = localStorage.getItem(CACHE_KEY);
+        const raw = safeGetItem(CACHE_KEY);
         return raw ? JSON.parse(raw) : null;
     } catch { return null; }
 }
 
 export function getCachedCategories() {
     try {
-        const raw = localStorage.getItem(CAT_CACHE_KEY);
+        const raw = safeGetItem(CAT_CACHE_KEY);
         return raw ? JSON.parse(raw) : null;
     } catch { return null; }
 }
 
 function readCache() {
     try {
-        const ts = localStorage.getItem(CACHE_TS_KEY);
+        const ts = safeGetItem(CACHE_TS_KEY);
         if (!ts || Date.now() - parseInt(ts, 10) > CACHE_TTL) return null;
-        const raw = localStorage.getItem(CACHE_KEY);
+        const raw = safeGetItem(CACHE_KEY);
         return raw ? JSON.parse(raw) : null;
     } catch { return null; }
 }
 
 function writeCache(data) {
     try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-        localStorage.setItem(CACHE_TS_KEY, Date.now().toString());
+        safeSetItem(CACHE_KEY, JSON.stringify(data));
+        safeSetItem(CACHE_TS_KEY, Date.now().toString());
         if (typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('bg:products-updated', { detail: data }));
         }
@@ -47,31 +78,31 @@ function writeCache(data) {
 
 function readCatCache() {
     try {
-        const ts = localStorage.getItem(CAT_CACHE_TS_KEY);
+        const ts = safeGetItem(CAT_CACHE_TS_KEY);
         if (!ts || Date.now() - parseInt(ts, 10) > CAT_CACHE_TTL) return null;
-        const raw = localStorage.getItem(CAT_CACHE_KEY);
+        const raw = safeGetItem(CAT_CACHE_KEY);
         return raw ? JSON.parse(raw) : null;
     } catch { return null; }
 }
 
 function writeCatCache(data) {
     try {
-        localStorage.setItem(CAT_CACHE_KEY, JSON.stringify(data));
-        localStorage.setItem(CAT_CACHE_TS_KEY, Date.now().toString());
+        safeSetItem(CAT_CACHE_KEY, JSON.stringify(data));
+        safeSetItem(CAT_CACHE_TS_KEY, Date.now().toString());
     } catch { /* */ }
 }
 
 export function invalidateProductCache() {
     try {
-        localStorage.removeItem(CACHE_KEY);
-        localStorage.removeItem(CACHE_TS_KEY);
+        safeRemoveItem(CACHE_KEY);
+        safeRemoveItem(CACHE_TS_KEY);
     } catch { /* */ }
 }
 
 export function invalidateCatCache() {
     try {
-        localStorage.removeItem(CAT_CACHE_KEY);
-        localStorage.removeItem(CAT_CACHE_TS_KEY);
+        safeRemoveItem(CAT_CACHE_KEY);
+        safeRemoveItem(CAT_CACHE_TS_KEY);
     } catch { /* */ }
 }
 
@@ -266,6 +297,8 @@ export const productService = {
     getAllAdmin,
     getById,
     getByCategory,
+    getCached,
+    getCachedCategories,
     search,
     create,
     update,
