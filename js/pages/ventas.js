@@ -352,111 +352,122 @@ function openCartModal(container) {
                 </div>
             </div>
 
-            <!-- Cuerpo Scrollable Independiente -->
+            <!-- Cuerpo Scrollable Independiente con Layout Split Responsive -->
             <div class="cart-modal__body">
-                <div class="ticket-items" id="ticket-items">
-                    ${cart.renderItems({ showComboToggle: true, noteInputClass: 'input-item-note', editablePrice: true })}
-                </div>
-
-                <!-- Selector de Modalidad -->
-                <div class="form-group" style="margin-top: 0.4rem;">
-                    <label style="font-size: 0.72rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.3rem; display: block;">
-                        Modalidad de Entrega:
-                    </label>
-                    <div class="order-mode-selector">
-                        <button type="button" class="order-mode-btn ${currentOrderMode === 'salon' ? 'order-mode-btn--active' : ''}" data-mode="salon">🍽️ Salón</button>
-                        <button type="button" class="order-mode-btn ${currentOrderMode === 'llevar' ? 'order-mode-btn--active' : ''}" data-mode="llevar">🥡 Llevar</button>
-                        <button type="button" class="order-mode-btn ${currentOrderMode === 'delivery' ? 'order-mode-btn--active' : ''}" data-mode="delivery">🛵 Delivery</button>
-                    </div>
-                </div>
-
-                <!-- Cliente / Mesa -->
-                <div class="ticket-notes" style="margin-top: 0.2rem;">
-                    <label for="customer-name" style="font-size: 0.76rem; font-weight: 700; display: flex; align-items: center; gap: 0.4rem;">
-                        👤 Cliente / Mesa / Teléfono:
-                    </label>
-                    <input type="text" id="customer-name" list="customer-list" placeholder="Elegir o escribir nuevo..." value="${currentCustomerName}" autocomplete="off" style="font-size: 0.88rem;">
-                    <datalist id="customer-list">
-                        ${customers.map(c => `<option value="${c.name}">`).join('')}
-                    </datalist>
-                    <div id="club-member-hint" class="club-member-hint" style="display:none; margin-top:0.4rem;"></div>
-                </div>
-
-                <!-- Tipo de Comanda: Normal vs Cuenta Abierta -->
-                <div class="ticket-notes" style="margin-top: 0.35rem; background: rgba(255, 215, 0, 0.05); border: 1px dashed var(--border-gold); padding: 0.7rem 0.85rem; border-radius: var(--radius-sm);">
-                    <div style="font-size: 0.78rem; font-weight: 800; color: var(--color-primary); margin-bottom: 0.5rem; text-transform: uppercase;">
-                        ¿Cómo se gestiona el cobro?
-                    </div>
-                    
-                    <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
-                        <button type="button" id="btn-choice-pos-normal" class="btn btn--sm ${selectedTabId === 'none' ? 'btn--primary' : 'btn--secondary'}" style="flex: 1; font-weight: 700; font-size: 0.78rem; padding: 0.55rem 0.3rem;">
-                            ⚡ Pedido Normal
-                        </button>
-                        <button type="button" id="btn-choice-pos-tab" class="btn btn--sm ${selectedTabId !== 'none' ? 'btn--primary' : 'btn--secondary'}" style="flex: 1; font-weight: 700; font-size: 0.78rem; padding: 0.55rem 0.3rem;">
-                            🍻 Abrir / Cargar a Cuenta
-                        </button>
+                <div class="cart-modal__split">
+                    <!-- Columna Izquierda: Items del Pedido -->
+                    <div class="cart-modal__col-items">
+                        <div class="cart-col-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                            <span style="font-size: 0.76rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.5px;">
+                                📦 Productos en pedido (${cart.count}):
+                            </span>
+                            <span style="font-size: 0.7rem; color: var(--color-primary); font-weight: 600;">
+                                ✏️ Notas por burger abajo de c/u
+                            </span>
+                        </div>
+                        <div class="ticket-items" id="ticket-items">
+                            ${cart.renderItems({ showComboToggle: true, noteInputClass: 'input-item-note', editablePrice: true })}
+                        </div>
                     </div>
 
-                    <div id="pos-tab-details-box" style="${selectedTabId === 'none' ? 'display: none;' : 'display: block;'} margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(255, 215, 0, 0.2);">
-                        <label for="pos-tab-select" style="font-size: 0.74rem; font-weight: 700; color: #FFF; margin-bottom: 0.3rem; display: block;">
-                            Seleccionar Cuenta o Mesa:
-                        </label>
-                        <select id="pos-tab-select" style="width: 100%; padding: 0.5rem; background: #0E1017; border: 1px solid var(--border-gold); color: #FFF; border-radius: 6px; font-size: 0.82rem;">
-                            <option value="new" ${selectedTabId === 'new' || selectedTabId === 'none' ? 'selected' : ''}>➕ Abrir NUEVA Cuenta para este Cliente / Mesa</option>
-                            ${activeTabs.map(t => `
-                                <option value="${t.id}" ${selectedTabId === t.id ? 'selected' : ''}>
-                                    📍 ${t.tab_name} · Acumulado: ${formatGs(t.total_amount)} (${t.orders?.length || 0} pedidos)
-                                </option>
-                            `).join('')}
-                        </select>
-                        <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.35rem; line-height: 1.3;">
-                            💡 El pedido va directo a cocina y se acumula en la cuenta para cobrar todo junto al salir.
-                        </p>
-                    </div>
-                </div>
+                    <!-- Columna Derecha: Configuración, Cliente y Notas de Cocina -->
+                    <div class="cart-modal__col-config">
+                        <!-- Selector de Modalidad -->
+                        <div class="form-group" style="margin-top: 0;">
+                            <label style="font-size: 0.72rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.25rem; display: block;">
+                                Modalidad de Entrega:
+                            </label>
+                            <div class="order-mode-selector">
+                                <button type="button" class="order-mode-btn ${currentOrderMode === 'salon' ? 'order-mode-btn--active' : ''}" data-mode="salon">🍽️ Salón</button>
+                                <button type="button" class="order-mode-btn ${currentOrderMode === 'llevar' ? 'order-mode-btn--active' : ''}" data-mode="llevar">🥡 Llevar</button>
+                                <button type="button" class="order-mode-btn ${currentOrderMode === 'delivery' ? 'order-mode-btn--active' : ''}" data-mode="delivery">🛵 Delivery</button>
+                            </div>
+                        </div>
 
-                <!-- Toggle Club Burgame -->
-                <div class="ticket-notes club-toggle-row" style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; background: rgba(255,215,0,0.06); border: 1px solid rgba(255,215,0,0.25); border-radius: var(--radius-sm); padding: 0.5rem 0.75rem;">
-                    <label for="club-mode-toggle" style="font-size: 0.8rem; font-weight: 800; color: var(--color-primary); cursor: pointer; display: flex; align-items: center; gap: 0.4rem; margin: 0;">
-                        👑 Precio Club Burgame
-                    </label>
-                    <input type="checkbox" id="club-mode-toggle" ${cart.clubMode ? 'checked' : ''} style="accent-color: #FFD700; width: 18px; height: 18px; cursor: pointer;">
-                </div>
+                        <!-- Cliente / Mesa -->
+                        <div class="ticket-notes" style="margin-top: 0.1rem;">
+                            <label for="customer-name" style="font-size: 0.74rem; font-weight: 700; display: flex; align-items: center; gap: 0.4rem;">
+                                👤 Cliente / Mesa / Teléfono:
+                            </label>
+                            <input type="text" id="customer-name" list="customer-list" placeholder="Elegir o escribir nuevo..." value="${currentCustomerName}" autocomplete="off" style="font-size: 0.85rem; padding: 0.45rem 0.65rem;">
+                            <datalist id="customer-list">
+                                ${customers.map(c => `<option value="${c.name}">`).join('')}
+                            </datalist>
+                            <div id="club-member-hint" class="club-member-hint" style="display:none; margin-top:0.3rem;"></div>
+                        </div>
 
-                <!-- Notas de Cocina -->
-                <div class="ticket-notes">
-                    <label for="order-notes" style="font-size: 0.76rem; font-weight: 700; display: flex; align-items: center; gap: 0.4rem;">
-                        📝 Notas Cocina:
-                    </label>
-                    <input type="text" id="order-notes" placeholder="Ej: Sin cebolla, extra cheddar..." value="${currentNotes}" style="font-size: 0.85rem;">
-                </div>
+                        <!-- NOTAS DE COCINA (PROMINENTE, DE ACCESO DIRECTO E IMPOSIBLE DE PERDER) -->
+                        <div class="ticket-notes ticket-notes--kitchen" style="background: rgba(255, 145, 0, 0.08); border: 1.5px solid rgba(255, 145, 0, 0.45); padding: 0.65rem 0.8rem; border-radius: var(--radius-sm); box-shadow: 0 0 16px rgba(255, 145, 0, 0.1);">
+                            <label for="order-notes" style="font-size: 0.76rem; font-weight: 800; color: #FF9100; display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; margin-bottom: 0.2rem;">
+                                <span>📝 NOTAS PARA COCINA (KDS):</span>
+                                <span style="font-size: 0.65rem; color: var(--text-muted); font-weight: 500;">Visible en comanda y ticket</span>
+                            </label>
+                            <input type="text" id="order-notes" placeholder="✏️ Ej: Sin cebolla, bien cocida, sacar todo junto..." value="${currentNotes}" style="font-size: 0.88rem; background: #0E1017; border: 1px solid rgba(255, 145, 0, 0.45); color: #FFF; padding: 0.5rem 0.7rem; border-radius: 4px;">
+                        </div>
 
-                <!-- Selección de Medio de Pago -->
-                <div class="ticket-notes" style="margin-top: 0.35rem; background: rgba(0, 230, 118, 0.05); border: 1px dashed rgba(0, 230, 118, 0.4); padding: 0.65rem 0.85rem; border-radius: var(--radius-sm);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.45rem;">
-                        <span style="font-size: 0.78rem; font-weight: 800; color: #00E676; text-transform: uppercase;">
-                            💳 Medio de Pago:
-                        </span>
-                        <span id="pos-selected-pay-badge" style="font-size: 0.72rem; font-weight: 800; text-transform: uppercase; color: #000; background: #00E676; padding: 2px 7px; border-radius: 4px;">
-                            ${currentPaymentMethod.toUpperCase()}
-                        </span>
-                    </div>
-                    <div class="pos-cart-payment-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.35rem;">
-                        <button type="button" class="btn btn--sm btn-cart-pay-choice ${currentPaymentMethod === 'efectivo' ? 'btn--primary' : 'btn--secondary'}" data-method="efectivo" style="padding: 0.5rem 0.15rem; font-size: 0.75rem; font-weight: 700;">
-                            💵 Efectivo
-                        </button>
-                        <button type="button" class="btn btn--sm btn-cart-pay-choice ${currentPaymentMethod === 'transferencia' ? 'btn--primary' : 'btn--secondary'}" data-method="transferencia" style="padding: 0.5rem 0.15rem; font-size: 0.75rem; font-weight: 700;">
-                            📱 Transf.
-                        </button>
-                        <button type="button" class="btn btn--sm btn-cart-pay-choice ${currentPaymentMethod === 'debito' ? 'btn--primary' : 'btn--secondary'}" data-method="debito" style="padding: 0.5rem 0.15rem; font-size: 0.75rem; font-weight: 700;">
-                            💳 Débito
-                        </button>
-                        <button type="button" class="btn btn--sm btn-cart-pay-choice ${currentPaymentMethod === 'credito' ? 'btn--primary' : 'btn--secondary'}" data-method="credito" style="padding: 0.5rem 0.15rem; font-size: 0.75rem; font-weight: 700;">
-                            💳 Crédito
-                        </button>
-                    </div>
-                    <div style="font-size: 0.68rem; color: var(--text-muted); margin-top: 0.35rem;">
-                        💡 Se marcará automáticamente en Órdenes para recordar cómo pagó el cliente.
+                        <!-- Tipo de Comanda: Normal vs Cuenta Abierta -->
+                        <div class="ticket-notes" style="background: rgba(255, 215, 0, 0.05); border: 1px dashed var(--border-gold); padding: 0.55rem 0.75rem; border-radius: var(--radius-sm);">
+                            <div style="font-size: 0.72rem; font-weight: 800; color: var(--color-primary); margin-bottom: 0.35rem; text-transform: uppercase;">
+                                ¿Cómo se gestiona el cobro?
+                            </div>
+                            
+                            <div style="display: flex; gap: 0.4rem; margin-bottom: 0.35rem;">
+                                <button type="button" id="btn-choice-pos-normal" class="btn btn--sm ${selectedTabId === 'none' ? 'btn--primary' : 'btn--secondary'}" style="flex: 1; font-weight: 700; font-size: 0.74rem; padding: 0.4rem 0.2rem;">
+                                    ⚡ Pedido Normal
+                                </button>
+                                <button type="button" id="btn-choice-pos-tab" class="btn btn--sm ${selectedTabId !== 'none' ? 'btn--primary' : 'btn--secondary'}" style="flex: 1; font-weight: 700; font-size: 0.74rem; padding: 0.4rem 0.2rem;">
+                                    🍻 Abrir / Cargar Cuenta
+                                </button>
+                            </div>
+
+                            <div id="pos-tab-details-box" style="${selectedTabId === 'none' ? 'display: none;' : 'display: block;'} margin-top: 0.35rem; padding-top: 0.35rem; border-top: 1px solid rgba(255, 215, 0, 0.2);">
+                                <label for="pos-tab-select" style="font-size: 0.7rem; font-weight: 700; color: #FFF; margin-bottom: 0.2rem; display: block;">
+                                    Seleccionar Cuenta o Mesa:
+                                </label>
+                                <select id="pos-tab-select" style="width: 100%; padding: 0.4rem; background: #0E1017; border: 1px solid var(--border-gold); color: #FFF; border-radius: 6px; font-size: 0.78rem;">
+                                    <option value="new" ${selectedTabId === 'new' || selectedTabId === 'none' ? 'selected' : ''}>➕ Abrir NUEVA Cuenta para este Cliente / Mesa</option>
+                                    ${activeTabs.map(t => `
+                                        <option value="${t.id}" ${selectedTabId === t.id ? 'selected' : ''}>
+                                            📍 ${t.tab_name} · Acumulado: ${formatGs(t.total_amount)} (${t.orders?.length || 0} pedidos)
+                                        </option>
+                                    `).join('')}
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Toggle Club Burgame -->
+                        <div class="ticket-notes club-toggle-row" style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; background: rgba(255,215,0,0.06); border: 1px solid rgba(255,215,0,0.25); border-radius: var(--radius-sm); padding: 0.45rem 0.65rem;">
+                            <label for="club-mode-toggle" style="font-size: 0.76rem; font-weight: 800; color: var(--color-primary); cursor: pointer; display: flex; align-items: center; gap: 0.4rem; margin: 0;">
+                                👑 Precio Club Burgame
+                            </label>
+                            <input type="checkbox" id="club-mode-toggle" ${cart.clubMode ? 'checked' : ''} style="accent-color: #FFD700; width: 18px; height: 18px; cursor: pointer;">
+                        </div>
+
+                        <!-- Selección de Medio de Pago -->
+                        <div class="ticket-notes" style="background: rgba(0, 230, 118, 0.05); border: 1px dashed rgba(0, 230, 118, 0.4); padding: 0.55rem 0.75rem; border-radius: var(--radius-sm);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+                                <span style="font-size: 0.74rem; font-weight: 800; color: #00E676; text-transform: uppercase;">
+                                    💳 Medio de Pago:
+                                </span>
+                                <span id="pos-selected-pay-badge" style="font-size: 0.68rem; font-weight: 800; text-transform: uppercase; color: #000; background: #00E676; padding: 2px 6px; border-radius: 4px;">
+                                    ${currentPaymentMethod.toUpperCase()}
+                                </span>
+                            </div>
+                            <div class="pos-cart-payment-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.3rem;">
+                                <button type="button" class="btn btn--sm btn-cart-pay-choice ${currentPaymentMethod === 'efectivo' ? 'btn--primary' : 'btn--secondary'}" data-method="efectivo" style="padding: 0.4rem 0.15rem; font-size: 0.72rem; font-weight: 700;">
+                                    💵 Efectivo
+                                </button>
+                                <button type="button" class="btn btn--sm btn-cart-pay-choice ${currentPaymentMethod === 'transferencia' ? 'btn--primary' : 'btn--secondary'}" data-method="transferencia" style="padding: 0.4rem 0.15rem; font-size: 0.72rem; font-weight: 700;">
+                                    📱 Transf.
+                                </button>
+                                <button type="button" class="btn btn--sm btn-cart-pay-choice ${currentPaymentMethod === 'debito' ? 'btn--primary' : 'btn--secondary'}" data-method="debito" style="padding: 0.4rem 0.15rem; font-size: 0.72rem; font-weight: 700;">
+                                    💳 Débito
+                                </button>
+                                <button type="button" class="btn btn--sm btn-cart-pay-choice ${currentPaymentMethod === 'credito' ? 'btn--primary' : 'btn--secondary'}" data-method="credito" style="padding: 0.4rem 0.15rem; font-size: 0.72rem; font-weight: 700;">
+                                    💳 Crédito
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
