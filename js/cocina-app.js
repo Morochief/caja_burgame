@@ -461,20 +461,20 @@ function renderCocinaView() {
             <div class="kds-card kds-card--${statusClass}" id="card-order-${order.id}">
                 <!-- Header de Tarjeta -->
                 <div class="kds-card__header">
-                    <div>
+                    <div class="kds-card__header-left">
                         <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
                             <span class="kds-card__number">PEDIDO #${order.order_number}</span>
                             ${modalityBadge}
                         </div>
-                        <div style="font-size: 0.88rem; font-weight: 700; color: var(--color-primary); margin-top: 0.25rem;">
+                        <div class="kds-card__customer">
                             👤 ${customerDisplay}
                         </div>
                     </div>
-                    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.2rem;">
+                    <div class="kds-card__header-right">
                         <span class="kds-card__timer ${isLate && order.status !== 'delivered' ? 'kds-card__timer--late' : ''}">
                             ⏱️ ${minutesElapsed}m ${isLate && order.status !== 'delivered' ? '⚠️' : ''}
                         </span>
-                        <span style="font-size: 0.68rem; color: var(--text-muted); font-family: var(--font-mono);">
+                        <span style="font-size: 0.68rem; color: var(--text-muted); font-family: var(--font-mono); white-space: nowrap;">
                             🕒 ${timeFormatted}
                         </span>
                     </div>
@@ -499,19 +499,21 @@ function renderCocinaView() {
 
                             return `
                                 <li class="kds-item ${isChecked ? 'kds-item--checked' : ''}" data-order-id="${order.id}" data-item-idx="${idx}">
-                                    <div style="display: flex; align-items: center; gap: 0.45rem; width: 100%;">
-                                        <span class="kds-item__check-box">${isChecked ? '✓' : ''}</span>
-                                        <span class="kds-item__qty">${item.quantity}x</span>
-                                        <span class="kds-item__name">
-                                            ${cleanName}
-                                            ${item.is_combo ? '<span class="kds-item__tag">(COMBO)</span>' : ''}
-                                        </span>
+                                    <div class="kds-item__content">
+                                        <div class="kds-item__main">
+                                            <span class="kds-item__check-box">${isChecked ? '✓' : ''}</span>
+                                            <span class="kds-item__qty">${item.quantity}x</span>
+                                            <span class="kds-item__name">
+                                                ${cleanName}
+                                                ${item.is_combo ? '<span class="kds-item__tag">(COMBO)</span>' : ''}
+                                            </span>
+                                        </div>
+                                        ${itemNote ? `
+                                            <div class="kds-item__note">
+                                                ⚠️ ${itemNote}
+                                            </div>
+                                        ` : ''}
                                     </div>
-                                    ${itemNote ? `
-                                        <span style="font-size: 0.78rem; color: var(--color-warning, #FFD700); margin-left: 2rem; font-style: italic;">
-                                            ⚠️ ${itemNote}
-                                        </span>
-                                    ` : ''}
                                 </li>
                             `;
                         }).join('')}
