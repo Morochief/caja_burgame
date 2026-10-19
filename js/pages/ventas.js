@@ -804,14 +804,29 @@ function renderClubHint(hintEl, status, customer) {
     const name = customer ? customer.name : '';
     const exp = status.membership ? new Date(status.membership.expires_at).toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }) : '';
 
+    let clubHtml = '';
     if (status.status === 'active') {
-        hintEl.innerHTML = `<span style="font-size:0.75rem; color:#4CAF50; font-weight:700;">🟢 Socio Club activo · vence el ${exp}</span>`;
-        hintEl.style.display = 'block';
+        clubHtml = `<div style="font-size:0.75rem; color:#4CAF50; font-weight:700;">🟢 Socio Club activo · vence el ${exp}</div>`;
     } else if (status.status === 'expiring') {
-        hintEl.innerHTML = `<span style="font-size:0.75rem; color:#FFC107; font-weight:700;">⚠️ Socio Club por vencer en ${status.daysLeft} día(s) · vence el ${exp} — renovar en Club</span>`;
-        hintEl.style.display = 'block';
+        clubHtml = `<div style="font-size:0.75rem; color:#FFC107; font-weight:700;">⚠️ Socio Club por vencer en ${status.daysLeft} día(s) · vence el ${exp} — renovar en Club</div>`;
     } else if (status.status === 'expired') {
-        hintEl.innerHTML = `<span style="font-size:0.75rem; color:#FF5252; font-weight:700;">🔴 Socio vencido (vence el ${exp}) — renovar en Club para precio socio</span>`;
+        clubHtml = `<div style="font-size:0.75rem; color:#FF5252; font-weight:700;">🔴 Socio vencido (vence el ${exp}) — renovar en Club para precio socio</div>`;
+    }
+
+    let loyaltyHtml = '';
+    if (customer) {
+        const stamps = customer.loyalty_stamps || 0;
+        const rewards = customer.loyalty_rewards || 0;
+        loyaltyHtml = `
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-top:0.25rem; background:rgba(255,215,0,0.06); border:1px solid rgba(255,215,0,0.2); border-radius:4px; padding:0.3rem 0.5rem; font-size:0.72rem;">
+                <span style="color:var(--color-primary); font-weight:700;">🍔 Pass: ${stamps}/6 sellos</span>
+                ${rewards > 0 ? `<span style="color:#00E676; font-weight:800;">🎁 ¡${rewards} BURGER GRATIS DISPONIBLE!</span>` : `<span style="color:var(--text-muted);">Faltan ${6 - stamps} para burger gratis</span>`}
+            </div>
+        `;
+    }
+
+    if (clubHtml || loyaltyHtml) {
+        hintEl.innerHTML = clubHtml + loyaltyHtml;
         hintEl.style.display = 'block';
     } else {
         hintEl.style.display = 'none';
@@ -1073,6 +1088,38 @@ async function sendOrderToKitchen(container, options = {}) {
                 message: `🚀 Orden #${order.order_number} (${chosenPaymentMethod.toUpperCase()}) enviada a Cocina`,
                 type: 'success'
             });
+        }
+
+        // Sumar sello de fidelización si es un cliente registrado
+        if (cleanCustomer && !['cliente', 'consumidor final', 'anonimo', 'anónimo'].includes(cleanCustomer.toLowerCase()) && !cleanCustomer.toLowerCase().startsWith('mesa ')) {
+            try {
+                let cust = customers.find(c => c.name.toLowerCase() === cleanCustomer.toLowerCase());
+                if (!cust) cust = await customerService.findByName(cleanCustomer);
+                if (cust) {
+                    const stampRes = await customerService.addLoyaltyStamp(cust.id, order.id, false);
+                    if (stampRes && stampRes.success) {
+                        if (stampRes.reward_earned) {
+                            setTimeout(() => {
+                                showToast({
+                                    message: `🎉 ¡${cust.name} completó sus 6 sellos! ¡1 Hamburguesa Gratis desbloqueada!`,
+                                    type: 'success',
+                                    duration: 8000
+                                });
+                            }, 1200);
+                        } else {
+                            setTimeout(() => {
+                                showToast({
+                                    message: `🍔 Sello sumado a ${cust.name} (${stampRes.stamps}/6 sellos)`,
+                                    type: 'info',
+                                    duration: 4500
+                                });
+                            }, 1200);
+                        }
+                    }
+                }
+            } catch (errLoyalty) {
+                console.warn('[pos] Error al acreditar sello de fidelización:', errLoyalty);
+            }
         }
 
         cart.clear();

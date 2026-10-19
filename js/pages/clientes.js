@@ -119,6 +119,10 @@ export async function renderClientesPage() {
                 <span>⚠️ En Riesgo</span>
                 <span class="clientes-pill__count" id="pill-count-at_risk">0</span>
             </button>
+            <button class="clientes-pill" data-segment="promos">
+                <span>🔔 Aceptan Promos</span>
+                <span class="clientes-pill__count" id="pill-count-promos">0</span>
+            </button>
         </div>
 
         <!-- Toolbar -->
@@ -247,10 +251,48 @@ export async function renderClientesPage() {
                                 <span class="ficha360-data-label">Cumpleaños</span>
                                 <span class="ficha360-data-value" id="f360-val-birthday">—</span>
                             </div>
+                            <div class="ficha360-data-item">
+                                <span class="ficha360-data-label">Promociones WhatsApp</span>
+                                <span class="ficha360-data-value" id="f360-val-marketing">—</span>
+                            </div>
                             <div class="ficha360-data-item" style="grid-column: 1 / -1;">
                                 <span class="ficha360-data-label">Notas & Preferencias</span>
                                 <span class="ficha360-data-value" id="f360-val-notes">—</span>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Fidelización: Burgame Pass (6 Sellos) -->
+                    <div class="ficha360-loyalty-card" id="f360-loyalty-box" style="background: rgba(255, 215, 0, 0.05); border: 1.5px solid var(--border-gold); border-radius: var(--radius-sm); padding: 0.9rem; margin-bottom: 1rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem; flex-wrap:wrap; gap:0.5rem;">
+                            <div>
+                                <div style="display:flex; align-items:center; gap:0.4rem;">
+                                    <span style="font-size:1.2rem;">🍔</span>
+                                    <strong style="color:var(--color-primary); font-size:0.95rem;">BURGAME PASS (SELLOS)</strong>
+                                    <span id="f360-loyalty-code" class="badge badge--yellow" style="font-family:var(--font-mono); font-size:0.75rem;">BG-000000</span>
+                                </div>
+                                <p style="font-size:0.78rem; color:var(--text-muted); margin-top:0.2rem;">
+                                    Regla: 6 sellos = 1 hamburguesa gratis (máx 1 sello por día).
+                                </p>
+                            </div>
+                            <div style="display:flex; gap:0.4rem;">
+                                <button id="f360-btn-add-stamp" class="btn btn--secondary" style="font-size:0.76rem; padding:0.35rem 0.7rem; border-color:var(--border-gold); color:var(--color-primary);" title="Sumar sello manualmente">
+                                    ➕ Sumar Sello
+                                </button>
+                                <button id="f360-btn-redeem-reward" class="btn btn--primary" style="font-size:0.76rem; padding:0.35rem 0.7rem;" title="Canjear burger gratis">
+                                    🎁 Canjear Premio
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Grilla Visual de los 6 sellos -->
+                        <div class="loyalty-stamps-grid" id="f360-stamps-grid" style="display:grid; grid-template-columns:repeat(6, 1fr); gap:0.4rem; margin-bottom:0.6rem;">
+                            <!-- Sellos dinámicos -->
+                        </div>
+                        
+                        <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.76rem; color:var(--text-muted);">
+                            <span id="f360-loyalty-stamps-text">Sellos: 0 / 6</span>
+                            <span id="f360-loyalty-rewards-badge" style="font-weight:700; color:var(--color-success);">🎁 0 burgers gratis acumuladas</span>
                         </div>
                     </div>
 
@@ -294,6 +336,9 @@ export async function renderClientesPage() {
                 <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;">
                     Selecciona una plantilla para enviar a <strong id="wa-target-name" style="color:var(--text-main);"></strong>:
                 </p>
+                <div id="wa-marketing-warning" style="display:none; background:rgba(255, 61, 113, 0.12); border:1px solid rgba(255, 61, 113, 0.4); border-radius:var(--radius-sm); padding:0.6rem 0.8rem; margin-bottom:0.8rem; font-size:0.75rem; color:#FF3D71;">
+                    ⚠️ <strong>Aviso:</strong> Este cliente indicó que <u>NO desea recibir promociones masivas</u>. Recomendamos usar únicamente mensajes de servicio o respuesta directa.
+                </div>
                 <div class="whatsapp-templates-menu">
                     <button class="btn-whatsapp-template" data-tpl="thanks">
                         <strong style="color:#25D366;">🍔 Agradecimiento & Seguimiento</strong>
@@ -374,6 +419,17 @@ export async function renderClientesPage() {
                                 </p>
                             </div>
                             <input type="checkbox" id="cli-club" style="accent-color:#FFD700; width:20px; height:20px; cursor:pointer;">
+                        </div>
+                        <div class="form-group clientes-form-full" style="display:flex; align-items:center; justify-content:space-between; background:rgba(37,211,102,0.06); border:1px solid rgba(37,211,102,0.25); padding:0.75rem 1rem; border-radius:var(--radius-sm);">
+                            <div>
+                                <label for="cli-accepts-marketing" style="margin:0; font-size:0.85rem; font-weight:800; color:#25D366; cursor:pointer;">
+                                    🔔 Acepta promociones y novedades por WhatsApp
+                                </label>
+                                <p style="font-size:0.72rem; color:var(--text-muted); margin-top:0.2rem;">
+                                    Autoriza el envío de promociones, regalos y recordatorios de fidelización.
+                                </p>
+                            </div>
+                            <input type="checkbox" id="cli-accepts-marketing" checked style="accent-color:#25D366; width:20px; height:20px; cursor:pointer;">
                         </div>
                     </div>
 
@@ -538,12 +594,16 @@ function renderPillCounters(container) {
         vip: 0,
         frequent: 0,
         new: 0,
-        at_risk: 0
+        at_risk: 0,
+        promos: 0
     };
 
     enrichedCustomers.forEach(c => {
         if (counts[c.segmentId] !== undefined) {
             counts[c.segmentId]++;
+        }
+        if (c.accepts_marketing !== false && c.phone && c.phone.trim().length > 5) {
+            counts.promos++;
         }
     });
 
@@ -559,8 +619,10 @@ function renderPillCounters(container) {
 function getFiltered() {
     let list = [...enrichedCustomers];
 
-    // 1. Filtro de Segmento RFM
-    if (currentSegment !== 'all') {
+    // 1. Filtro de Segmento RFM o Promociones WhatsApp
+    if (currentSegment === 'promos') {
+        list = list.filter(c => c.accepts_marketing !== false && c.phone && c.phone.trim().length > 5);
+    } else if (currentSegment !== 'all') {
         list = list.filter(c => c.segmentId === currentSegment);
     }
 
@@ -572,7 +634,8 @@ function getFiltered() {
             (c.phone || '').toLowerCase().includes(q) ||
             (c.tax_id || '').toLowerCase().includes(q) ||
             (c.email || '').toLowerCase().includes(q) ||
-            (c.address || '').toLowerCase().includes(q)
+            (c.address || '').toLowerCase().includes(q) ||
+            (c.loyalty_card_code || '').toLowerCase().includes(q)
         );
     }
 
@@ -652,16 +715,28 @@ function refreshTable(container) {
 
         const initial = (c.name || '?').charAt(0).toUpperCase();
 
+        const marketingBadge = c.accepts_marketing !== false
+            ? `<span class="badge" style="background:rgba(37,211,102,0.12); color:#25D366; font-size:0.65rem; border:1px solid rgba(37,211,102,0.3); padding:1px 5px; border-radius:3px; margin-top:2px; display:inline-block;" title="Acepta promociones por WhatsApp">🔔 Promos OK</span>`
+            : `<span class="badge" style="background:rgba(255,255,255,0.05); color:var(--text-dim); font-size:0.65rem; padding:1px 5px; border-radius:3px; margin-top:2px; display:inline-block;" title="No desea promociones">🔕 No promos</span>`;
+
         const phoneDisplay = c.phone ? `
             <div class="cliente-phone-cell">
-                <button class="btn-whatsapp-quick btn-wa-direct" data-phone="${c.phone}" data-name="${c.name}" title="Abrir WhatsApp directo">
-                    💬
-                </button>
-                <span class="cliente-phone-text">${c.phone}</span>
+                <div style="display:flex; align-items:center; gap:0.35rem;">
+                    <button class="btn-whatsapp-quick btn-wa-direct" data-phone="${c.phone}" data-name="${c.name}" title="Abrir WhatsApp directo">
+                        💬
+                    </button>
+                    <span class="cliente-phone-text">${c.phone}</span>
+                </div>
+                ${marketingBadge}
             </div>
         ` : '<span style="color:var(--text-dim); font-size:0.8rem;">—</span>';
 
         const taxBadge = c.tax_id ? `<span style="font-family:var(--font-mono); font-size:0.7rem; color:var(--text-muted);">RUC: ${c.tax_id}</span>` : '';
+        const loyaltyBadge = `
+            <span style="font-family:var(--font-mono); font-size:0.72rem; color:var(--color-primary); font-weight:700; background:rgba(255,215,0,0.08); border:1px solid rgba(255,215,0,0.25); padding:1px 6px; border-radius:4px;" title="Burgame Pass: ${c.loyalty_stamps || 0}/6 sellos">
+                🍔 ${c.loyalty_stamps || 0}/6 ${c.loyalty_rewards > 0 ? `<strong style="color:#00E676;">· 🎁 ${c.loyalty_rewards} gratis</strong>` : ''}
+            </span>
+        `;
 
         return `
             <tr>
@@ -677,7 +752,8 @@ function refreshTable(container) {
                                 <span>${c.name}</span>
                                 <span class="${c.segmentClass}" title="Segmento RFM">${c.segmentIcon} ${c.segmentLabel}</span>
                             </div>
-                            <div class="cliente-meta-row">
+                            <div class="cliente-meta-row" style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                                ${loyaltyBadge}
                                 ${taxBadge}
                                 ${c.address ? `<span style="font-size:0.7rem; color:var(--text-muted); max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${c.address}">📍 ${c.address}</span>` : ''}
                             </div>
@@ -967,7 +1043,83 @@ async function openFicha360(container, customer) {
     container.querySelector('#f360-val-tax').textContent = customer.tax_id || 'Sin RUC / CI';
     container.querySelector('#f360-val-address').textContent = customer.address || 'Sin dirección registrada';
     container.querySelector('#f360-val-birthday').textContent = customer.birthday ? formatFriendlyDate(customer.birthday) : 'No registrada';
+    container.querySelector('#f360-val-marketing').innerHTML = customer.accepts_marketing !== false
+        ? '<span style="color:#25D366; font-weight:700;">🟢 SÍ (Acepta promociones por WhatsApp)</span>'
+        : '<span style="color:var(--text-dim); font-weight:600;">🔕 NO (No enviar promos masivas)</span>';
     container.querySelector('#f360-val-notes').textContent = customer.notes || 'Ninguna observación especial';
+
+    // Rellenar Fidelización: Burgame Pass
+    const codeEl = container.querySelector('#f360-loyalty-code');
+    if (codeEl) codeEl.textContent = customer.loyalty_card_code || 'BG-XXXXXX';
+
+    const stamps = customer.loyalty_stamps || 0;
+    const stampsGrid = container.querySelector('#f360-stamps-grid');
+    if (stampsGrid) {
+        stampsGrid.innerHTML = Array.from({ length: 6 }).map((_, idx) => {
+            const isStamped = idx < stamps;
+            return `
+                <div style="background:${isStamped ? 'rgba(255,215,0,0.18)' : 'rgba(255,255,255,0.03)'}; border:1.5px solid ${isStamped ? 'var(--color-primary)' : 'var(--border-subtle)'}; border-radius:6px; padding:0.6rem 0.2rem; text-align:center; transition:all 0.2s;">
+                    <div style="font-size:1.4rem; line-height:1; filter:${isStamped ? 'none' : 'grayscale(1) opacity(0.25)'};">🍔</div>
+                    <span style="font-size:0.65rem; font-family:var(--font-mono); font-weight:700; color:${isStamped ? 'var(--color-primary)' : 'var(--text-dim)'}; margin-top:0.25rem; display:block;">
+                        #${idx + 1}
+                    </span>
+                </div>
+            `;
+        }).join('');
+    }
+
+    const stampsText = container.querySelector('#f360-loyalty-stamps-text');
+    if (stampsText) stampsText.textContent = `Sellos: ${stamps} de 6 para burger gratis`;
+
+    const rewards = customer.loyalty_rewards || 0;
+    const rewardsBadge = container.querySelector('#f360-loyalty-rewards-badge');
+    if (rewardsBadge) {
+        rewardsBadge.innerHTML = rewards > 0
+            ? `<span style="color:#00E676; font-weight:800; font-size:0.82rem;">🎁 ¡${rewards} BURGER${rewards > 1 ? 'S' : ''} GRATIS LISTA${rewards > 1 ? 'S' : ''}!</span>`
+            : `<span>🎁 0 burgers gratis acumuladas</span>`;
+    }
+
+    const btnAddStamp = container.querySelector('#f360-btn-add-stamp');
+    if (btnAddStamp) {
+        btnAddStamp.onclick = async () => {
+            try {
+                btnAddStamp.disabled = true;
+                const res = await customerService.addLoyaltyStamp(customer.id, null, true);
+                showToast({ message: res.message, type: res.success ? 'success' : 'info' });
+                await reload(container);
+                const updated = allCustomers.find(c => c.id === customer.id);
+                if (updated) openFicha360(container, updated);
+            } catch (err) {
+                showToast({ message: 'Error al sumar sello: ' + err.message, type: 'error' });
+            } finally {
+                btnAddStamp.disabled = false;
+            }
+        };
+    }
+
+    const btnRedeem = container.querySelector('#f360-btn-redeem-reward');
+    if (btnRedeem) {
+        btnRedeem.onclick = async () => {
+            if ((customer.loyalty_rewards || 0) <= 0) {
+                showToast({ message: 'El cliente no tiene hamburguesas gratis para canjear', type: 'warning' });
+                return;
+            }
+            if (confirm(`¿Canjear 1 Hamburguesa Gratis para ${customer.name}?`)) {
+                try {
+                    btnRedeem.disabled = true;
+                    const res = await customerService.redeemLoyaltyReward(customer.id);
+                    showToast({ message: res.message, type: 'success' });
+                    await reload(container);
+                    const updated = allCustomers.find(c => c.id === customer.id);
+                    if (updated) openFicha360(container, updated);
+                } catch (err) {
+                    showToast({ message: 'Error al canjear: ' + err.message, type: 'error' });
+                } finally {
+                    btnRedeem.disabled = false;
+                }
+            }
+        };
+    }
 
     // Rellenar Club Burgame Box
     const clubStatusBadge = container.querySelector('#f360-club-status-badge');
@@ -1096,6 +1248,10 @@ function openWhatsAppModal(container, target) {
     if (!modal) return;
 
     container.querySelector('#wa-target-name').textContent = target.name || 'Cliente';
+    const warnEl = container.querySelector('#wa-marketing-warning');
+    if (warnEl) {
+        warnEl.style.display = target.accepts_marketing === false ? 'block' : 'none';
+    }
     modal.classList.remove('hidden');
 }
 
@@ -1158,6 +1314,9 @@ function openFormModal(container, customer) {
     const clubCheck = container.querySelector('#cli-club');
     if (clubCheck) clubCheck.checked = isEdit ? !!customer.is_club_member : false;
 
+    const marketingCheck = container.querySelector('#cli-accepts-marketing');
+    if (marketingCheck) marketingCheck.checked = isEdit ? (customer.accepts_marketing !== false) : true;
+
     modal.classList.remove('hidden');
     setTimeout(() => container.querySelector('#cli-name')?.focus(), 100);
 }
@@ -1178,6 +1337,7 @@ async function handleSubmitForm(e, container) {
     const birthday = container.querySelector('#cli-birthday').value;
     const notes = container.querySelector('#cli-notes').value.trim();
     const isClubMember = !!(container.querySelector('#cli-club')?.checked);
+    const acceptsMarketing = !!(container.querySelector('#cli-accepts-marketing')?.checked);
 
     if (!name) {
         showToast({ message: 'El nombre es obligatorio', type: 'error' });
@@ -1197,7 +1357,8 @@ async function handleSubmitForm(e, container) {
         email,
         birthday,
         notes,
-        is_club_member: isClubMember
+        is_club_member: isClubMember,
+        accepts_marketing: acceptsMarketing
     };
 
     try {

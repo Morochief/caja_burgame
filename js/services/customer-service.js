@@ -2,7 +2,7 @@ import { supabase } from '../supabase-client.js';
 
 // ====== CRUD de la tabla customers ======
 
-const CUSTOMER_SELECT = 'id, name, phone, notes, is_club_member, created_at, last_order_at, tax_id, email, address, birthday, category';
+const CUSTOMER_SELECT = 'id, name, phone, notes, is_club_member, created_at, last_order_at, tax_id, email, address, birthday, category, accepts_marketing, loyalty_stamps, loyalty_rewards, loyalty_last_stamp_at, loyalty_total_stamps, loyalty_total_rewards, loyalty_card_code';
 
 export async function getAll() {
     const { data, error } = await supabase
@@ -25,7 +25,8 @@ export async function create(customerData) {
             email: (customerData.email || '').trim(),
             address: (customerData.address || '').trim(),
             birthday: (customerData.birthday || '').trim(),
-            category: (customerData.category || 'general').trim()
+            category: (customerData.category || 'general').trim(),
+            accepts_marketing: customerData.accepts_marketing !== undefined ? !!customerData.accepts_marketing : true
         }])
         .select()
         .single();
@@ -44,6 +45,18 @@ export async function findByName(name) {
     return (data && data.length > 0) ? data[0] : null;
 }
 
+// Busca un cliente por su código de tarjeta de fidelización (ej: BG-A1B2C3)
+export async function findByCardCode(cardCode) {
+    if (!cardCode) return null;
+    const { data, error } = await supabase
+        .from('customers')
+        .select(CUSTOMER_SELECT)
+        .ilike('loyalty_card_code', cardCode.trim())
+        .limit(1);
+    if (error) throw error;
+    return (data && data.length > 0) ? data[0] : null;
+}
+
 export async function update(id, customerData) {
     const payload = {
         name: customerData.name.trim(),
@@ -54,7 +67,8 @@ export async function update(id, customerData) {
         ...(customerData.email !== undefined ? { email: (customerData.email || '').trim() } : {}),
         ...(customerData.address !== undefined ? { address: (customerData.address || '').trim() } : {}),
         ...(customerData.birthday !== undefined ? { birthday: (customerData.birthday || '').trim() } : {}),
-        ...(customerData.category !== undefined ? { category: (customerData.category || 'general').trim() } : {})
+        ...(customerData.category !== undefined ? { category: (customerData.category || 'general').trim() } : {}),
+        ...(customerData.accepts_marketing !== undefined ? { accepts_marketing: !!customerData.accepts_marketing } : {})
     };
 
     const { data, error } = await supabase
@@ -615,9 +629,56 @@ export function getCustomerSegment(customer = {}, stats = {}) {
     return { id: 'new', label: 'Nuevo', badgeClass: 'badge--new', icon: '🌱' };
 }
 
+// ============================================================
+// SISTEMA DE FIDELIZACIÓN (SELLOS BURGAME PASS & PREMIOS)
+// ============================================================
+
+/**
+ * Suma un sello a la tarjeta digital del cliente llamando al procedimiento RPC seguro.
+ * Aplica regla de máximo 1 sello por día a menos que force = true.
+ */
+export async function addLoyaltyStamp(customerId, orderId = null, force = false) {
+    if (!customerId) throw new Error('ID de cliente requerido para sumar sello');
+    const { data, error } = await supabase.rpc('add_loyalty_stamp', {
+        p_customer_id: customerId,
+        p_order_id: orderId,
+        p_force: !!force
+    });
+    if (error) throw error;
+    return data;
+}
+
+/**
+ * Canjea 1 hamburguesa gratis desbloqueada por sellos acumulados.
+ */
+export async function redeemLoyaltyReward(customerId, orderId = null) {
+    if (!customerId) throw new Error('ID de cliente requerido para canjear premio');
+    const { data, error } = await supabase.rpc('redeem_loyalty_reward', {
+        p_customer_id: customerId,
+        p_order_id: orderId
+    });
+    if (error) throw error;
+    return data;
+}
+
+/**
+ * Obtiene el historial de transacciones de sellos y premios de un cliente.
+ */
+export async function getLoyaltyHistory(customerId) {
+    if (!customerId) return [];
+    const { data, error } = await supabase
+        .from('loyalty_transactions')
+        .select('*')
+        .eq('customer_id', customerId)
+        .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+}
+
 export const customerService = {
     getAll,
     findByName,
+    findByCardCode,
     create,
     update,
     remove,
@@ -641,5 +702,9 @@ export const customerService = {
     deleteMembership,
     revokeClubMembership,
     MEMBERSHIP_DAYS,
-    CLUB_WARN_DAYS
+    CLUB_WARN_DAYS,
+    // Fidelización & Sellos
+    addLoyaltyStamp,
+    redeemLoyaltyReward,
+    getLoyaltyHistory
 };

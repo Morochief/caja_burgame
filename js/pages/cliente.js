@@ -9,11 +9,15 @@ import { createCart } from '../components/cart.js';
 import { supabase } from '../supabase-client.js';
 import { qrAuthService } from '../services/qr-auth-service.js';
 import { getParaguayDayOfWeek } from '../utils/date-utils.js';
+import { customerService } from '../services/customer-service.js';
 
 let serviceType = 'eat_in'; // 'eat_in' | 'takeaway'
 let payPreference = 'tab'; // 'tab' (pagar al salir) | 'instant' (pagar en caja)
 let tableNumber = '';
 let customerName = '';
+let customerPhone = localStorage.getItem('burgame_client_phone') || '';
+let customerOptIn = localStorage.getItem('burgame_client_optin') !== 'false';
+let clientPassCustomer = null;
 const cart = createCart();
 let activeOrder = null;
 let clientTabId = localStorage.getItem('burgame_client_tab_id') || null;
@@ -23,6 +27,22 @@ let tabClosedReceipt = null;
 let products = [];
 let categories = [];
 let currentCategory = 'all';
+
+async function loadClientPass() {
+    if (!customerPhone) return;
+    try {
+        const { data } = await supabase
+            .from('customers')
+            .select('id, name, phone, loyalty_stamps, loyalty_rewards, loyalty_card_code, is_club_member')
+            .eq('phone', customerPhone.trim())
+            .limit(1);
+        if (data && data.length > 0) {
+            clientPassCustomer = data[0];
+        }
+    } catch (e) {
+        console.warn('Error cargando Burgame Pass:', e);
+    }
+}
 
 document.addEventListener('DOMContentLoaded', initClienteApp);
 
@@ -67,6 +87,9 @@ async function initClienteApp() {
             console.warn('[cliente] Error verificando cuenta previa:', e);
         }
     }
+
+    // 2.1 Cargar datos del Burgame Pass si hay teléfono guardado
+    await loadClientPass();
 
     // 3. Carga instantánea desde caché local (0 ms para el cliente)
     const cachedProds = typeof productService?.getCached === 'function' ? productService.getCached() : null;
@@ -150,6 +173,8 @@ function renderMenuCatalog(appEl) {
             </div>
         ` : ''}
 
+        ${renderPassBanner()}
+
         <div class="service-type-selector">
             <button class="btn-service-type ${serviceType === 'eat_in' ? 'active' : ''}" id="btn-eat-in">
                 <span>🍔 PARA COMER ACÁ</span>
@@ -173,6 +198,21 @@ function renderMenuCatalog(appEl) {
                         <input type="text" id="cust-table" placeholder="Ej: 4" value="${tableNumber}">
                     </div>
                 ` : ''}
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0.5rem;">
+                <label style="font-size: 0.8rem; font-weight: 700; display: flex; justify-content: space-between;">
+                    <span>Tu N° WhatsApp (para sellos Burgame Pass):</span>
+                    ${clientPassCustomer ? `<span style="color: var(--color-primary); font-size: 0.75rem;">🍔 ${clientPassCustomer.loyalty_stamps || 0}/6 Sellos</span>` : ''}
+                </label>
+                <input type="tel" id="cust-phone" placeholder="Ej: 0981 123 456" value="${customerPhone}">
+            </div>
+
+            <div style="display: flex; align-items: flex-start; gap: 0.5rem; margin-top: 0.4rem; padding: 0.4rem 0.2rem;">
+                <input type="checkbox" id="cust-promos-toggle" ${customerOptIn ? 'checked' : ''} style="accent-color: #FED018; width: 17px; height: 17px; margin-top: 2px; cursor: pointer;">
+                <label for="cust-promos-toggle" style="font-size: 0.75rem; color: var(--text-muted); cursor: pointer; line-height: 1.35; margin: 0;">
+                    Acepto recibir novedades, promociones exclusivas y avisos de sellos por WhatsApp de Burgame.
+                </label>
             </div>
 
             ${serviceType === 'eat_in' ? `
@@ -268,9 +308,31 @@ function setupEvents(appEl) {
         });
     });
 
-    // Inputs nombre / mesa
+    // Inputs nombre / mesa / teléfono / opt-in
     appEl.querySelector('#cust-name')?.addEventListener('input', (e) => customerName = e.target.value);
     appEl.querySelector('#cust-table')?.addEventListener('input', (e) => tableNumber = e.target.value);
+    
+    appEl.querySelector('#cust-phone')?.addEventListener('input', async (e) => {
+        customerPhone = e.target.value;
+        localStorage.setItem('burgame_client_phone', customerPhone);
+        if (customerPhone.trim().length >= 8) {
+            await loadClientPass();
+            // Si el banner está visible, refrescar solo el encabezado de sellos
+            const stampCountEl = appEl.querySelector('#pass-header-stamps');
+            if (stampCountEl && clientPassCustomer) {
+                stampCountEl.textContent = `${clientPassCustomer.loyalty_stamps || 0}/6`;
+            }
+        }
+    });
+
+    appEl.querySelector('#cust-promos-toggle')?.addEventListener('change', (e) => {
+        customerOptIn = e.target.checked;
+        localStorage.setItem('burgame_client_optin', customerOptIn ? 'true' : 'false');
+    });
+
+    appEl.querySelector('#btn-open-pass-card')?.addEventListener('click', () => {
+        openBurgamePassModal(appEl);
+    });
 
     // Botones de elección de pago (Pagar al salir vs Pagar ahora)
     appEl.querySelector('#btn-choice-tab')?.addEventListener('click', () => {
@@ -452,8 +514,32 @@ function setupEvents(appEl) {
             currentReg = await cashService.getCurrentRegister();
         } catch { }
 
-        const cleanName = (nameVal || '').replace(/^(\[\s*[^\]]+\s*\]\s*)+/gi, '').trim();
-        const modalityTag = serviceType === 'eat_in' ? `[🍽️ SALÓN]` : `[🥡 LLEVAR]`;
+        const phoneVal = appEl.querySelector('#cust-phone')?.value.trim() || '';
+        const optInVal = appEl.querySelector('#cust-promos-toggle')?.checked ?? true;
+
+        let linkedCustomerId = null;
+        if (phoneVal) {
+            try {
+                // Upsert o vincular cliente en CRM
+                const existing = await customerService.findByPhone(phoneVal);
+                if (existing) {
+                    linkedCustomerId = existing.id;
+                    await customerService.updateCustomer(existing.id, {
+                        name: cleanName || existing.name,
+                        accepts_marketing: optInVal
+                    });
+                } else {
+                    const created = await customerService.createCustomer({
+                        name: cleanName || 'Cliente Autopedido',
+                        phone: phoneVal,
+                        accepts_marketing: optInVal
+                    });
+                    linkedCustomerId = created?.id || null;
+                }
+            } catch (err) {
+                console.warn('[cliente] No se pudo sincronizar cliente en CRM:', err);
+            }
+        }
 
         try {
             if (serviceType === 'eat_in' && payPreference === 'tab') {
@@ -474,6 +560,7 @@ function setupEvents(appEl) {
                     items: cart.items,
                     notes: `${modalityTag} AUTOPEDIDO MESA ${tableVal} [CUENTA ABIERTA]`,
                     customerName: cleanName,
+                    customerId: linkedCustomerId,
                     cashRegisterId: currentReg ? currentReg.id : null,
                     status: 'ordered',
                     tabId: clientTabId
@@ -495,6 +582,7 @@ function setupEvents(appEl) {
                     items: cart.items,
                     notes: serviceType === 'eat_in' ? `${modalityTag} AUTOPEDIDO MESA ${tableVal}` : `${modalityTag} AUTOPEDIDO PARA LLEVAR`,
                     customerName: cleanName,
+                    customerId: linkedCustomerId,
                     cashRegisterId: currentReg ? currentReg.id : null,
                     status: 'pending_payment'
                 });
@@ -982,5 +1070,154 @@ function submitPin(pinVal, appEl) {
             input.focus();
         }
     }
+}
+
+// ============================================================
+// BURGAME PASS: Banner y Modal Digital
+// ============================================================
+function renderPassBanner() {
+    const stamps = clientPassCustomer ? (clientPassCustomer.loyalty_stamps || 0) : 0;
+    const rewards = clientPassCustomer ? (clientPassCustomer.loyalty_rewards || 0) : 0;
+    const isClub = clientPassCustomer?.is_club_member;
+
+    return `
+        <div id="btn-open-pass-card" style="background: linear-gradient(135deg, rgba(254, 208, 24, 0.12) 0%, rgba(20, 22, 30, 0.95) 100%); border: 1.5px solid var(--border-gold); padding: 0.85rem 1rem; border-radius: var(--radius-md); margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; box-shadow: 0 4px 15px rgba(254, 208, 24, 0.08); transition: transform 0.15s ease;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div style="font-size: 1.8rem; line-height: 1;">🍔</div>
+                <div>
+                    <div style="font-family: var(--font-title); font-size: 0.75rem; color: #FED018; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.4rem;">
+                        BURGAME PASS DIGITAL
+                        ${isClub ? '<span style="font-size: 0.6rem; background: #FED018; color: #000; padding: 1px 5px; border-radius: 4px; font-weight: 800;">CLUB VIP</span>' : ''}
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.15rem;">
+                        ${customerPhone ? `Tarjetero: <strong style="color: #FFF;">${customerPhone}</strong>` : 'Junta 6 sellos = 1 burger gratis'}
+                    </div>
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-family: var(--font-mono); font-size: 1rem; font-weight: 800; color: #FED018;">
+                    <span id="pass-header-stamps">${stamps}/6</span> 🍔
+                </div>
+                ${rewards > 0 ? `<div style="font-size: 0.68rem; color: #4ade80; font-weight: 700;">🎁 ${rewards} gratis</div>` : `<div style="font-size: 0.68rem; color: var(--text-muted);">Ver Tarjeta ➔</div>`}
+            </div>
+        </div>
+    `;
+}
+
+function openBurgamePassModal(appEl) {
+    const stamps = clientPassCustomer ? (clientPassCustomer.loyalty_stamps || 0) : 0;
+    const rewards = clientPassCustomer ? (clientPassCustomer.loyalty_rewards || 0) : 0;
+    const cardCode = clientPassCustomer?.loyalty_card_code || 'BG-NUEVO';
+    const isClub = clientPassCustomer?.is_club_member;
+
+    let stampSlotsHtml = '';
+    for (let i = 1; i <= 6; i++) {
+        const isStamped = i <= stamps;
+        stampSlotsHtml += `
+            <div style="aspect-ratio: 1; border-radius: 50%; border: 2px dashed ${isStamped ? '#FED018' : 'rgba(255,255,255,0.2)'}; background: ${isStamped ? 'rgba(254, 208, 24, 0.2)' : 'rgba(0,0,0,0.4)'}; display: flex; align-items: center; justify-content: center; font-size: ${isStamped ? '1.6rem' : '0.85rem'}; color: ${isStamped ? '#FED018' : 'var(--text-muted)'}; position: relative; box-shadow: ${isStamped ? '0 0 12px rgba(254, 208, 24, 0.35)' : 'none'};">
+                ${isStamped ? '🍔' : i}
+                ${i === 6 && !isStamped ? '<span style="position: absolute; bottom: -4px; font-size: 0.6rem;">🎁</span>' : ''}
+            </div>
+        `;
+    }
+
+    const modalHtml = `
+        <div id="burgame-pass-modal" class="modal modal--open" style="z-index: 10000;">
+            <div class="modal__overlay" id="pass-modal-overlay"></div>
+            <div class="modal__dialog" style="max-width: 420px; width: 92%; border: 1.5px solid var(--border-gold); background: #0E1017; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.9);">
+                <div style="background: linear-gradient(135deg, #1C1917 0%, #0E1017 100%); padding: 1.25rem 1.25rem 0.8rem; border-bottom: 1px solid rgba(254,208,24,0.2); position: relative;">
+                    <button id="btn-close-pass-modal" style="position: absolute; right: 1rem; top: 1rem; background: none; border: none; color: var(--text-muted); font-size: 1.4rem; cursor: pointer;">&times;</button>
+                    <div style="font-family: var(--font-title); font-size: 0.75rem; color: #FED018; letter-spacing: 0.08em; display: flex; align-items: center; gap: 0.4rem;">
+                        🍔 BURGAME PASS DIGITAL
+                        ${isClub ? '<span style="background: #FED018; color: #000; font-size: 0.58rem; padding: 2px 6px; border-radius: 4px; font-weight: 800;">CLUB VIP</span>' : ''}
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">
+                        Tarjeta Oficial de Fidelidad · Burgame
+                    </div>
+                </div>
+
+                <div style="padding: 1.25rem;">
+                    <!-- Visual Stamp Card -->
+                    <div style="background: radial-gradient(circle at top, #231F17 0%, #121318 100%); border: 1px solid rgba(254,208,24,0.3); border-radius: 14px; padding: 1.2rem; margin-bottom: 1rem; position: relative;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); letter-spacing: 0.1em;">
+                                CÓDIGO: <strong style="color: #FED018;">${cardCode}</strong>
+                            </span>
+                            <span style="font-size: 0.72rem; color: var(--text-muted);">
+                                1 sello/día
+                            </span>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 1.2rem;">
+                            ${stampSlotsHtml}
+                        </div>
+
+                        <div style="text-align: center; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.8rem;">
+                            ${rewards > 0 ? `
+                                <div style="background: rgba(74, 222, 128, 0.15); border: 1px solid #4ade80; border-radius: 8px; padding: 0.6rem; color: #4ade80; font-weight: 700; font-size: 0.82rem; margin-bottom: 0.4rem;">
+                                    🎉 ¡Tenés ${rewards} Hamburguesa${rewards > 1 ? 's' : ''} Gratis disponible! Mostrá tu celular al cajero para canjear.
+                                </div>
+                            ` : `
+                                <div style="font-size: 0.8rem; color: var(--text-main); font-weight: 600;">
+                                    ${6 - stamps > 0 ? `Te faltan <strong>${6 - stamps} sellos</strong> para tu hamburguesa gratis.` : '¡Completaste tu tarjeta!'}
+                                </div>
+                            `}
+                        </div>
+                    </div>
+
+                    <!-- Teléfono Sync Input -->
+                    <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 0.9rem; margin-bottom: 1rem;">
+                        <label style="font-size: 0.78rem; font-weight: 700; color: var(--text-main); display: block; margin-bottom: 0.4rem;">
+                            📱 Consultar o Vincular con tu Teléfono:
+                        </label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="tel" id="input-modal-phone" placeholder="0981 123 456" value="${customerPhone}" style="flex: 1; padding: 0.5rem 0.7rem; font-size: 0.85rem; background: #000; border: 1px solid var(--border-subtle); border-radius: 6px; color: #FFF;">
+                            <button id="btn-modal-sync-phone" class="btn btn--primary btn--sm" style="font-size: 0.78rem; font-weight: 800; padding: 0.5rem 0.8rem;">
+                                Buscar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Burgame Club Callout -->
+                    <div style="background: rgba(254, 208, 24, 0.05); border: 1px dashed rgba(254, 208, 24, 0.4); border-radius: 10px; padding: 0.85rem; font-size: 0.78rem; line-height: 1.4; color: var(--text-muted);">
+                        <strong style="color: #FED018;">👑 Burgame Club:</strong> Por ₲70.000 al mes tenés beneficios, descuentos directos y promociones exclusivas todo el mes. Preguntale a Bruja o en caja cómo sumarte.
+                    </div>
+                </div>
+
+                <div style="padding: 0.8rem 1.25rem; border-top: 1px solid rgba(255,255,255,0.08); text-align: center;">
+                    <button id="btn-close-pass-modal-footer" class="btn btn--secondary btn--block" style="padding: 0.65rem; font-weight: 700; font-size: 0.82rem;">
+                        Listo, volver al menú
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const existingModal = document.getElementById('burgame-pass-modal');
+    if (existingModal) existingModal.remove();
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    const modal = document.getElementById('burgame-pass-modal');
+    const closeModal = () => modal.remove();
+
+    modal.querySelector('#btn-close-pass-modal')?.addEventListener('click', closeModal);
+    modal.querySelector('#pass-modal-overlay')?.addEventListener('click', closeModal);
+    modal.querySelector('#btn-close-pass-modal-footer')?.addEventListener('click', closeModal);
+
+    modal.querySelector('#btn-modal-sync-phone')?.addEventListener('click', async () => {
+        const phone = modal.querySelector('#input-modal-phone')?.value.trim();
+        if (!phone) {
+            showToast({ message: 'Ingresa un número de teléfono', type: 'warning' });
+            return;
+        }
+        customerPhone = phone;
+        localStorage.setItem('burgame_client_phone', customerPhone);
+        await loadClientPass();
+        closeModal();
+        openBurgamePassModal(appEl);
+        renderView(appEl);
+        showToast({ message: '✅ Tarjeta de fidelidad sincronizada', type: 'success' });
+    });
 }
 
