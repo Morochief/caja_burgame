@@ -202,6 +202,17 @@ export async function getActiveOrders() {
     return data;
 }
 
+export async function getActiveKitchenOrders() {
+    // Comandas que actualmente están en cocina esperando o en preparación
+    const { data, error } = await supabase
+        .from('orders')
+        .select(`*, order_items(*)`)
+        .in('status', ['ordered', 'preparing', 'ready'])
+        .order('created_at', { ascending: true });
+    if (error) throw error;
+    return data || [];
+}
+
 export async function getPendingPayment() {
     // Pedidos pendientes de cobro: los que no tienen paid_at y no están cancelados.
     const { data, error } = await supabase.from('orders').select(`*, order_items(*)`).is('paid_at', null).neq('status', 'cancelled').order('created_at');
@@ -282,6 +293,7 @@ export const orderService = {
     approveOrder,
     updatePaymentMethod,
     getActiveOrders,
+    getActiveKitchenOrders,
     getPendingPayment,
     getTodaysOrders,
     getTodayOrders: getTodaysOrders,

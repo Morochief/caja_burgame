@@ -247,8 +247,16 @@ function updateTabButtons() {
 
 async function loadActiveOrders() {
     try {
-        const today = await orderService.getTodaysOrders();
-        allTodayOrders = today || [];
+        const [shiftOrders, activeKitchen] = await Promise.all([
+            orderService.getTodaysOrders().catch(() => []),
+            orderService.getActiveKitchenOrders ? orderService.getActiveKitchenOrders().catch(() => []) : []
+        ]);
+
+        const ordersMap = new Map();
+        (shiftOrders || []).forEach(o => ordersMap.set(o.id, o));
+        (activeKitchen || []).forEach(o => ordersMap.set(o.id, o));
+
+        allTodayOrders = Array.from(ordersMap.values()).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         activeOrders = allTodayOrders.filter(o => o.status !== 'cancelled' && o.status !== 'pending_payment' && o.status !== 'pending_approval');
     } catch (err) {
         console.error('Error cargando comandas:', err);

@@ -377,11 +377,17 @@ async function loadData() {
             currentCashRegister = await cashService.getCurrentRegister();
         }
 
-        const [today, tabs] = await Promise.all([
+        const [today, pendingOrders, tabs] = await Promise.all([
             orderService.getTodaysOrders(),
+            orderService.getPendingPayment().catch(() => []),
             tabService.getActiveTabs().catch(() => [])
         ]);
-        allTodaysOrders = today || [];
+
+        const ordersMap = new Map();
+        (today || []).forEach(o => ordersMap.set(o.id, o));
+        (pendingOrders || []).forEach(o => ordersMap.set(o.id, o));
+
+        allTodaysOrders = Array.from(ordersMap.values()).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         activeTabsList = tabs || [];
     } catch (err) {
         showToast({ message: 'Error cargando comandas y cuentas de hoy', type: 'error' });

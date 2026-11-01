@@ -125,15 +125,58 @@ export function addDaysToYmd(ymdStr, deltaDays) {
 }
 
 /**
+ * Retorna la fecha operativa comercial del negocio en Paraguay ('YYYY-MM-DD').
+ * Para locales gastronómicos nocturnos (hamburgueserías, bares), el turno operativo
+ * que comienza a la tarde/noche continúa pasada la medianoche hasta las 06:00 AM.
+ * Entre las 00:00 y las 05:59, la jornada operativa comenzó el día de ayer.
+ * @returns {string} 'YYYY-MM-DD'
+ */
+export function getParaguayBusinessDate() {
+    const now = new Date();
+    const hour = getParaguayHour(now);
+    if (hour < 6) {
+        const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        return formatParaguayDate(yesterday);
+    }
+    return getParaguayToday();
+}
+
+/**
+ * Retorna el rango ISO para el turno operativo actual de gastronomía.
+ * Si es de madrugada (< 06:00 AM), incluye desde el inicio de la jornada de ayer hasta el final del día de hoy.
+ * @returns {{ fromIso: string, toIso: string }}
+ */
+export function getParaguayShiftIsoRange() {
+    const now = new Date();
+    const hour = getParaguayHour(now);
+    const todayYmd = getParaguayToday();
+    const startYmd = hour < 6 ? getParaguayBusinessDate() : todayYmd;
+
+    const approx = new Date(startYmd + 'T12:00:00Z');
+    const offset = getParaguayOffset(approx);
+
+    const fromDate = new Date(`${startYmd}T00:00:00.000${offset}`);
+    const toDate = new Date(`${todayYmd}T23:59:59.999${offset}`);
+
+    return {
+        fromIso: fromDate.toISOString(),
+        toIso: toDate.toISOString()
+    };
+}
+
+/**
  * Convierte un rango de fechas calendario de Paraguay ('YYYY-MM-DD')
  * a límites ISO en UTC (desde las 00:00:00.000 hasta las 23:59:59.999 hora de Paraguay).
  * Resuelve el problema donde new Date('YYYY-MM-DD') se parseaba en UTC y atrasaba un día.
- * @param {string} startYmd 'YYYY-MM-DD'
+ * Si no se especifica startYmd, utiliza el rango del turno operativo nocturno actual.
+ * @param {string} [startYmd] 'YYYY-MM-DD'
  * @param {string} [endYmd=startYmd] 'YYYY-MM-DD'
  * @returns {{ fromIso: string, toIso: string }}
  */
 export function getParaguayIsoRange(startYmd, endYmd = startYmd) {
-    if (!startYmd) startYmd = getParaguayToday();
+    if (!startYmd) {
+        return getParaguayShiftIsoRange();
+    }
     if (!endYmd) endYmd = startYmd;
 
     // Obtener offset aproximado al mediodía para evitar cualquier salto
