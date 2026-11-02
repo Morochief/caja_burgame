@@ -382,7 +382,10 @@ function renderTicketCard(order) {
 
     let slaClass = 'monitor-sla-badge--optimal';
     let slaLabel = `⏱️ ${minsElapsed}m`;
-    if (isCritical) {
+    if (minsElapsed >= 180) {
+        slaClass = 'monitor-sla-badge--late';
+        slaLabel = '🚨 +3h (Turno previo)';
+    } else if (isCritical) {
         slaClass = 'monitor-sla-badge--late';
         slaLabel = `🚨 ${minsElapsed}m CRÍTICO`;
     } else if (isWarning) {
@@ -870,7 +873,11 @@ function updateTickingTimers(container) {
         const isCritical = mins >= 25;
 
         badge.className = 'monitor-sla-badge ' + (isCritical ? 'monitor-sla-badge--late' : (isWarning ? 'monitor-sla-badge--warning' : 'monitor-sla-badge--optimal'));
-        badge.textContent = isCritical ? `🚨 ${mins}m CRÍTICO` : (isWarning ? `⚠️ ${mins}m LENTO` : `⏱️ ${mins}m`);
+        if (mins >= 180) {
+            badge.textContent = '🚨 +3h (Turno previo)';
+        } else {
+            badge.textContent = isCritical ? `🚨 ${mins}m CRÍTICO` : (isWarning ? `⚠️ ${mins}m LENTO` : `⏱️ ${mins}m`);
+        }
     });
 }
 

@@ -308,9 +308,20 @@ export function calculateKitchenPerformance(orders = []) {
         if (readyAt) {
             totalMinutes = Math.max(0, (readyAt.getTime() - createdAt.getTime()) / 60000);
             isCompleted = true;
+        } else if (deliveredAt) {
+            totalMinutes = Math.max(0, (deliveredAt.getTime() - createdAt.getTime()) / 60000);
+            isCompleted = true;
         } else if (order.status === 'ordered' || order.status === 'preparing') {
-            totalMinutes = Math.max(0, (Date.now() - createdAt.getTime()) / 60000);
-            isCompleted = false;
+            const hoursAgo = (Date.now() - createdAt.getTime()) / 3600000;
+            // Solo si la orden es reciente (turno actual <= 18h) se calcula tiempo en curso
+            if (hoursAgo <= 18) {
+                totalMinutes = Math.max(0, (Date.now() - createdAt.getTime()) / 60000);
+                isCompleted = false;
+            } else {
+                // Orden histórica abandonada/olvidada sin cerrar en turnos previos
+                totalMinutes = null;
+                isCompleted = false;
+            }
         }
 
         // Minutos en cola (esperando que inicien preparación)

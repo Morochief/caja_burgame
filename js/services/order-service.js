@@ -203,11 +203,13 @@ export async function getActiveOrders() {
 }
 
 export async function getActiveKitchenOrders() {
-    // Comandas que actualmente están en cocina esperando o en preparación
+    // Comandas activas del turno operativo en cocina (últimas 18 horas) esperando o en preparación
+    const cutoff = new Date(Date.now() - 18 * 60 * 60 * 1000).toISOString();
     const { data, error } = await supabase
         .from('orders')
         .select(`*, order_items(*)`)
         .in('status', ['ordered', 'preparing', 'ready'])
+        .gte('created_at', cutoff)
         .order('created_at', { ascending: true });
     if (error) throw error;
     return data || [];
