@@ -1,6 +1,8 @@
 import { orderService } from './services/order-service.js';
 import { showToast } from './components/toast.js';
 import { initChat } from './components/chat-ui.js';
+import { exportKitchenTimesExcel } from './services/excel-export-service.js';
+import { calculateKitchenPerformance } from './services/report-service.js';
 
 let activeOrders = [];
 let allTodayOrders = [];
@@ -189,6 +191,28 @@ async function initCocina() {
             document.documentElement.requestFullscreen().catch(() => {});
         } else {
             document.exitFullscreen().catch(() => {});
+        }
+    });
+
+    // Exportar Tiempos KDS a Excel (Hoy)
+    document.getElementById('btn-kds-export-excel')?.addEventListener('click', async () => {
+        const btn = document.getElementById('btn-kds-export-excel');
+        const origText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '⏳ <span class="kds-tool-label">Exportando...</span>';
+        showToast({ message: '⏳ Generando auditoría de tiempos en Excel...', type: 'info' });
+
+        try {
+            await loadActiveOrders();
+            const perfData = calculateKitchenPerformance(allTodayOrders);
+            await exportKitchenTimesExcel(perfData, 'Hoy');
+            showToast({ message: '✅ Auditoría de cocina descargada en Excel', type: 'success' });
+        } catch (err) {
+            console.error('Error exportando tiempos desde KDS:', err);
+            showToast({ message: 'Error exportando Excel: ' + err.message, type: 'error' });
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = origText;
         }
     });
 

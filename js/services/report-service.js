@@ -235,6 +235,9 @@ export async function getAnalyticsByRange(fromIso, toIso) {
         .map(([name, data]) => ({ name, ...data }))
         .sort((a, b) => b.qty - a.qty);
 
+    // Análisis integral de tiempos y cuellos de botella de cocina (KDS)
+    const kitchenPerformance = calculateKitchenPerformance(allOrders);
+
     return {
         allOrders,
         paidOrders,
@@ -252,7 +255,257 @@ export async function getAnalyticsByRange(fromIso, toIso) {
         peakHour,
         maxHourlyCount,
         expenseCategories,
-        topProducts
+        topProducts,
+        kitchenPerformance
+    };
+}
+
+// ============================================================
+// Análisis de Tiempos y Rendimiento de Cocina (KDS)
+// ============================================================
+export function calculateKitchenPerformance(orders = []) {
+    const orderTimes = [];
+    const hourlyMap = Array.from({ length: 24 }, (_, i) => ({
+        hour: i,
+        label: `${String(i).padStart(2, '0')}:00`,
+        count: 0,
+        totalWait: 0,
+        delayedCount: 0,
+        criticalCount: 0,
+        avgMinutes: 0
+    }));
+
+    const productDelays = {};
+    const modalityMap = {
+        salon: { count: 0, totalWait: 0, delayed: 0, label: '🍽️ Salón' },
+        llevar: { count: 0, totalWait: 0, delayed: 0, label: '🥡 Llevar' },
+        delivery: { count: 0, totalWait: 0, delayed: 0, label: '🛵 Delivery' },
+        other: { count: 0, totalWait: 0, delayed: 0, label: '📦 General' }
+    };
+
+    let totalRealisticOrders = 0;
+    let totalRealisticMinutes = 0;
+    let totalQueueMinutes = 0;
+    let countQueue = 0;
+    let totalCookingMinutes = 0;
+    let countCooking = 0;
+
+    let onTimeCount = 0;   // < 15 min
+    let delayedCount = 0;  // 15 - 25 min
+    let criticalCount = 0; // >= 25 min
+
+    orders.forEach(order => {
+        if (!order.created_at) return;
+        const createdAt = new Date(order.created_at);
+        const preparingAt = order.preparing_at ? new Date(order.preparing_at) : null;
+        const readyAt = order.ready_at ? new Date(order.ready_at) : (order.delivered_at ? new Date(order.delivered_at) : null);
+        const deliveredAt = order.delivered_at ? new Date(order.delivered_at) : null;
+
+        // Minutos de espera total (hasta estar listo o entregado)
+        let totalMinutes = null;
+        let isCompleted = false;
+
+        if (readyAt) {
+            totalMinutes = Math.max(0, (readyAt.getTime() - createdAt.getTime()) / 60000);
+            isCompleted = true;
+        } else if (order.status === 'ordered' || order.status === 'preparing') {
+            totalMinutes = Math.max(0, (Date.now() - createdAt.getTime()) / 60000);
+            isCompleted = false;
+        }
+
+        // Minutos en cola (esperando que inicien preparación)
+        let queueMinutes = null;
+        if (preparingAt) {
+            queueMinutes = Math.max(0, (preparingAt.getTime() - createdAt.getTime()) / 60000);
+        }
+
+        // Minutos de cocción (plancha activa)
+        let cookingMinutes = null;
+        if (preparingAt && readyAt) {
+            cookingMinutes = Math.max(0, (readyAt.getTime() - preparingAt.getTime()) / 60000);
+        }
+
+        // Detectar modalidad desde notas
+        const notesUpper = (order.notes || '').toUpperCase();
+        let modality = 'other';
+        if (notesUpper.includes('SALÓN') || notesUpper.includes('SALON') || notesUpper.includes('MESA')) modality = 'salon';
+        else if (notesUpper.includes('LLEVAR') || notesUpper.includes('RETIR')) modality = 'llevar';
+        else if (notesUpper.includes('DELIVERY')) modality = 'delivery';
+
+        // Categoría de retraso
+        let delayCategory = 'optimal';
+        let delayBadge = '🟢 Rápido';
+        let delayColor = '#00E676';
+
+        if (totalMinutes !== null) {
+            if (totalMinutes >= 25) {
+                delayCategory = 'critical';
+                delayBadge = '🔴 Crítico';
+                delayColor = '#FF3D71';
+            } else if (totalMinutes >= 15) {
+                delayCategory = 'delayed';
+                delayBadge = '🟠 Demorado';
+                delayColor = '#FF9100';
+            } else if (totalMinutes >= 12) {
+                delayCategory = 'normal';
+                delayBadge = '🟡 Normal';
+                delayColor = '#FFD700';
+            }
+        }
+
+        // Consideramos realista si está entre 0 y 180 minutos (3 horas) para no distorsionar con comandas olvidadas
+        const isRealistic = totalMinutes !== null && totalMinutes >= 0 && totalMinutes <= 180;
+
+        if (isCompleted && isRealistic) {
+            totalRealisticOrders++;
+            totalRealisticMinutes += totalMinutes;
+
+            if (totalMinutes < 15) onTimeCount++;
+            else if (totalMinutes < 25) delayedCount++;
+            else criticalCount++;
+
+            if (queueMinutes !== null && queueMinutes <= 180) {
+                totalQueueMinutes += queueMinutes;
+                countQueue++;
+            }
+            if (cookingMinutes !== null && cookingMinutes <= 180) {
+                totalCookingMinutes += cookingMinutes;
+                countCooking++;
+            }
+
+            // Horas del día (hora paraguaya)
+            const hour = getParaguayHour(order.created_at);
+            if (hour >= 0 && hour < 24) {
+                hourlyMap[hour].count++;
+                hourlyMap[hour].totalWait += totalMinutes;
+                if (totalMinutes >= 25) hourlyMap[hour].criticalCount++;
+                else if (totalMinutes >= 15) hourlyMap[hour].delayedCount++;
+            }
+
+            // Modalidad
+            if (modalityMap[modality]) {
+                modalityMap[modality].count++;
+                modalityMap[modality].totalWait += totalMinutes;
+                if (totalMinutes >= 15) modalityMap[modality].delayed++;
+            }
+
+            // Productos involucrados en pedidos demorados (>= 15 min)
+            (order.order_items || []).forEach(item => {
+                const pName = (item.product_name || 'Producto')
+                    .replace(/\s*\[📝\s*[^\]]+\]/, '')
+                    .replace(/\s*\(COMBO\)/i, '')
+                    .trim();
+                const qty = item.quantity || 1;
+
+                if (!productDelays[pName]) {
+                    productDelays[pName] = { name: pName, totalPrepared: 0, delayedOrders: 0, totalWaitSum: 0 };
+                }
+                productDelays[pName].totalPrepared += qty;
+                if (totalMinutes >= 15) {
+                    productDelays[pName].delayedOrders++;
+                    productDelays[pName].totalWaitSum += totalMinutes;
+                }
+            });
+        }
+
+        const itemsSummary = (order.order_items || []).map(i => `${i.quantity}x ${i.product_name}`).join(', ');
+
+        orderTimes.push({
+            id: order.id,
+            order_number: order.order_number,
+            customer_name: order.customer_name || 'Mostrador / Mesa',
+            status: order.status,
+            notes: order.notes || '',
+            modality,
+            modalityLabel: modalityMap[modality]?.label || 'General',
+            created_at: order.created_at,
+            preparing_at: order.preparing_at,
+            ready_at: order.ready_at,
+            delivered_at: order.delivered_at,
+            totalMinutes: totalMinutes !== null ? Math.round(totalMinutes * 10) / 10 : null,
+            queueMinutes: queueMinutes !== null ? Math.round(queueMinutes * 10) / 10 : null,
+            cookingMinutes: cookingMinutes !== null ? Math.round(cookingMinutes * 10) / 10 : null,
+            delayCategory,
+            delayBadge,
+            delayColor,
+            isCompleted,
+            isRealistic,
+            itemsSummary
+        });
+    });
+
+    // Calcular promedios por hora
+    hourlyMap.forEach(h => {
+        h.avgMinutes = h.count > 0 ? Math.round((h.totalWait / h.count) * 10) / 10 : 0;
+    });
+
+    const avgTotalMinutes = totalRealisticOrders > 0 ? Math.round((totalRealisticMinutes / totalRealisticOrders) * 10) / 10 : 0;
+    const avgQueueMinutes = countQueue > 0 ? Math.round((totalQueueMinutes / countQueue) * 10) / 10 : 0;
+    const avgCookingMinutes = countCooking > 0 ? Math.round((totalCookingMinutes / countCooking) * 10) / 10 : 0;
+
+    const onTimePct = totalRealisticOrders > 0 ? Math.round((onTimeCount / totalRealisticOrders) * 100) : 0;
+    const delayedPct = totalRealisticOrders > 0 ? Math.round(((delayedCount + criticalCount) / totalRealisticOrders) * 100) : 0;
+
+    // Productos cuello de botella ordenados por cantidad de apariciones en demoras
+    const topBottleneckProducts = Object.values(productDelays)
+        .filter(p => p.delayedOrders > 0)
+        .map(p => ({
+            ...p,
+            pctDelayed: p.totalPrepared > 0 ? Math.round((p.delayedOrders / p.totalPrepared) * 100) : 0,
+            avgWaitWhenDelayed: p.delayedOrders > 0 ? Math.round((p.totalWaitSum / p.delayedOrders) * 10) / 10 : 0
+        }))
+        .sort((a, b) => b.delayedOrders - a.delayedOrders)
+        .slice(0, 10);
+
+    // Identificar hora con peor cuello de botella
+    const peakDelayHour = [...hourlyMap].filter(h => h.count >= 3).sort((a, b) => b.avgMinutes - a.avgMinutes)[0] || null;
+
+    // Diagnóstico inteligente automático
+    let diagnosis = [];
+    if (totalRealisticOrders === 0) {
+        diagnosis.push('No hay suficientes pedidos cerrados con tiempos registrados en este rango.');
+    } else {
+        if (avgTotalMinutes >= 25) {
+            diagnosis.push(`🚨 CRÍTICO: La cocina promedia ${avgTotalMinutes} min por pedido. El ${delayedPct}% de las órdenes superó los 15 min.`);
+        } else if (avgTotalMinutes >= 15) {
+            diagnosis.push(`⚠️ ATENCIÓN: Tiempo promedio de ${avgTotalMinutes} min (supera la meta de 15 min). ${delayedPct}% de demoras.`);
+        } else {
+            diagnosis.push(`✅ ÓPTIMO: Tiempo promedio de ${avgTotalMinutes} min. El ${onTimePct}% de los pedidos salió dentro de la meta.`);
+        }
+
+        if (avgQueueMinutes >= 10 && avgQueueMinutes > avgCookingMinutes) {
+            diagnosis.push(`⏳ Cuello de botella en ESPERA PREVIA: Las comandas pasan ${avgQueueMinutes} min en cola antes de que empiece la cocción.`);
+        }
+
+        if (peakDelayHour && peakDelayHour.avgMinutes >= 20) {
+            diagnosis.push(`🔥 Franja de saturación: ${peakDelayHour.label} hs promedia ${peakDelayHour.avgMinutes} min con ${peakDelayHour.delayedCount + peakDelayHour.criticalCount} órdenes demoradas.`);
+        }
+
+        if (topBottleneckProducts.length > 0) {
+            diagnosis.push(`🍔 Producto con más demoras: "${topBottleneckProducts[0].name}" (presente en ${topBottleneckProducts[0].delayedOrders} órdenes demoradas).`);
+        }
+    }
+
+    // Ordenar orderTimes por created_at desc
+    orderTimes.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    return {
+        orderTimes,
+        totalOrders: orders.length,
+        totalRealisticOrders,
+        avgTotalMinutes,
+        avgQueueMinutes,
+        avgCookingMinutes,
+        onTimeCount,
+        onTimePct,
+        delayedCount,
+        criticalCount,
+        delayedPct,
+        hourlyMap,
+        topBottleneckProducts,
+        modalityMap,
+        peakDelayHour,
+        diagnosis
     };
 }
 
@@ -444,6 +697,7 @@ export const reportService = {
     getAnalyticsByRange,
     getDayFullConsolidated,
     ensureChartJS,
-    printThermalReport
+    printThermalReport,
+    calculateKitchenPerformance
 };
 

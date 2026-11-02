@@ -420,10 +420,47 @@ export async function exportConsolidatedReportExcel(analyticsData, periodLabel =
     gastosRows.push(['', '', '', 'TOTAL GASTOS', totalExpenses]);
     buildBurgameSheet(wsGastos, gastosRows, { imageRows: 5 });
 
+    // 5. Tiempos de Cocina KDS (si está disponible)
+    const logoSheetsList = ['Resumen', 'Ventas', 'Productos', 'Gastos'];
+    if (analyticsData.kitchenPerformance) {
+        const kp = analyticsData.kitchenPerformance;
+        const wsKds = wb.addWorksheet('Tiempos Cocina');
+        logoSheetsList.push('Tiempos Cocina');
+        const kdsRows = [
+            [''], [''], [''], [''], [''],
+            ['INDICADORES DE RENDIMIENTO DE COCINA — KDS'],
+            [''],
+            ['Tiempo Promedio de Despacho (Minutos):', kp.avgTotalMinutes],
+            ['Tiempo Promedio en Cola (Antes de Plancha):', kp.avgQueueMinutes],
+            ['Tiempo Promedio de Cocción (Plancha Activa):', kp.avgCookingMinutes],
+            ['Total Comandas Evaluadas:', kp.totalRealisticOrders],
+            ['Comandas a Tiempo (< 15m):', `${kp.onTimeCount} (${kp.onTimePct}%)`],
+            ['Comandas Demoradas (> 15m):', `${kp.delayedCount + kp.criticalCount} (${kp.delayedPct}%)`],
+            [''],
+            ['--- DETALLE DE COMANDAS AUDITADAS ---'],
+            ['# COMANDA', 'FECHA Y HORA', 'CLIENTE', 'MODALIDAD', 'ESTADO', 'ESPERA TOTAL (MIN)', 'EN COLA (MIN)', 'COCCIÓN (MIN)', 'NIVEL DEMORA', 'PRODUCTOS']
+        ];
+        (kp.orderTimes || []).slice(0, 500).forEach(o => {
+            kdsRows.push([
+                `#${o.order_number}`,
+                o.created_at ? new Date(o.created_at).toLocaleString('es-PY') : '—',
+                o.customer_name || 'Mostrador / Mesa',
+                o.modalityLabel || 'General',
+                o.status ? o.status.toUpperCase() : '—',
+                o.totalMinutes !== null ? o.totalMinutes : 'En proceso',
+                o.queueMinutes !== null ? o.queueMinutes : '—',
+                o.cookingMinutes !== null ? o.cookingMinutes : '—',
+                o.delayBadge || '—',
+                o.itemsSummary || '—'
+            ]);
+        });
+        buildBurgameSheet(wsKds, kdsRows, { firstRowIsTitle: true, imageRows: 5 });
+    }
+
     // Descarga con branding
     const safeDateStr = (periodLabel || 'Reporte').replace(/[^a-zA-Z0-9_-]/g, '_');
     await downloadBurgameExcel(wb, `Burgame_Reporte_${safeDateStr}.xlsx`, {
-        logoSheets: ['Resumen', 'Ventas', 'Productos', 'Gastos'],
+        logoSheets: logoSheetsList,
         bannerSheet: 'Resumen'
     });
 }
@@ -617,4 +654,144 @@ export async function exportClubToExcel(members = [], allMemberships = []) {
     });
 }
 
+/**
+ * Exporta reporte de tiempos de preparación y cuellos de botella de cocina en formato Excel oficial.
+ * @param {Object} kitchenData Objeto generado por calculateKitchenPerformance
+ * @param {string} periodLabel Etiqueta del período (ej: "Hoy", "Ayer", "2026-10-01_al_2026-10-31")
+ */
+export async function exportKitchenTimesExcel(kitchenData, periodLabel = '') {
+    const ExcelJS = await loadExcelJS();
+    const wb = new ExcelJS.Workbook();
+    const fmtDateTime = (d) => d ? new Date(d).toLocaleString('es-PY') : '—';
+    const fmtTime = (d) => d ? new Date(d).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' }) : '—';
+
+    const {
+        avgTotalMinutes = 0,
+        avgQueueMinutes = 0,
+        avgCookingMinutes = 0,
+        totalRealisticOrders = 0,
+        onTimeCount = 0,
+        onTimePct = 0,
+        delayedCount = 0,
+        criticalCount = 0,
+        delayedPct = 0,
+        hourlyMap = [],
+        topBottleneckProducts = [],
+        diagnosis = [],
+        orderTimes = []
+    } = kitchenData || {};
+
+    // 1. Hoja Resumen Ejecutivo KDS
+    const wsResumen = wb.addWorksheet('Resumen Tiempos');
+    const resumenRows = [
+        [''], [''], [''], [''], [''],
+        ['AUDITORÍA DE TIEMPOS Y RENDIMIENTO DE COCINA (KDS) — BURGAME'],
+        [''],
+        ['Período / Fecha:', periodLabel || 'Período Seleccionado'],
+        ['Generado el:', new Date().toLocaleString('es-PY')],
+        ['Sucursal / Local:', 'Burgame Central — Pantalla KDS'],
+        [''],
+        ['--- INDICADORES CLAVE DE DESPACHO Y EFICIENCIA ---'],
+        ['Tiempo Promedio de Espera Total (Minutos):', avgTotalMinutes],
+        ['Tiempo Promedio en Cola (Antes de Iniciar Plancha):', avgQueueMinutes],
+        ['Tiempo Promedio de Cocción (Plancha Activa):', avgCookingMinutes],
+        ['Total Comandas Evaluadas:', totalRealisticOrders],
+        ['Comandas a Tiempo (< 15 min):', `${onTimeCount} (${onTimePct}%)`],
+        ['Comandas Demoradas (15 a 25 min):', `${delayedCount} (${totalRealisticOrders > 0 ? Math.round((delayedCount / totalRealisticOrders) * 100) : 0}%)`],
+        ['Comandas Críticas (> 25 min):', `${criticalCount} (${totalRealisticOrders > 0 ? Math.round((criticalCount / totalRealisticOrders) * 100) : 0}%)`],
+        ['Tasa Global de Demoras (> 15 min):', `${delayedPct}%`],
+        [''],
+        ['--- DIAGNÓSTICO OPERATIVO AUTOMÁTICO ---']
+    ];
+
+    diagnosis.forEach(diag => {
+        resumenRows.push(['•', diag]);
+    });
+
+    resumenRows.push(['']);
+    resumenRows.push(['--- RENDIMIENTO POR FRANJA HORARIA (AMERICA/ASUNCION) ---']);
+    resumenRows.push(['HORA', 'TOTAL COMANDAS', 'TIEMPO PROMEDIO (MIN)', 'DEMORADOS (>15M)', 'CRÍTICOS (>25M)']);
+
+    hourlyMap.filter(h => h.count > 0).forEach(h => {
+        resumenRows.push([
+            h.label,
+            h.count,
+            h.avgMinutes,
+            h.delayedCount,
+            h.criticalCount
+        ]);
+    });
+
+    buildBurgameSheet(wsResumen, resumenRows, { firstRowIsTitle: true, imageRows: 5 });
+
+    // 2. Hoja Auditoría Comanda x Comanda
+    const wsDetalle = wb.addWorksheet('Comandas Auditadas');
+    const detalleHeader = [
+        '# COMANDA',
+        'FECHA Y HORA PEDIDO',
+        'CLIENTE',
+        'MODALIDAD',
+        'ESTADO',
+        'INICIO PLANCHA',
+        'LISTO EN BARRA',
+        'TIEMPO TOTAL (MIN)',
+        'TIEMPO EN COLA (MIN)',
+        'TIEMPO PLANCHA (MIN)',
+        'NIVEL DE DEMORA',
+        'PRODUCTOS Y COMANDAS',
+        'NOTAS DE COCINA'
+    ];
+    const detalleRows = [[''], [''], [''], [''], [''], detalleHeader];
+
+    orderTimes.forEach(o => {
+        const row = [
+            `#${o.order_number}`,
+            fmtDateTime(o.created_at),
+            o.customer_name || 'Mostrador / Mesa',
+            o.modalityLabel || 'General',
+            o.status ? o.status.toUpperCase() : '—',
+            fmtTime(o.preparing_at),
+            fmtTime(o.ready_at || o.delivered_at),
+            o.totalMinutes !== null ? o.totalMinutes : 'En proceso',
+            o.queueMinutes !== null ? o.queueMinutes : '—',
+            o.cookingMinutes !== null ? o.cookingMinutes : '—',
+            o.delayBadge || '—',
+            o.itemsSummary || '—',
+            o.notes || '—'
+        ];
+        detalleRows.push(row);
+    });
+
+    buildBurgameSheet(wsDetalle, detalleRows, { imageRows: 5 });
+
+    // 3. Hoja Cuellos de Botella por Producto
+    const wsProductos = wb.addWorksheet('Cuellos de Botella');
+    const prodHeader = [
+        'PRODUCTO',
+        'TOTAL PREPARADOS',
+        'VECES EN PEDIDOS DEMORADOS',
+        '% APARICIÓN EN DEMORAS',
+        'TIEMPO PROMEDIO CUANDO SE PIDIÓ (MIN)'
+    ];
+    const prodRows = [[''], [''], [''], [''], [''], prodHeader];
+
+    topBottleneckProducts.forEach(p => {
+        prodRows.push([
+            p.name,
+            p.totalPrepared,
+            p.delayedOrders,
+            `${p.pctDelayed}%`,
+            p.avgWaitWhenDelayed
+        ]);
+    });
+
+    buildBurgameSheet(wsProductos, prodRows, { imageRows: 5 });
+
+    // Descarga oficial
+    const cleanLabel = (periodLabel || 'Reporte').replace(/[^a-zA-Z0-9_-]/g, '_');
+    await downloadBurgameExcel(wb, `Auditoria_Tiempos_Cocina_Burgame_${cleanLabel}.xlsx`, {
+        logoSheets: ['Resumen Tiempos', 'Comandas Auditadas'],
+        bannerSheet: 'Resumen Tiempos'
+    });
+}
 

@@ -2,7 +2,7 @@ import { reportService } from '../services/report-service.js';
 import { orderService } from '../services/order-service.js';
 import { formatGs } from '../components/currency.js';
 import { showToast } from '../components/toast.js';
-import { exportConsolidatedReportExcel } from '../services/excel-export-service.js';
+import { exportConsolidatedReportExcel, exportKitchenTimesExcel } from '../services/excel-export-service.js';
 import {
     getParaguayToday,
     getParaguayIsoRange,
@@ -29,6 +29,9 @@ let auditSearch = '';
 // Referencias a instancias de Chart.js para evitar memory leaks o canvas collision
 let salesChartInstance = null;
 let paymentsChartInstance = null;
+let kitchenChartInstance = null;
+let kitchenFilterDelay = 'all';
+let kitchenSearch = '';
 
 export async function renderReportesPage() {
     const container = document.createElement('div');
@@ -267,6 +270,10 @@ function destroyCharts() {
     if (paymentsChartInstance) {
         paymentsChartInstance.destroy();
         paymentsChartInstance = null;
+    }
+    if (kitchenChartInstance) {
+        kitchenChartInstance.destroy();
+        kitchenChartInstance = null;
     }
 }
 
@@ -879,4 +886,436 @@ function bindReportToolbar(body) {
 }
 
 
+// ============================================================
+// Vista 4: Tiempos y Rendimiento de Cocina (KDS Analytics)
+// ============================================================
+async function renderKitchenView(body, kpiHtml, kitchenData, container) {
+    if (!kitchenData) {
+        body.innerHTML = `
+            <div class="card p-4 text-center">
+                <p>No se encontraron datos de tiempos para el período seleccionado.</p>
+            </div>
+        `;
+        return;
+    }
+
+    const {
+        avgTotalMinutes = 0,
+        avgQueueMinutes = 0,
+        avgCookingMinutes = 0,
+        totalRealisticOrders = 0,
+        onTimeCount = 0,
+        onTimePct = 0,
+        delayedCount = 0,
+        criticalCount = 0,
+        delayedPct = 0,
+        topBottleneckProducts = [],
+        modalityMap = {},
+        diagnosis = [],
+        orderTimes = []
+    } = kitchenData;
+
+    let generalBadge = '';
+    if (avgTotalMinutes >= 25) {
+        generalBadge = '<span class="badge badge--danger" style="font-size: 0.85rem; padding: 0.35rem 0.8rem; font-weight: 800;">🔴 ESTADO CRÍTICO (>25m)</span>';
+    } else if (avgTotalMinutes >= 15) {
+        generalBadge = '<span class="badge badge--warning" style="font-size: 0.85rem; padding: 0.35rem 0.8rem; font-weight: 800; color: #000; background: #FF9100;">🟠 DEMORAS FRECUENTES (15-25m)</span>';
+    } else {
+        generalBadge = '<span class="badge badge--success" style="font-size: 0.85rem; padding: 0.35rem 0.8rem; font-weight: 800;">🟢 RITMO ÓPTIMO (<15m)</span>';
+    }
+
+    // Filtrar comandas según buscador y filtro de retraso
+    let filteredOrders = orderTimes.filter(o => {
+        if (kitchenFilterDelay === 'delayed') return o.delayCategory === 'delayed' || o.delayCategory === 'critical';
+        if (kitchenFilterDelay === 'critical') return o.delayCategory === 'critical';
+        if (kitchenFilterDelay === 'ontime') return o.delayCategory === 'optimal' || o.delayCategory === 'normal';
+        return true;
+    });
+
+    if (kitchenSearch.trim()) {
+        const q = kitchenSearch.toLowerCase().trim();
+        filteredOrders = filteredOrders.filter(o =>
+            String(o.order_number).includes(q) ||
+            (o.customer_name || '').toLowerCase().includes(q) ||
+            (o.itemsSummary || '').toLowerCase().includes(q) ||
+            (o.notes || '').toLowerCase().includes(q)
+        );
+    }
+
+    body.innerHTML = `
+        <!-- KPI Cards KDS -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+            <div class="card" style="border-left: 4px solid ${avgTotalMinutes >= 20 ? '#FF3D71' : (avgTotalMinutes >= 15 ? '#FF9100' : '#00E676')};">
+                <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">⏱️ Tiempo Promedio Despacho</span>
+                <h2 style="color: ${avgTotalMinutes >= 20 ? '#FF3D71' : (avgTotalMinutes >= 15 ? '#FF9100' : '#00E676')}; margin-top: 0.35rem; font-size: 1.7rem; font-family: var(--font-mono);">
+                    ${avgTotalMinutes} <span style="font-size: 0.9rem;">min</span>
+                </h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.2rem;">
+                    <span style="font-size: 0.72rem; color: var(--text-muted);">Meta óptima: &lt; 15 min</span>
+                    ${generalBadge}
+                </div>
+            </div>
+
+            <div class="card" style="border-left: 4px solid #FF3D71;">
+                <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">🚨 Pedidos Demorados (>15m)</span>
+                <h2 style="color: #FF3D71; margin-top: 0.35rem; font-size: 1.7rem; font-family: var(--font-mono);">
+                    ${delayedPct}% <span style="font-size: 0.85rem; color: var(--text-muted);">(${delayedCount + criticalCount}/${totalRealisticOrders})</span>
+                </h2>
+                <span style="font-size: 0.72rem; color: #FF5252; font-weight: 700;">
+                    Críticos (>25m): ${criticalCount} pedidos
+                </span>
+            </div>
+
+            <div class="card" style="border-left: 4px solid #00E5FF;">
+                <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">⏳ Espera en Cola vs Plancha</span>
+                <div style="display: flex; gap: 1rem; align-items: baseline; margin-top: 0.35rem;">
+                    <div>
+                        <div style="font-family: var(--font-mono); font-size: 1.25rem; color: #00E5FF; font-weight: 800;">
+                            ${avgQueueMinutes}m
+                        </div>
+                        <div style="font-size: 0.68rem; color: var(--text-muted);">Cola (Antes de plancha)</div>
+                    </div>
+                    <div style="color: var(--text-muted); font-size: 1.2rem;">/</div>
+                    <div>
+                        <div style="font-family: var(--font-mono); font-size: 1.25rem; color: var(--color-primary); font-weight: 800;">
+                            ${avgCookingMinutes}m
+                        </div>
+                        <div style="font-size: 0.68rem; color: var(--text-muted);">Cocción (En fuego)</div>
+                    </div>
+                </div>
+                <span style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.2rem; display: block;">
+                    ${avgQueueMinutes > avgCookingMinutes ? '⚠️ Se pierde más tiempo en espera que cocinando' : '🔥 Ritmo de plancha sincronizado'}
+                </span>
+            </div>
+
+            <div class="card" style="border-left: 4px solid var(--color-primary);">
+                <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">📦 Comandas y Efectividad</span>
+                <h2 style="color: var(--color-primary); margin-top: 0.35rem; font-size: 1.7rem; font-family: var(--font-mono);">
+                    ${onTimePct}% <span style="font-size: 0.85rem; color: #00E676;">a tiempo</span>
+                </h2>
+                <span style="font-size: 0.72rem; color: var(--text-muted);">
+                    ${onTimeCount} pedidos dentro del rango óptimo
+                </span>
+            </div>
+        </div>
+
+        <!-- Diagnóstico Operativo Automático & Botón Exportar -->
+        <div style="background: radial-gradient(circle at 10% 50%, rgba(255, 215, 0, 0.08) 0%, rgba(10, 11, 14, 0.95) 100%); border: 1.5px solid var(--border-gold); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+            <div style="flex: 1; min-width: 280px;">
+                <h3 style="font-family: var(--font-title); font-size: 0.85rem; color: var(--color-primary); margin: 0 0 0.5rem 0; display: flex; align-items: center; gap: 0.4rem;">
+                    💡 DIAGNÓSTICO INTELIGENTE DE CUELLOS DE BOTELLA
+                </h3>
+                <div style="display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.84rem; color: var(--text-main);">
+                    ${diagnosis.map(d => `<div style="display: flex; align-items: flex-start; gap: 0.4rem;"><span>•</span> <span>${d}</span></div>`).join('')}
+                </div>
+            </div>
+            <button id="btn-export-kitchen-times" class="btn btn--primary" style="font-weight: 800; font-size: 0.85rem; padding: 0.65rem 1.2rem; box-shadow: 0 0 16px var(--color-primary-glow); white-space: nowrap;">
+                📥 Exportar Auditoría KDS a Excel
+            </button>
+        </div>
+
+        <!-- Gráfico de Tiempos por Franja Horaria -->
+        <div class="card" style="margin-bottom: 1.5rem; padding: 1.25rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                <div>
+                    <h3 style="color: var(--color-primary); font-size: 0.95rem; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                        📊 Tiempo Promedio de Espera por Hora del Día
+                    </h3>
+                    <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0.2rem 0 0 0;">
+                        Visualiza qué horas saturan la plancha y superan la meta de 15 minutos (horas en rojo/naranja).
+                    </p>
+                </div>
+                <span style="font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono);">
+                    Zona Horaria: Paraguay (America/Asuncion)
+                </span>
+            </div>
+            <div style="position: relative; height: 260px; width: 100%;">
+                <canvas id="chart-kitchen-hourly"></canvas>
+            </div>
+        </div>
+
+        <!-- Dos Columnas: Cuellos de Botella por Producto y Desglose por Modalidad -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+            <!-- Cuellos de Botella por Producto -->
+            <div class="card" style="padding: 1.25rem;">
+                <h3 style="color: var(--color-primary); font-size: 0.92rem; margin: 0 0 0.4rem 0; display: flex; align-items: center; gap: 0.4rem;">
+                    🍔 Productos con Mayor Incidencia en Demoras
+                </h3>
+                <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.85rem;">
+                    Artículos que estuvieron presentes más veces en órdenes con &gt;15 min de retraso.
+                </p>
+                ${topBottleneckProducts.length === 0 ? `
+                    <div style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 1.5rem 0;">
+                        ✨ No se registraron productos demorados en este período
+                    </div>
+                ` : `
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        ${topBottleneckProducts.slice(0, 6).map(p => `
+                            <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 4px; padding: 0.55rem 0.8rem; display: flex; justify-content: space-between; align-items: center;">
+                                <div style="min-width: 0; flex: 1;">
+                                    <div style="font-weight: 700; font-size: 0.85rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                        ${p.name}
+                                    </div>
+                                    <div style="font-size: 0.72rem; color: var(--text-muted);">
+                                        Preparados: ${p.totalPrepared} · En demoras: <strong style="color: #FF3D71;">${p.delayedOrders} veces</strong> (${p.pctDelayed}%)
+                                    </div>
+                                </div>
+                                <span style="font-family: var(--font-mono); font-size: 0.82rem; color: #FF9100; font-weight: 800; margin-left: 0.5rem;">
+                                    ~${p.avgWaitWhenDelayed}m
+                                </span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `}
+            </div>
+
+            <!-- Desglose por Modalidad (Salón vs Llevar vs Delivery) -->
+            <div class="card" style="padding: 1.25rem;">
+                <h3 style="color: var(--color-primary); font-size: 0.92rem; margin: 0 0 0.4rem 0; display: flex; align-items: center; gap: 0.4rem;">
+                    🍽️ Comparativa por Modalidad de Pedido
+                </h3>
+                <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.85rem;">
+                    Tiempo promedio y porcentaje de pedidos retrasados según servicio.
+                </p>
+                <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+                    ${['salon', 'llevar', 'delivery', 'other'].map(k => {
+                        const m = modalityMap[k] || { count: 0, totalWait: 0, delayed: 0, label: k };
+                        const avg = m.count > 0 ? Math.round((m.totalWait / m.count) * 10) / 10 : 0;
+                        const pctDel = m.count > 0 ? Math.round((m.delayed / m.count) * 100) : 0;
+                        return `
+                            <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 4px; padding: 0.65rem 0.85rem;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                                    <strong style="color: var(--text-main); font-size: 0.85rem;">${m.label}</strong>
+                                    <span style="font-family: var(--font-mono); font-size: 0.95rem; font-weight: 800; color: ${avg >= 20 ? '#FF3D71' : (avg >= 15 ? '#FF9100' : '#00E676')};">
+                                        ${avg} min
+                                    </span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text-muted);">
+                                    <span>Total: ${m.count} pedidos</span>
+                                    <span style="color: ${pctDel >= 40 ? '#FF3D71' : 'var(--text-muted)'}; font-weight: 600;">Demorados: ${m.delayed} (${pctDel}%)</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla Completa de Auditoría Comanda x Comanda -->
+        <div class="card" style="padding: 1.25rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
+                <div>
+                    <h3 style="color: var(--color-primary); font-size: 0.95rem; margin: 0; display: flex; align-items: center; gap: 0.4rem;">
+                        🧾 Auditoría Detallada de Tiempos Comanda por Comanda
+                    </h3>
+                    <span style="font-size: 0.75rem; color: var(--text-muted);">
+                        Mostrando ${filteredOrders.length} de ${orderTimes.length} comandas
+                    </span>
+                </div>
+
+                <!-- Filtros y Buscador -->
+                <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                    <div style="display: flex; gap: 0.25rem;">
+                        <button class="btn btn--sm ${kitchenFilterDelay === 'all' ? 'btn--primary' : 'btn--secondary'} btn-kds-filter" data-filter="all" style="font-size: 0.74rem;">
+                            Todas
+                        </button>
+                        <button class="btn btn--sm ${kitchenFilterDelay === 'delayed' ? 'btn--primary' : 'btn--secondary'} btn-kds-filter" data-filter="delayed" style="font-size: 0.74rem;">
+                            Demoradas (&gt;15m)
+                        </button>
+                        <button class="btn btn--sm ${kitchenFilterDelay === 'critical' ? 'btn--primary' : 'btn--secondary'} btn-kds-filter" data-filter="critical" style="font-size: 0.74rem;">
+                            Críticas (&gt;25m)
+                        </button>
+                    </div>
+                    <input type="text" id="input-kds-search" placeholder="🔍 Buscar #pedido o cliente..." value="${kitchenSearch}" style="background: #0E1017; border: 1px solid var(--border-subtle); color: #FFF; padding: 0.35rem 0.65rem; border-radius: 4px; font-size: 0.78rem; width: 180px;">
+                </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid var(--border-gold); text-align: left; color: var(--color-primary); font-size: 0.74rem; text-transform: uppercase;">
+                            <th style="padding: 0.5rem 0.6rem;"># Comanda</th>
+                            <th style="padding: 0.5rem 0.6rem;">Cliente / Mesa</th>
+                            <th style="padding: 0.5rem 0.6rem;">Modalidad</th>
+                            <th style="padding: 0.5rem 0.6rem;">Hora Pedido</th>
+                            <th style="padding: 0.5rem 0.6rem;">Inicio Plancha</th>
+                            <th style="padding: 0.5rem 0.6rem;">Listo en Barra</th>
+                            <th style="padding: 0.5rem 0.6rem; text-align: center;">Espera Total</th>
+                            <th style="padding: 0.5rem 0.6rem; text-align: center;">En Cola</th>
+                            <th style="padding: 0.5rem 0.6rem; text-align: center;">Plancha</th>
+                            <th style="padding: 0.5rem 0.6rem;">Nivel Demora</th>
+                            <th style="padding: 0.5rem 0.6rem;">Productos</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filteredOrders.length === 0 ? `
+                            <tr>
+                                <td colspan="11" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                                    No se encontraron comandas con el filtro aplicado.
+                                </td>
+                            </tr>
+                        ` : filteredOrders.slice(0, 100).map(o => {
+                            const timeOrder = o.created_at ? new Date(o.created_at).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' }) : '—';
+                            const timePrep = o.preparing_at ? new Date(o.preparing_at).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' }) : '—';
+                            const timeReady = (o.ready_at || o.delivered_at) ? new Date(o.ready_at || o.delivered_at).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' }) : '—';
+
+                            return `
+                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); ${o.delayCategory === 'critical' ? 'background: rgba(255, 61, 113, 0.05);' : ''}">
+                                    <td style="padding: 0.55rem 0.6rem; font-weight: 800; font-family: var(--font-mono); color: var(--color-primary);">
+                                        #${o.order_number}
+                                    </td>
+                                    <td style="padding: 0.55rem 0.6rem; font-weight: 700; color: var(--text-main);">
+                                        ${o.customer_name}
+                                    </td>
+                                    <td style="padding: 0.55rem 0.6rem; color: var(--text-muted); font-size: 0.75rem;">
+                                        ${o.modalityLabel}
+                                    </td>
+                                    <td style="padding: 0.55rem 0.6rem; font-family: var(--font-mono); color: var(--text-muted);">
+                                        ${timeOrder}
+                                    </td>
+                                    <td style="padding: 0.55rem 0.6rem; font-family: var(--font-mono); color: var(--text-muted);">
+                                        ${timePrep}
+                                    </td>
+                                    <td style="padding: 0.55rem 0.6rem; font-family: var(--font-mono); color: var(--text-muted);">
+                                        ${timeReady}
+                                    </td>
+                                    <td style="padding: 0.55rem 0.6rem; text-align: center; font-family: var(--font-mono); font-weight: 800; color: ${o.delayColor}; font-size: 0.9rem;">
+                                        ${o.totalMinutes !== null ? o.totalMinutes + 'm' : 'En marcha'}
+                                    </td>
+                                    <td style="padding: 0.55rem 0.6rem; text-align: center; font-family: var(--font-mono); color: var(--text-muted);">
+                                        ${o.queueMinutes !== null ? o.queueMinutes + 'm' : '—'}
+                                    </td>
+                                    <td style="padding: 0.55rem 0.6rem; text-align: center; font-family: var(--font-mono); color: var(--text-muted);">
+                                        ${o.cookingMinutes !== null ? o.cookingMinutes + 'm' : '—'}
+                                    </td>
+                                    <td style="padding: 0.55rem 0.6rem;">
+                                        <span style="background: ${o.delayColor}22; border: 1px solid ${o.delayColor}; color: ${o.delayColor}; padding: 2px 6px; border-radius: 4px; font-size: 0.72rem; font-weight: 800; white-space: nowrap;">
+                                            ${o.delayBadge}
+                                        </span>
+                                    </td>
+                                    <td style="padding: 0.55rem 0.6rem; color: var(--text-muted); font-size: 0.75rem; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${o.itemsSummary}">
+                                        ${o.itemsSummary}
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+            ${filteredOrders.length > 100 ? `
+                <div style="font-size: 0.75rem; color: var(--text-muted); text-align: center; margin-top: 0.8rem;">
+                    💡 Mostrando las primeras 100 comandas. Para el análisis completo descarga el archivo Excel.
+                </div>
+            ` : ''}
+        </div>
+    `;
+
+    // Eventos de la vista
+    body.querySelector('#btn-export-kitchen-times')?.addEventListener('click', async () => {
+        const btn = body.querySelector('#btn-export-kitchen-times');
+        const orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Exportando Excel...';
+
+        try {
+            let periodLabel = selectedPeriod;
+            if (selectedPeriod === 'custom') {
+                periodLabel = `${customStartDate}_al_${customEndDate}`;
+            }
+            await exportKitchenTimesExcel(kitchenData, periodLabel);
+            showToast({ message: '✅ Auditoría de Tiempos de Cocina exportada a Excel', type: 'success' });
+        } catch (err) {
+            console.error('Error exportando tiempos a Excel:', err);
+            showToast({ message: 'Error exportando Excel: ' + err.message, type: 'error' });
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = orig;
+        }
+    });
+
+    // Filtros de nivel de demora
+    body.querySelectorAll('.btn-kds-filter').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            kitchenFilterDelay = e.currentTarget.dataset.filter;
+            renderKitchenView(body, kpiHtml, kitchenData, container);
+        });
+    });
+
+    // Buscador interactivo
+    let searchDebounce = null;
+    body.querySelector('#input-kds-search')?.addEventListener('input', (e) => {
+        clearTimeout(searchDebounce);
+        searchDebounce = setTimeout(() => {
+            kitchenSearch = e.target.value;
+            renderKitchenView(body, kpiHtml, kitchenData, container);
+        }, 200);
+    });
+
+    // Renderizar gráfico interactivo de barras de horas con Chart.js
+    await initKitchenChart(kitchenData);
+}
+
+async function initKitchenChart(kitchenData) {
+    try {
+        const ChartClass = await reportService.ensureChartJS();
+        if (!ChartClass) return;
+
+        const canvas = document.getElementById('chart-kitchen-hourly');
+        if (!canvas) return;
+
+        const hourlyMap = kitchenData.hourlyMap || [];
+        // Filtrar para mostrar horas con actividad o franja vespertina/nocturna
+        const activeHours = hourlyMap.filter(h => h.count > 0 || (h.hour >= 18 && h.hour <= 23));
+        const labels = activeHours.map(h => h.label);
+        const avgData = activeHours.map(h => h.avgMinutes);
+
+        kitchenChartInstance = new ChartClass(canvas, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: 'Tiempo Promedio (Minutos)',
+                        data: avgData,
+                        backgroundColor: avgData.map(v => v >= 25 ? 'rgba(255, 61, 113, 0.85)' : (v >= 15 ? 'rgba(255, 145, 0, 0.85)' : 'rgba(0, 230, 118, 0.85)')),
+                        borderColor: avgData.map(v => v >= 25 ? '#FF3D71' : (v >= 15 ? '#FF9100' : '#00E676')),
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#A0A5B5',
+                            font: { family: "'Inter', sans-serif", size: 11 }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => ` Tiempo promedio: ${ctx.raw} min`
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        title: { display: true, text: 'Minutos Promedio', color: '#A0A5B5' },
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: { color: '#A0A5B5' },
+                        suggestedMax: 30
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#A0A5B5' }
+                    }
+                }
+            }
+        });
+    } catch (err) {
+        console.warn('Error inicializando gráfico de cocina:', err);
+    }
+}
 
