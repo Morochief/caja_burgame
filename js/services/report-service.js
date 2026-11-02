@@ -1,6 +1,7 @@
 import { supabase } from '../supabase-client.js';
 import {
     getParaguayToday,
+    formatParaguayTime,
     formatParaguayDate,
     getParaguayHour,
     getParaguayIsoRange,
@@ -408,13 +409,17 @@ export function calculateKitchenPerformance(orders = []) {
                     .trim();
                 const qty = item.quantity || 1;
 
-                if (!productDelays[pName]) {
-                    productDelays[pName] = { name: pName, totalPrepared: 0, delayedOrders: 0, totalWaitSum: 0 };
-                }
-                productDelays[pName].totalPrepared += qty;
-                if (totalMinutes >= 15) {
-                    productDelays[pName].delayedOrders++;
-                    productDelays[pName].totalWaitSum += totalMinutes;
+                // Filtrar bebidas comunes para centrar el cuello de botella en cocina/hamburguesas
+                const isBeverage = /^(coca|sprite|fanta|agua|cerveza|gaseosa|jugo|bebida|schweppes|heineken|pilsen|budweiser)/i.test(pName);
+                if (!isBeverage) {
+                    if (!productDelays[pName]) {
+                        productDelays[pName] = { name: pName, totalPrepared: 0, delayedOrders: 0, totalWaitSum: 0 };
+                    }
+                    productDelays[pName].totalPrepared += qty;
+                    if (totalMinutes >= 15) {
+                        productDelays[pName].delayedOrders++;
+                        productDelays[pName].totalWaitSum += totalMinutes;
+                    }
                 }
             });
         }
@@ -433,6 +438,10 @@ export function calculateKitchenPerformance(orders = []) {
             preparing_at: order.preparing_at,
             ready_at: order.ready_at,
             delivered_at: order.delivered_at,
+            createdAtFormatted: order.created_at ? formatParaguayTime(order.created_at) : '—',
+            preparingAtFormatted: order.preparing_at ? formatParaguayTime(order.preparing_at) : '—',
+            readyAtFormatted: order.ready_at ? formatParaguayTime(order.ready_at) : (order.delivered_at ? formatParaguayTime(order.delivered_at) : '—'),
+            productsSummary: itemsSummary,
             totalMinutes: totalMinutes !== null ? Math.round(totalMinutes * 10) / 10 : null,
             queueMinutes: queueMinutes !== null ? Math.round(queueMinutes * 10) / 10 : null,
             cookingMinutes: cookingMinutes !== null ? Math.round(cookingMinutes * 10) / 10 : null,
@@ -463,7 +472,8 @@ export function calculateKitchenPerformance(orders = []) {
         .map(p => ({
             ...p,
             pctDelayed: p.totalPrepared > 0 ? Math.round((p.delayedOrders / p.totalPrepared) * 100) : 0,
-            avgWaitWhenDelayed: p.delayedOrders > 0 ? Math.round((p.totalWaitSum / p.delayedOrders) * 10) / 10 : 0
+            avgWaitWhenDelayed: p.delayedOrders > 0 ? Math.round((p.totalWaitSum / p.delayedOrders) * 10) / 10 : 0,
+            avgDelayMinutes: p.delayedOrders > 0 ? Math.round((p.totalWaitSum / p.delayedOrders) * 10) / 10 : 0
         }))
         .sort((a, b) => b.delayedOrders - a.delayedOrders)
         .slice(0, 10);

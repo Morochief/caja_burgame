@@ -25,6 +25,8 @@ let auditOrders = [];
 let auditKitchenData = null;
 let auditFilterDelay = 'all'; // 'all' | 'optimal' | 'normal' | 'delayed' | 'critical'
 let auditSearch = '';
+let auditPage = 1;
+const AUDIT_PAGE_SIZE = 15;
 
 let hourlyChartInstance = null;
 let liveTimerInterval = null;
@@ -552,11 +554,72 @@ async function renderAuditView(main, container) {
             const q = auditSearch.toLowerCase();
             const num = String(o.id || '').toLowerCase();
             const cust = String(o.customer_name || '').toLowerCase();
-            const prods = String(o.productsSummary || '').toLowerCase();
+            const prods = String(o.productsSummary || o.itemsSummary || '').toLowerCase();
             if (!num.includes(q) && !cust.includes(q) && !prods.includes(q)) return false;
         }
         return true;
     });
+
+    // Paginación
+    const totalAuditOrders = filteredOrders.length;
+    const totalPages = Math.max(1, Math.ceil(totalAuditOrders / AUDIT_PAGE_SIZE));
+    if (auditPage > totalPages) auditPage = totalPages;
+    if (auditPage < 1) auditPage = 1;
+    const startIdx = (auditPage - 1) * AUDIT_PAGE_SIZE;
+    const pageOrders = filteredOrders.slice(startIdx, startIdx + AUDIT_PAGE_SIZE);
+
+    // Formatear Diagnóstico de forma ultra-robusta sin 'undefined'
+    const diagHtml = (diagnosis && diagnosis.length > 0) ? diagnosis.map(diag => {
+        let icon = '💡';
+        let type = 'warning';
+        let title = 'Diagnóstico Operativo';
+        let desc = '';
+
+        if (typeof diag === 'object' && diag !== null) {
+            icon = diag.icon || icon;
+            type = diag.type || type;
+            title = diag.title || title;
+            desc = diag.description || '';
+        } else if (typeof diag === 'string') {
+            desc = diag;
+            if (diag.includes('🚨') || diag.includes('CRÍTICO')) {
+                icon = '🚨'; type = 'danger'; title = 'Alerta Crítica de Demora';
+            } else if (diag.includes('⚠️') || diag.includes('ATENCIÓN')) {
+                icon = '⚠️'; type = 'warning'; title = 'Atención Requerida';
+            } else if (diag.includes('✅') || diag.includes('ÓPTIMO')) {
+                icon = '✅'; type = 'success'; title = 'Ritmo Operativo Óptimo';
+            } else if (diag.includes('⏳') || diag.includes('Cuello de botella')) {
+                icon = '⏳'; type = 'warning'; title = 'Demora en Cola Previa';
+            } else if (diag.includes('🔥') || diag.includes('saturación')) {
+                icon = '🔥'; type = 'danger'; title = 'Franja Horaria de Saturación';
+            } else if (diag.includes('🍔')) {
+                icon = '🍔'; type = 'warning'; title = 'Plato Crítico en Cocina';
+            }
+            desc = desc.replace(/^[^\w\s\u00C0-\u017F]+/u, '').trim();
+        }
+
+        return `
+            <div class="monitor-diagnosis-item monitor-diagnosis-item--${type}">
+                <span style="font-size: 1.25rem;">${icon}</span>
+                <div>
+                    <strong style="display: block; margin-bottom: 0.15rem;">${title}</strong>
+                    <span>${desc}</span>
+                </div>
+            </div>
+        `;
+    }).join('') : `
+        <div class="monitor-diagnosis-item monitor-diagnosis-item--success">
+            <span style="font-size: 1.25rem;">✅</span>
+            <div>
+                <strong>Operación Fluida</strong>
+                <span>No se detectaron anomalías severas de demora en la cocina para el período consultado.</span>
+            </div>
+        </div>
+    `;
+
+    // Filtrar para mostrar platos de cocina (excluyendo gaseosas / bebidas)
+    const kitchenBottlenecks = (topBottleneckProducts || []).filter(p => !/^(coca|sprite|fanta|agua|cerveza|gaseosa|jugo|bebida|schweppes|heineken|pilsen|budweiser)/i.test(p.name));
+    const bottleneckList = kitchenBottlenecks.length > 0 ? kitchenBottlenecks : (topBottleneckProducts || []);
 
     main.innerHTML = `
         <div class="monitor-audit-section">
@@ -596,39 +659,29 @@ async function renderAuditView(main, container) {
                         </h4>
                     </div>
                     <div class="monitor-diagnosis-list">
-                        ${diagnosis.length > 0 ? diagnosis.map(diag => `
-                            <div class="monitor-diagnosis-item monitor-diagnosis-item--${diag.type}">
-                                <span>${diag.icon}</span>
-                                <div>
-                                    <strong style="display: block; margin-bottom: 0.15rem;">${diag.title}</strong>
-                                    <span>${diag.description}</span>
-                                </div>
-                            </div>
-                        `).join('') : `
-                            <div class="monitor-diagnosis-item monitor-diagnosis-item--success">
-                                <span>✅</span>
-                                <div>
-                                    <strong>Operación Fluida</strong>
-                                    <span>No se detectaron anomalías severas de demora en la cocina para el período consultado.</span>
-                                </div>
-                            </div>
-                        `}
+                        ${diagHtml}
                     </div>
 
-                    <!-- Top 3 Hamburguesas / Platos Lentos -->
+                    <!-- Top 4 Hamburguesas / Platos Lentos -->
                     <div style="margin-top: 0.75rem; border-top: 1px solid var(--border-subtle); padding-top: 0.75rem;">
                         <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
                             🍔 Platos que más demoran en cocina:
                         </span>
                         <div style="display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.45rem;">
-                            ${topBottleneckProducts.slice(0, 3).map((p, idx) => `
-                                <div style="display: flex; justify-content: space-between; font-size: 0.78rem; background: rgba(255,255,255,0.02); padding: 0.3rem 0.5rem; border-radius: 4px;">
-                                    <span>${idx + 1}. ${p.name}</span>
-                                    <strong style="color: ${p.avgDelayMinutes >= 20 ? 'var(--color-danger)' : 'var(--color-warning)'}; font-family: var(--font-mono);">
-                                        ~${p.avgDelayMinutes} min
-                                    </strong>
-                                </div>
-                            `).join('') || '<span style="font-size: 0.75rem; color: var(--text-muted);">Sin datos suficientes</span>'}
+                            ${bottleneckList.slice(0, 4).map((p, idx) => {
+                                const avgMin = Math.round(p.avgDelayMinutes || p.avgWaitWhenDelayed || 0);
+                                return `
+                                    <div style="display: flex; justify-content: space-between; font-size: 0.78rem; background: rgba(255,255,255,0.02); padding: 0.35rem 0.55rem; border-radius: 4px; align-items: center;">
+                                        <span style="font-weight: 600;">${idx + 1}. ${p.name}</span>
+                                        <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                            <span style="font-size: 0.7rem; color: var(--text-muted);">(${p.delayedOrders} demoras)</span>
+                                            <strong style="color: ${avgMin >= 20 ? 'var(--color-danger)' : 'var(--color-warning)'}; font-family: var(--font-mono);">
+                                                ~${avgMin} min
+                                            </strong>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('') || '<span style="font-size: 0.75rem; color: var(--text-muted);">Sin platos demorados registrados</span>'}
                         </div>
                     </div>
                 </div>
@@ -675,13 +728,13 @@ async function renderAuditView(main, container) {
                         </tr>
                     </thead>
                     <tbody>
-                        ${filteredOrders.length === 0 ? `
+                        ${pageOrders.length === 0 ? `
                             <tr>
-                                <td colspan="11" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                                <td colspan="11" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
                                     No se encontraron pedidos con los filtros aplicados.
                                 </td>
                             </tr>
-                        ` : filteredOrders.map(row => {
+                        ` : pageOrders.map(row => {
                             const badgeSla = row.delayCategory === 'optimal'
                                 ? '<span class="monitor-badge-sla monitor-badge-sla--optimal">🟢 Óptimo (&lt;12m)</span>'
                                 : (row.delayCategory === 'normal'
@@ -691,17 +744,21 @@ async function renderAuditView(main, container) {
                                         : '<span class="monitor-badge-sla monitor-badge-sla--critical">🔴 Crítico (&gt;25m)</span>'));
 
                             const numStr = row.id ? String(row.id).slice(-4).toUpperCase() : '---';
+                            const horaPedido = row.createdAtFormatted || (row.created_at ? formatParaguayTime(row.created_at) : '—');
+                            const horaPlancha = row.preparingAtFormatted || (row.preparing_at ? formatParaguayTime(row.preparing_at) : '—');
+                            const horaListo = row.readyAtFormatted || (row.ready_at ? formatParaguayTime(row.ready_at) : (row.delivered_at ? formatParaguayTime(row.delivered_at) : '—'));
+                            const prods = row.productsSummary || row.itemsSummary || '—';
 
                             return `
                                 <tr>
                                     <td><strong style="color: var(--color-primary); font-family: var(--font-mono);">#${numStr}</strong></td>
                                     <td><strong>${row.customer_name || 'Mesa / Mostrador'}</strong></td>
                                     <td><span style="font-size: 0.72rem; padding: 0.15rem 0.45rem; background: rgba(255,255,255,0.06); border-radius: 3px;">${row.modalityLabel || 'General'}</span></td>
-                                    <td style="font-family: var(--font-mono); font-size: 0.78rem;">${row.createdAtFormatted}</td>
-                                    <td style="font-family: var(--font-mono); font-size: 0.78rem; color: ${row.preparingAtFormatted !== '—' ? '#FFB74D' : 'var(--text-muted)'};">${row.preparingAtFormatted}</td>
-                                    <td style="font-family: var(--font-mono); font-size: 0.78rem; color: ${row.readyAtFormatted !== '—' ? '#00E676' : 'var(--text-muted)'};">${row.readyAtFormatted}</td>
+                                    <td style="font-family: var(--font-mono); font-size: 0.78rem;">${horaPedido}</td>
+                                    <td style="font-family: var(--font-mono); font-size: 0.78rem; color: ${horaPlancha !== '—' ? '#FFB74D' : 'var(--text-muted)'};">${horaPlancha}</td>
+                                    <td style="font-family: var(--font-mono); font-size: 0.78rem; color: ${horaListo !== '—' ? '#00E676' : 'var(--text-muted)'};">${horaListo}</td>
                                     <td style="text-align: center; font-family: var(--font-mono); font-weight: 800; font-size: 0.85rem; color: ${row.totalMinutes >= 25 ? 'var(--color-danger)' : (row.totalMinutes >= 15 ? 'var(--color-warning)' : 'var(--color-success)')};">
-                                        ${row.totalMinutes !== null ? `${row.totalMinutes} min` : 'En curso'}
+                                        ${row.totalMinutes !== null ? `${row.totalMinutes} min` : 'Sin cerrar'}
                                     </td>
                                     <td style="text-align: center; font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted);">
                                         ${row.queueMinutes !== null ? `${row.queueMinutes}m` : '—'}
@@ -710,14 +767,32 @@ async function renderAuditView(main, container) {
                                         ${row.cookingMinutes !== null ? `${row.cookingMinutes}m` : '—'}
                                     </td>
                                     <td>${badgeSla}</td>
-                                    <td style="max-width: 250px; font-size: 0.76rem; color: var(--text-dim);" title="${row.productsSummary}">
-                                        ${row.productsSummary || '—'}
+                                    <td style="max-width: 250px; font-size: 0.76rem; color: var(--text-dim);" title="${prods}">
+                                        ${prods}
                                     </td>
                                 </tr>
                             `;
                         }).join('')}
                     </tbody>
                 </table>
+
+                <!-- Barra de Paginación -->
+                <div class="monitor-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: #111; border-top: 1px solid var(--border-subtle); flex-wrap: wrap; gap: 0.75rem;">
+                    <span style="font-size: 0.78rem; color: var(--text-muted); font-family: var(--font-mono);">
+                        Mostrando <strong>${totalAuditOrders > 0 ? startIdx + 1 : 0} - ${Math.min(startIdx + AUDIT_PAGE_SIZE, totalAuditOrders)}</strong> de <strong>${totalAuditOrders}</strong> pedidos · Página <strong>${auditPage}</strong> de <strong>${totalPages}</strong>
+                    </span>
+                    <div style="display: flex; gap: 0.4rem; align-items: center;">
+                        <button class="btn btn--secondary btn--sm" id="btn-audit-prev" ${auditPage <= 1 ? 'disabled style="opacity: 0.4; cursor: not-allowed;"' : ''}>
+                            ◀ Anterior
+                        </button>
+                        <span style="padding: 0.25rem 0.65rem; font-family: var(--font-mono); font-size: 0.8rem; background: #000; border-radius: 4px; border: 1px solid var(--border-subtle); color: var(--color-primary); font-weight: 800;">
+                            ${auditPage} / ${totalPages}
+                        </span>
+                        <button class="btn btn--secondary btn--sm" id="btn-audit-next" ${auditPage >= totalPages ? 'disabled style="opacity: 0.4; cursor: not-allowed;"' : ''}>
+                            Siguiente ▶
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     `;
@@ -727,10 +802,26 @@ async function renderAuditView(main, container) {
         await executeExcelExport(container);
     });
 
+    // Paginación anterior / siguiente
+    main.querySelector('#btn-audit-prev')?.addEventListener('click', () => {
+        if (auditPage > 1) {
+            auditPage--;
+            renderAuditView(main, container);
+        }
+    });
+
+    main.querySelector('#btn-audit-next')?.addEventListener('click', () => {
+        if (auditPage < totalPages) {
+            auditPage++;
+            renderAuditView(main, container);
+        }
+    });
+
     // Filtros de nivel de demora
     main.querySelectorAll('.btn-audit-filter').forEach(btn => {
         btn.addEventListener('click', (e) => {
             auditFilterDelay = e.currentTarget.dataset.delay;
+            auditPage = 1;
             renderAuditView(main, container);
         });
     });
@@ -741,6 +832,7 @@ async function renderAuditView(main, container) {
         clearTimeout(searchDebounce);
         searchDebounce = setTimeout(() => {
             auditSearch = e.target.value;
+            auditPage = 1;
             renderAuditView(main, container);
         }, 200);
     });
@@ -749,9 +841,6 @@ async function renderAuditView(main, container) {
     await initHourlyChart(auditKitchenData);
 }
 
-// ============================================================
-// Inicialización del Gráfico Chart.js
-// ============================================================
 async function initHourlyChart(kitchenData) {
     try {
         const ChartClass = await ensureChartJS();
@@ -932,6 +1021,7 @@ function setupEventListeners(container) {
         btn.addEventListener('click', async (e) => {
             const period = e.currentTarget.dataset.period;
             selectedPeriod = period;
+auditPage = 1;
 
             container.querySelectorAll('.monitor-period-btn').forEach(b => b.classList.remove('active'));
             e.currentTarget.classList.add('active');
@@ -957,6 +1047,7 @@ function setupEventListeners(container) {
         }
         customStartDate = fromVal;
         customEndDate = toVal;
+auditPage = 1;
         await loadMonitorData(container);
         showToast({ message: `Rango aplicado: ${customStartDate} al ${customEndDate}`, type: 'info' });
     });
