@@ -7,6 +7,7 @@ export function renderSidebar(containerId, currentRoute, cashRegisterStatus) {
     const navItems = [
         { path: '#/ventas', icon: 'shopping-cart', label: 'Ventas (POS)' },
         { path: '#/ordenes', icon: 'clipboard-list', label: 'Órdenes' },
+        { path: '#/cocina', icon: 'flame', label: 'Monitor Cocina' },
         { path: '#/dashboard', icon: 'bar-chart-3', label: 'Dashboard' },
         { path: '#/menu', icon: 'utensils', label: 'Menú' },
         { path: '#/caja', icon: 'wallet', label: 'Caja' },

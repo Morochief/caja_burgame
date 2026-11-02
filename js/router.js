@@ -8,6 +8,7 @@ const routes = {
     '#/dashboard': () => import('./pages/dashboard.js').then(m => m.renderDashboardPage()),
     '#/ventas': () => import('./pages/ventas.js').then(m => m.renderVentasPage()),
     '#/ordenes': () => import('./pages/ordenes.js').then(m => m.renderOrdenesPage()),
+    '#/cocina': () => import('./pages/cocina-monitor.js').then(m => m.renderCocinaMonitorPage()),
     '#/menu': () => import('./pages/menu.js').then(m => m.renderMenuPage()),
     '#/caja': () => import('./pages/caja.js').then(m => m.renderCajaPage()),
     '#/gastos': () => import('./pages/gastos.js').then(m => m.renderGastosPage()),

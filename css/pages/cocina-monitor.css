@@ -1,0 +1,702 @@
+/* ==========================================================================
+   MONITOR DE COCINA EN TIEMPO REAL & AUDITORIA DE TIEMPOS (ADMIN KDS)
+   ========================================================================== */
+
+.cocina-monitor-page {
+    animation: fadeIn 0.25s ease-out;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    padding-bottom: 2rem;
+}
+
+/* Header & Barra Superior */
+.monitor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+}
+
+.monitor-header__info h1 {
+    font-family: var(--font-title);
+    font-size: 1.25rem;
+    color: var(--color-primary);
+    text-shadow: 0 0 10px var(--color-primary-glow);
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0 0 0.3rem 0;
+}
+
+.monitor-header__info p {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+.monitor-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+/* Live Pulse Pill */
+.monitor-live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: rgba(0, 230, 118, 0.12);
+    border: 1px solid var(--color-success);
+    color: var(--color-success);
+    padding: 0.35rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.monitor-live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-success);
+    box-shadow: 0 0 8px var(--color-success);
+    animation: pulseGlow 1.4s infinite alternate;
+}
+
+/* Toolbar de Filtros y Rango de Fechas */
+.monitor-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+}
+
+.monitor-period-selectors {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.monitor-period-btn {
+    padding: 0.45rem 0.85rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    border-radius: 6px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-card-hover);
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.monitor-period-btn:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+.monitor-period-btn.active {
+    background: var(--color-primary);
+    color: #000;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 10px var(--color-primary-glow);
+}
+
+.monitor-custom-dates {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-subtle);
+}
+
+.monitor-date-input {
+    background: #000;
+    border: 1px solid var(--border-subtle);
+    color: var(--text-main);
+    padding: 0.35rem 0.55rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-family: var(--font-mono);
+}
+
+.monitor-date-input:focus {
+    border-color: var(--color-primary);
+    outline: none;
+}
+
+/* Grid de KPIs */
+.monitor-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.monitor-kpi-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 1rem 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.monitor-kpi-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 215, 0, 0.3);
+}
+
+.monitor-kpi-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--text-muted);
+    font-size: 0.76rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.monitor-kpi-card__value {
+    font-size: 1.65rem;
+    font-weight: 800;
+    font-family: var(--font-mono);
+    color: var(--text-main);
+    line-height: 1.2;
+}
+
+.monitor-kpi-card__value--success { color: var(--color-success); text-shadow: 0 0 10px var(--color-success-glow); }
+.monitor-kpi-card__value--warning { color: var(--color-warning); }
+.monitor-kpi-card__value--danger { color: var(--color-danger); text-shadow: 0 0 10px var(--color-danger-glow); }
+.monitor-kpi-card__value--gold { color: var(--color-primary); text-shadow: 0 0 10px var(--color-primary-glow); }
+
+.monitor-kpi-card__subtext {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+}
+
+/* Sub-Pestañas: En Vivo vs Auditoría Histórica */
+.monitor-tabs {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 2px solid var(--border-subtle);
+    padding-bottom: 0.2rem;
+}
+
+.monitor-tab-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    font-weight: 700;
+    padding: 0.6rem 1.1rem;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.monitor-tab-btn:hover {
+    color: var(--text-main);
+}
+
+.monitor-tab-btn.active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+    text-shadow: 0 0 8px var(--color-primary-glow);
+}
+
+.monitor-tab-count {
+    background: var(--bg-card-hover);
+    color: var(--text-main);
+    padding: 0.15rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.72rem;
+    font-family: var(--font-mono);
+}
+
+.monitor-tab-btn.active .monitor-tab-count {
+    background: var(--color-primary);
+    color: #000;
+    font-weight: 800;
+}
+
+/* Sub-Filtros de Comandas en Vivo */
+.monitor-live-subfilters {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.monitor-subfilter-btn {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.74rem;
+    font-weight: 700;
+    border-radius: 20px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-card);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.monitor-subfilter-btn:hover {
+    color: var(--text-main);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.monitor-subfilter-btn.active {
+    background: var(--bg-elevated);
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+/* Grid de Tarjetas de Comandas Activas (Mesa de Control) */
+.monitor-orders-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.25rem;
+}
+
+.monitor-ticket-card {
+    background: #0D0D0D;
+    border: 2px solid #222;
+    border-radius: 8px;
+    box-shadow: 4px 4px 0px #000;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.monitor-ticket-card:hover {
+    transform: translateY(-2px);
+    border-color: #333;
+}
+
+/* Bordes y glows por estado */
+.monitor-ticket-card--ordered {
+    border-color: var(--color-primary);
+    box-shadow: 4px 4px 0px #000, 0 0 14px var(--color-primary-glow);
+}
+
+.monitor-ticket-card--preparing {
+    border-color: var(--color-warning);
+    box-shadow: 4px 4px 0px #000, 0 0 14px rgba(255, 145, 0, 0.4);
+}
+
+.monitor-ticket-card--ready {
+    border-color: var(--color-success);
+    box-shadow: 4px 4px 0px #000, 0 0 14px var(--color-success-glow);
+}
+
+.monitor-ticket-card--late {
+    border-color: var(--color-danger) !important;
+    animation: lateBorderPulse 1s infinite alternate;
+}
+
+@keyframes lateBorderPulse {
+    from { box-shadow: 4px 4px 0px #000, 0 0 8px rgba(255, 61, 113, 0.4); }
+    to { box-shadow: 4px 4px 0px #000, 0 0 20px rgba(255, 61, 113, 0.85); }
+}
+
+/* Encabezado del Ticket */
+.monitor-ticket-header {
+    background: #151515;
+    padding: 0.75rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 1px solid #222;
+}
+
+.monitor-ticket-id {
+    font-family: var(--font-title);
+    font-size: 0.82rem;
+    color: var(--color-primary);
+}
+
+.monitor-ticket-customer {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #FFF;
+    margin-top: 0.2rem;
+}
+
+.monitor-ticket-modality {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-top: 0.3rem;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-main);
+}
+
+/* Reloj SLA */
+.monitor-ticket-timer {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+}
+
+.monitor-sla-badge {
+    font-family: var(--font-mono);
+    font-weight: 800;
+    font-size: 0.78rem;
+    padding: 0.25rem 0.55rem;
+    border-radius: 4px;
+    border: 1px solid #333;
+    background: #000;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.monitor-sla-badge--optimal { color: var(--color-success); border-color: var(--color-success); }
+.monitor-sla-badge--warning { color: var(--color-warning); border-color: var(--color-warning); }
+.monitor-sla-badge--late {
+    color: var(--color-danger);
+    border-color: var(--color-danger);
+    background: rgba(255, 61, 113, 0.15);
+    animation: latePulse 0.8s infinite alternate;
+}
+
+.monitor-ticket-order-time {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
+/* Cuerpo del Ticket: Items */
+.monitor-ticket-body {
+    padding: 0.85rem 1rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.monitor-ticket-items-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.monitor-ticket-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    font-size: 0.85rem;
+    line-height: 1.3;
+}
+
+.monitor-item-qty {
+    background: var(--color-primary-dim);
+    color: var(--color-primary);
+    border: 1px solid var(--border-gold);
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-weight: 800;
+    font-size: 0.75rem;
+    padding: 0.15rem 0.4rem;
+    min-width: 22px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.monitor-item-details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.monitor-item-name {
+    font-weight: 700;
+    color: #EEE;
+}
+
+.monitor-item-note {
+    font-size: 0.74rem;
+    color: #FFD700;
+    background: rgba(255, 215, 0, 0.08);
+    border-left: 2px solid #FFD700;
+    padding: 0.2rem 0.4rem;
+    margin-top: 0.25rem;
+    border-radius: 0 3px 3px 0;
+}
+
+/* Desglose de Espera (Cola vs Plancha) */
+.monitor-ticket-timeline-split {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.45rem 0.6rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 0.72rem;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+}
+
+.monitor-timeline-step {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+/* Footer del Ticket: Acciones de Control */
+.monitor-ticket-footer {
+    padding: 0.75rem 1rem;
+    background: #151515;
+    border-top: 1px solid #222;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.monitor-btn-action {
+    flex: 1;
+    padding: 0.55rem;
+    font-size: 0.75rem;
+    font-weight: 800;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    transition: all 0.2s ease;
+}
+
+.monitor-btn-action--start {
+    background: #FF9100;
+    color: #000;
+    border-color: #FF9100;
+}
+.monitor-btn-action--start:hover {
+    background: #FFA726;
+    box-shadow: 0 0 10px rgba(255, 145, 0, 0.5);
+}
+
+.monitor-btn-action--ready {
+    background: #00E676;
+    color: #000;
+    border-color: #00E676;
+}
+.monitor-btn-action--ready:hover {
+    background: #69F0AE;
+    box-shadow: 0 0 10px rgba(0, 230, 118, 0.5);
+}
+
+.monitor-btn-action--deliver {
+    background: var(--color-primary);
+    color: #000;
+    border-color: var(--color-primary);
+}
+.monitor-btn-action--deliver:hover {
+    background: #FFE44D;
+    box-shadow: 0 0 10px var(--color-primary-glow);
+}
+
+/* Empty State */
+.monitor-empty-state {
+    grid-column: 1 / -1;
+    background: var(--bg-card);
+    border: 2px dashed var(--border-subtle);
+    border-radius: 8px;
+    padding: 3rem 1.5rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.85rem;
+}
+
+.monitor-empty-icon {
+    font-size: 3rem;
+    filter: drop-shadow(0 0 12px var(--color-primary-glow));
+}
+
+.monitor-empty-title {
+    font-family: var(--font-title);
+    font-size: 1rem;
+    color: var(--color-primary);
+    margin: 0;
+}
+
+.monitor-empty-desc {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    max-width: 450px;
+    margin: 0;
+}
+
+/* ============================================================
+   SECCION HISTORICO & AUDITORIA DE TIEMPOS
+   ============================================================ */
+.monitor-audit-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.monitor-charts-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.25rem;
+}
+
+@media (max-width: 900px) {
+    .monitor-charts-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.monitor-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.monitor-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.monitor-card-title {
+    font-family: var(--font-title);
+    font-size: 0.85rem;
+    color: var(--color-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+}
+
+.monitor-chart-wrapper {
+    position: relative;
+    height: 240px;
+    width: 100%;
+}
+
+/* Diagnostico Cards */
+.monitor-diagnosis-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.monitor-diagnosis-item {
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    line-height: 1.4;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+}
+
+.monitor-diagnosis-item--warning {
+    background: rgba(255, 145, 0, 0.08);
+    border: 1px solid rgba(255, 145, 0, 0.3);
+    color: #FFB74D;
+}
+
+.monitor-diagnosis-item--danger {
+    background: rgba(255, 61, 113, 0.08);
+    border: 1px solid rgba(255, 61, 113, 0.3);
+    color: #FF8A80;
+}
+
+.monitor-diagnosis-item--success {
+    background: rgba(0, 230, 118, 0.08);
+    border: 1px solid rgba(0, 230, 118, 0.3);
+    color: #B9F6CA;
+}
+
+/* Tabla de Auditoria de Comandas */
+.monitor-table-wrapper {
+    overflow-x: auto;
+    border-radius: 6px;
+    border: 1px solid var(--border-subtle);
+}
+
+.monitor-audit-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+}
+
+.monitor-audit-table th {
+    background: #151515;
+    color: var(--color-primary);
+    padding: 0.65rem 0.75rem;
+    text-align: left;
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--border-gold);
+    white-space: nowrap;
+}
+
+.monitor-audit-table td {
+    padding: 0.65rem 0.75rem;
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-main);
+}
+
+.monitor-audit-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.monitor-badge-sla {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    font-family: var(--font-mono);
+    text-align: center;
+    white-space: nowrap;
+}
+
+.monitor-badge-sla--optimal { background: rgba(0, 230, 118, 0.15); color: #00E676; border: 1px solid #00E676; }
+.monitor-badge-sla--normal { background: rgba(0, 229, 255, 0.15); color: #00E5FF; border: 1px solid #00E5FF; }
+.monitor-badge-sla--delayed { background: rgba(255, 145, 0, 0.15); color: #FF9100; border: 1px solid #FF9100; }
+.monitor-badge-sla--critical { background: rgba(255, 61, 113, 0.15); color: #FF3D71; border: 1px solid #FF3D71; }
